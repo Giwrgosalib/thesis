@@ -18,6 +18,7 @@
   border-radius: 12px;
   overflow: hidden;
   background-color: #ffffff;
+  transition: height 0.3s ease; /* Smooth height transition */
 }
 
 .header {
@@ -26,12 +27,15 @@
   border-bottom: 1px solid #e0e0e0;
 }
 
+
 .chat-history {
+  transition: height 0.3s ease; /* Smooth height transition */
   flex: 1;
   overflow-y: auto;
   padding: 16px;
   max-height: 300px;
   background-color: #ffffff;
+  margin: 10px;
 }
 
 .user {
@@ -142,16 +146,30 @@
   }
 }
 
+/* Fade and Slide Animation */
+.fade-slide-enter-active,
+.fade-slide-leave-active {
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.fade-slide-enter-from,
+.fade-slide-leave-to {
+  opacity: 0;
+  transform: translateY(20px);
+}
+
+.fade-slide-enter-to,
+.fade-slide-leave-from {
+  opacity: 1;
+  transform: translateY(0);
+}
+
 .v-btn::before {
   background-color: transparent;
 }
 
 .v-btn__overlay { 
   background-color: transparent 
-}
-
-.v-ripple__container {
-  background-color: transparent;
 }
 
 .v-btn::after {

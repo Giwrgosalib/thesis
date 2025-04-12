@@ -2,9 +2,6 @@
   <div>
     <!-- Floating Button -->
     <v-btn
-      fab
-      dark
-      color="grey lighten-2"
       class="chat-fab hover:scale-105 transition-transform duration-200"
       @click="toggleChat"
     >
@@ -18,7 +15,8 @@
     </v-btn>
 
     <!-- Chat Widget -->
-    <v-slide-y-transition>
+
+    <transition name="fade-slide">
       <v-card v-if="isChatOpen" class="chat-card">
         <!-- Header -->
         <v-card-title class="d-flex align-center header">
@@ -37,14 +35,18 @@
           <div v-if="showWelcomeMessage" class="ai">
             <v-card class="message-bubble ai">
               <v-card-text>
-                <div class="message-content">
+                <div v-if="isFirstMessageLoading" class="typing-indicator">
+                  <span></span>
+                  <span></span>
+                  <span></span>
+                </div>
+                <div v-else class="message-content">
                   <p>Hello! How can I assist you today?</p>
-                  <small class="timestamp">{{ getCurrentTimestamp() }}</small>
+                  <small class="timestamp">{{ welcomeMessageTimestamp }}</small>
                 </div>
               </v-card-text>
             </v-card>
           </div>
-
           <!-- Messages -->
           <div
             v-for="(message, index) in messages"
@@ -89,7 +91,7 @@
           </v-btn>
         </v-card-actions>
       </v-card>
-    </v-slide-y-transition>
+    </transition>
   </div>
 </template>
 
@@ -103,6 +105,8 @@ export default {
       isTyping: false,
       isLoading: false,
       showWelcomeMessage: false, // Controls visibility of the welcome message
+      isFirstMessageLoading: true, // Controls loading state for the first message
+      welcomeMessageTimestamp: "", // Timestamp for the welcome message // Controls visibility of the welcome message
     };
   },
   methods: {
@@ -116,54 +120,66 @@ export default {
         timestamp: this.getCurrentTimestamp(), // Add timestamp
       });
 
-      // Clear input
-      this.userInput = "";
-
       // Simulate AI typing
       this.isTyping = true;
       this.isLoading = true;
-
       // Simulate API call delay
-      setTimeout(async () => {
-        try {
-          const response = await this.$axios.post(
-            "http://localhost:5000/api/recommendations",
-            {
-              query: this.userInput,
-            }
-          );
-
-          // Add AI's response to chat history
-          this.messages.push({
-            sender: "ai",
-            text: response.data.recommendations,
-            timestamp: this.getCurrentTimestamp(), // Add timestamp
-          });
-        } catch (error) {
-          console.error("Error fetching recommendations:", error);
-          this.messages.push({
-            sender: "ai",
-            text: "Sorry, something went wrong. Please try again.",
-            timestamp: this.getCurrentTimestamp(), // Add timestamp
-          });
+      try {
+        const response = await fetch("http://localhost:5000/api/search", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type, Authorization",
+          },
+          body: JSON.stringify({ query: this.userInput }),
+        });
+        if (!response.ok) {
+          throw new Error("Failed to fetch recommendations");
         }
+        this.userInput = ""; // Clear the input field
+        const data = await response.json();
 
-        // Reset states
-        this.isTyping = false;
-        this.isLoading = false;
-      }, 1500); // Simulate a 1.5-second delay
+        // Add AI's response to chat history
+        this.messages.push({
+          sender: "ai",
+          text: data.data.recommendations,
+          timestamp: this.getCurrentTimestamp(), // Add timestamp
+        });
+      } catch (error) {
+        console.error("Error fetching recommendations:", error);
+        this.messages.push({
+          sender: "ai",
+          text: "Sorry, something went wrong. Please try again.",
+          timestamp: this.getCurrentTimestamp(), // Add timestamp
+        });
+      }
+
+      // Reset states
+      this.isTyping = false;
+      this.isLoading = false;
+      // Simulate a 1.5-second delay
     },
     toggleChat() {
       this.isChatOpen = !this.isChatOpen;
       if (this.isChatOpen && !this.showWelcomeMessage) {
         // Show welcome message only once when the chat is opened
         this.showWelcomeMessage = true;
+        this.simulateFirstMessageLoading();
       }
     },
     getCurrentTimestamp() {
       // Get current time in HH:MM format
       const now = new Date();
       return now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    },
+    simulateFirstMessageLoading() {
+      // Simulate loading for the first message
+      setTimeout(() => {
+        this.isFirstMessageLoading = false;
+        this.welcomeMessageTimestamp = this.getCurrentTimestamp();
+      }, 2000); // Simulate a 2-second delay
     },
   },
 };
