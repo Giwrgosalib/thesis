@@ -1,0 +1,18 @@
+{
+  "total_queries": 2,
+  "unique_intents": 1,
+  "entity_distribution": {
+    "PRODUCT_TYPE": 2,
+    "PRICE_RANGE": 2
+  },
+  "intent_distribution": {
+    "buy_laptop": 2
+  },
+  "avg_query_length": 6.0,
+  "avg_entities_per_query": 2.0,
+  "price_range_patterns": {
+    "under": 2,
+    "over": 0,
+    "between": 0
+  }
+}

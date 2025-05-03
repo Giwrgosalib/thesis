@@ -1,7 +1,11 @@
 flask==2.0.1
 pandas==2.2.3
-scikit-learn==0.24.2
 numpy==2.2.4
 python-dotenv==1.1.0
 spacy==3.8.5
 flask_cors==5.0.1
+pymongo==4.8.0
+Werkzeug<2.1
+seaborn==0.13.2
+matplotlib==3.10.1
+scikit-learn==1.6.1

@@ -1,0 +1,10 @@
+{
+  "total_users": 4,
+  "top_brands": {},
+  "top_categories": {
+    "gaming laptop": 3,
+    "laptop": 2,
+    "i phone": 1
+  },
+  "avg_queries_per_user": 1.5
+}

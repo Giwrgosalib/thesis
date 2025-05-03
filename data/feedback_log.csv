@@ -1,0 +1,3 @@
+query,intent,entities
+i need a gaming laptop under 500,buy_laptop,"[(16, 22, 'PRODUCT_TYPE'), (23, 32, 'PRICE_RANGE')]"
+a gaming laptop under 2000$,buy_laptop,"[(2, 15, 'PRODUCT_TYPE'), (16, 27, 'PRICE_RANGE')]"

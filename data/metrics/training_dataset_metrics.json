@@ -1,0 +1,39 @@
+{
+  "dataset_size": 1190,
+  "unique_intents": 36,
+  "unique_entity_types": 201,
+  "top_intents": {
+    "buy_electronics": 147,
+    "buy_accessories": 65,
+    "buy_instrument": 58,
+    "buy_computer_parts": 50,
+    "buy_headphones": 49,
+    "buy_camera": 48,
+    "buy_clothing": 48,
+    "buy_appliance": 48,
+    "buy_sports_equipment": 47,
+    "buy_shoes": 45
+  },
+  "top_entity_types": {
+    "PRODUCT_TYPE": 969,
+    "BRAND": 644,
+    "MODEL": 496,
+    "FEATURE": 356,
+    "SIZE": 252,
+    "COLOR": 218,
+    "MATERIAL": 199,
+    "TECH": 121,
+    "PRICE_RANGE": 114,
+    "CONDITION": 112
+  },
+  "avg_query_length": 7.35126050420168,
+  "avg_entities_per_query": 4.397478991596639,
+  "price_range_queries": 114,
+  "price_range_percent": 9.57983193277311,
+  "price_range_patterns": {
+    "under": 93,
+    "over": 5,
+    "between": 7,
+    "other": 9
+  }
+}
