@@ -14,7 +14,7 @@
     "core-js": "^3.8.3",
     "roboto-fontface": "*",
     "vue": "^3.2.13",
-    "vuetify": "^3.0.0-beta.0",
+    "vuetify": "^3.8.3",
     "webfontloader": "^1.0.0"
   },
   "devDependencies": {
@@ -30,8 +30,6 @@
     "eslint-plugin-vue": "^8.0.3",
     "postcss": "^8.5.3",
     "prettier": "^2.4.1",
-    "tailwindcss": "^4.0.14",
-    "vue-cli-plugin-vuetify": "~2.5.8",
-    "webpack-plugin-vuetify": "^2.0.0-alpha.0"
+    "tailwindcss": "^4.0.14"
   }
 }

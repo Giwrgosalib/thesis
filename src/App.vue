@@ -1,7 +1,5 @@
 <template>
-  <v-app>
-    <ChatBox />
-  </v-app>
+  <ChatBox />
 </template>
 
 <script>

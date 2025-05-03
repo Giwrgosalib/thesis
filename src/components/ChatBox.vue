@@ -1,142 +1,138 @@
 <template>
-  <div>
-    <!-- Floating Button -->
-    <v-btn
-      class="chat-fab hover:scale-105 transition-transform duration-200"
-      @click="toggleChat"
-    >
-      <!-- eBay Logo as Text -->
-      <div class="ebay-logo">
-        <span class="e">e</span>
-        <span class="b">b</span>
-        <span class="a">a</span>
-        <span class="y">y</span>
-      </div>
-    </v-btn>
+  <!-- Only the button is visible when chat is closed -->
+  <v-btn
+    class="chat-fab hover:scale-105 transition-transform duration-200"
+    @click="toggleChat"
+  >
+    <div class="ebay-logo">
+      <span class="e">e</span>
+      <span class="b">b</span>
+      <span class="a">a</span>
+      <span class="y">y</span>
+    </div>
+  </v-btn>
 
-    <!-- Chat Widget -->
+  <!-- Chat Widget -->
+  <transition name="fade-slide">
+    <v-card v-if="isChatOpen" class="chat-card">
+      <!-- Header -->
+      <v-card-title class="d-flex align-center header">
+        <div class="ebay-logo">
+          <span class="e">e</span>
+          <span class="b">b</span>
+          <span class="a">a</span>
+          <span class="y">y</span>
+          <span class="text-subtitle-1 ml-2">AI Recommender</span>
+        </div>
+      </v-card-title>
 
-    <transition name="fade-slide">
-      <v-card v-if="isChatOpen" class="chat-card">
-        <!-- Header -->
-        <v-card-title class="d-flex align-center header">
-          <div class="ebay-logo">
-            <span class="e">e</span>
-            <span class="b">b</span>
-            <span class="a">a</span>
-            <span class="y">y</span>
-            <span class="text-subtitle-1 ml-2">AI Recommender</span>
-          </div>
-        </v-card-title>
-
-        <!-- Chat History -->
-        <v-card-text class="chat-history">
-          <!-- Welcome Message -->
-          <div v-if="showWelcomeMessage" class="ai">
-            <v-card class="message-bubble ai">
-              <v-card-text>
-                <div v-if="isFirstMessageLoading" class="typing-indicator">
-                  <span></span>
-                  <span></span>
-                  <span></span>
-                </div>
-                <div v-else class="message-content">
-                  <p>
-                    Hello! How can I assist you with finding products on eBay
-                    today?
+      <!-- Chat History -->
+      <v-card-text class="chat-history">
+        <!-- Welcome Message -->
+        <div v-if="showWelcomeMessage" class="ai">
+          <v-card class="message-bubble ai">
+            <v-card-text>
+              <div v-if="isFirstMessageLoading" class="typing-indicator">
+                <span></span>
+                <span></span>
+                <span></span>
+              </div>
+              <div v-else class="message-content">
+                <p>
+                  Hello! How can I assist you with finding products on eBay
+                  today?
+                </p>
+                <small class="timestamp">{{ welcomeMessageTimestamp }}</small>
+              </div>
+            </v-card-text>
+          </v-card>
+        </div>
+        <!-- Messages -->
+        <div
+          v-for="(message, index) in messages"
+          :key="index"
+          :class="message.sender"
+        >
+          <v-card :class="['message-bubble', message.sender]">
+            <v-card-text>
+              <div class="message-content">
+                <p v-if="!message.isProductResults">{{ message.text }}</p>
+                <div v-else class="product-results">
+                  <p class="mb-2">
+                    Here are some products that match your search:
                   </p>
-                  <small class="timestamp">{{ welcomeMessageTimestamp }}</small>
-                </div>
-              </v-card-text>
-            </v-card>
-          </div>
-          <!-- Messages -->
-          <div
-            v-for="(message, index) in messages"
-            :key="index"
-            :class="message.sender"
-          >
-            <v-card :class="['message-bubble', message.sender]">
-              <v-card-text>
-                <div class="message-content">
-                  <p v-if="!message.isProductResults">{{ message.text }}</p>
-                  <div v-else class="product-results">
-                    <p class="mb-2">
-                      Here are some products that match your search:
-                    </p>
-                    <div
-                      v-for="(product, idx) in message.products"
-                      :key="idx"
-                      class="product-card mb-3"
-                    >
-                      <div class="d-flex">
-                        <img
-                          v-if="product.image && product.image.imageUrl"
-                          :src="product.image.imageUrl"
-                          class="product-image mr-2"
-                          alt="Product image"
-                        />
-                        <div>
-                          <div class="product-title">{{ product.title }}</div>
-                          <div class="product-price">
-                            ${{ product.price.value }}
-                            {{ product.price.currency }}
-                          </div>
-                          <div class="product-condition">
-                            {{ product.condition }}
-                          </div>
-                          <a
-                            :href="product.publicUrl"
-                            target="_blank"
-                            class="product-link"
-                            >View on eBay</a
-                          >
+                  <div
+                    v-for="(product, idx) in message.products"
+                    :key="idx"
+                    class="product-card mb-3"
+                  >
+                    <div class="d-flex">
+                      <img
+                        v-if="product.image && product.image.imageUrl"
+                        :src="product.image.imageUrl"
+                        class="product-image mr-2"
+                        alt="Product image"
+                      />
+                      <div>
+                        <div class="product-title">{{ product.title }}</div>
+                        <div class="product-price">
+                          ${{ product.price.value }}
+                          {{ product.price.currency }}
                         </div>
+                        <div class="product-condition">
+                          {{ product.condition }}
+                        </div>
+                        <a
+                          :href="product.publicUrl"
+                          target="_blank"
+                          class="product-link"
+                          >View on eBay</a
+                        >
                       </div>
                     </div>
                   </div>
-                  <small class="timestamp">{{ message.timestamp }}</small>
                 </div>
-              </v-card-text>
-            </v-card>
-          </div>
+                <small class="timestamp">{{ message.timestamp }}</small>
+              </div>
+            </v-card-text>
+          </v-card>
+        </div>
 
-          <!-- Typing Indicator -->
-          <div v-if="isTyping" class="ai">
-            <v-card class="message-bubble ai">
-              <v-card-text>
-                <div class="typing-indicator">
-                  <span></span>
-                  <span></span>
-                  <span></span>
-                </div>
-              </v-card-text>
-            </v-card>
-          </div>
-        </v-card-text>
+        <!-- Typing Indicator -->
+        <div v-if="isTyping" class="ai">
+          <v-card class="message-bubble ai">
+            <v-card-text>
+              <div class="typing-indicator">
+                <span></span>
+                <span></span>
+                <span></span>
+              </div>
+            </v-card-text>
+          </v-card>
+        </div>
+      </v-card-text>
 
-        <!-- Input Area -->
-        <v-card-actions class="chat-input">
-          <v-text-field
-            v-model="userInput"
-            placeholder="Type your query..."
-            outlined
-            dense
-            hide-details
-            color="primary"
-            single-line
-            auto-grow
-            rows="1"
-            @keyup.enter="sendMessage"
-            :disabled="isLoading"
-          ></v-text-field>
-          <v-btn color="primary" @click="sendMessage" :loading="isLoading">
-            Send
-          </v-btn>
-        </v-card-actions>
-      </v-card>
-    </transition>
-  </div>
+      <!-- Input Area -->
+      <v-card-actions class="chat-input">
+        <v-text-field
+          v-model="userInput"
+          placeholder="Type your query..."
+          outlined
+          dense
+          hide-details
+          color="primary"
+          single-line
+          auto-grow
+          rows="1"
+          @keyup.enter="sendMessage"
+          :disabled="isLoading"
+        ></v-text-field>
+        <v-btn color="primary" @click="sendMessage" :loading="isLoading">
+          Send
+        </v-btn>
+      </v-card-actions>
+    </v-card>
+  </transition>
 </template>
 
 <script>
@@ -152,37 +148,88 @@ export default {
       isFirstMessageLoading: true, // Controls loading state for the first message
       welcomeMessageTimestamp: "", // Timestamp for the welcome message
       apiBaseUrl: "http://localhost:5000", // Base URL for API
+      userId: null, // Add userId property
     };
   },
+  // Add created() lifecycle hook to get userId on component creation
+  async created() {
+    this.userId = await this.getUserId(); // Fetch userId when component is created
+    console.log("User ID:", this.userId); // For debugging
+  },
   methods: {
+    // --- Placeholder function for getting userId ---
+    // Replace this with your actual implementation for getting the eBay user ID
+    async getUserId() {
+      // Example using chrome.identity (requires 'identity' permission in manifest.json)
+      // return new Promise((resolve) => {
+      //   if (chrome && chrome.identity && chrome.identity.getProfileUserInfo) {
+      //     chrome.identity.getProfileUserInfo({ accountStatus: 'ANY' }, (userInfo) => {
+      //       resolve(userInfo.id || `anon_${Date.now()}`); // Use Google ID or fallback
+      //     });
+      //   } else {
+      //     console.warn("chrome.identity API not available. Using fallback ID.");
+      //     resolve(`anon_${Date.now()}`); // Fallback for development or if API unavailable
+      //   }
+      // });
+
+      // --- OR --- Example using chrome.storage.local
+      // return new Promise((resolve) => {
+      //   if (chrome && chrome.storage && chrome.storage.local) {
+      //     chrome.storage.local.get(['extensionUserId'], (result) => {
+      //       if (result.extensionUserId) {
+      //         resolve(result.extensionUserId);
+      //       } else {
+      //         const newId = `extUser_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`;
+      //         chrome.storage.local.set({ extensionUserId: newId }, () => {
+      //           resolve(newId);
+      //         });
+      //       }
+      //     });
+      //   } else {
+      //      console.warn("chrome.storage API not available. Using fallback ID.");
+      //      resolve(`anon_${Date.now()}`); // Fallback
+      //   }
+      // });
+
+      // --- OR --- Simple fallback for testing without browser APIs
+      console.warn(
+        "Using placeholder getUserId. Replace with actual implementation."
+      );
+      return `testUser_${Date.now()}`; // Replace this line
+    },
+    // --- End Placeholder ---
+
     async sendMessage() {
       if (this.userInput.trim() === "") return;
 
-      // Add user's message to chat history
+      // Add user's message
       this.messages.push({
         sender: "user",
         text: this.userInput,
         timestamp: this.getCurrentTimestamp(),
       });
 
-      // Store the query for API call
       const query = this.userInput;
-
-      // Clear the input field
       this.userInput = "";
-
-      // Show typing indicator
       this.isTyping = true;
       this.isLoading = true;
 
       try {
-        // Make API call to the correct endpoint
+        // Prepare request body, including userId if available
+        const requestBody = {
+          query: query,
+        };
+        if (this.userId) {
+          requestBody.userId = this.userId; // Add userId to the request body
+        }
+
         const response = await fetch(`${this.apiBaseUrl}/search`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ query: query }),
+          // Send the body including the userId
+          body: JSON.stringify(requestBody),
         });
 
         if (!response.ok) {
@@ -191,18 +238,17 @@ export default {
 
         const data = await response.json();
 
-        // Check if we have results
-        if (data.results && data.results.length > 0) {
-          // Add AI's response with product results
+        // Handle response (same as before)
+        if (data && data.length > 0) {
+          // Assuming backend returns a list directly now
           this.messages.push({
             sender: "ai",
             isProductResults: true,
-            products: data.results.slice(0, 5), // Show top 5 results
-            text: `I found ${data.results_count} products matching your search.`,
+            products: data.slice(0, 5), // Show top 5 results
+            text: `I found some products matching your search.`, // Adjusted text
             timestamp: this.getCurrentTimestamp(),
           });
         } else {
-          // No results found
           this.messages.push({
             sender: "ai",
             text: "I couldn't find any products matching your search. Could you try a different query?",
@@ -211,15 +257,12 @@ export default {
         }
       } catch (error) {
         console.error("Error fetching search results:", error);
-
-        // Add error message to chat
         this.messages.push({
           sender: "ai",
           text: "Sorry, I encountered an error while searching. Please try again later.",
           timestamp: this.getCurrentTimestamp(),
         });
       } finally {
-        // Hide typing indicator and loading state
         this.isTyping = false;
         this.isLoading = false;
       }
@@ -228,24 +271,25 @@ export default {
     toggleChat() {
       this.isChatOpen = !this.isChatOpen;
       if (this.isChatOpen && !this.showWelcomeMessage) {
-        // Show welcome message only once when the chat is opened
         this.showWelcomeMessage = true;
         this.simulateFirstMessageLoading();
+        // Optionally try to get userId again if it wasn't available initially
+        if (!this.userId) {
+          this.created(); // Re-run the created logic to try fetching userId
+        }
       }
     },
 
     getCurrentTimestamp() {
-      // Get current time in HH:MM format
       const now = new Date();
       return now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
     },
 
     simulateFirstMessageLoading() {
-      // Simulate loading for the first message
       setTimeout(() => {
         this.isFirstMessageLoading = false;
         this.welcomeMessageTimestamp = this.getCurrentTimestamp();
-      }, 1000); // Reduced to 1-second delay for better UX
+      }, 1000);
     },
   },
 };
