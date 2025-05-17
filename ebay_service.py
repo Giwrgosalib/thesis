@@ -451,3 +451,18 @@ class EBayService:
         # Could add more preferences here (material, style, etc.)
 
         return enhanced_intent
+
+    def update_user_preferences(self, user_id: str, preferences: Dict) -> bool:
+        """Updates user preferences in MongoDB."""
+        if self.preferences_collection is None or not user_id:
+            return False
+        try:
+            self.preferences_collection.update_one(
+                {'user_id': user_id},
+                {'$set': preferences},
+                upsert=True
+            )
+            return True
+        except Exception as e:
+            logger.error(f"Error updating preferences for user {user_id}: {e}")
+            return False
