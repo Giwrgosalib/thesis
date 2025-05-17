@@ -1,3 +1,4 @@
+<!-- eslint-disable prettier/prettier -->
 <template>
   <!-- Only the button is visible when chat is closed -->
   <v-btn
@@ -14,7 +15,8 @@
 
   <!-- Chat Widget -->
   <transition name="fade-slide">
-    <v-card v-if="isChatOpen" class="chat-card">
+    <!-- The existing chat card when logged in -->
+    <v-card v-if="isChatOpen && loggedIn" class="chat-card">
       <!-- Header -->
       <v-card-title class="d-flex align-center header">
         <div class="ebay-logo">
@@ -71,7 +73,7 @@
                         v-if="product.image && product.image.imageUrl"
                         :src="product.image.imageUrl"
                         class="product-image mr-2"
-                        alt="Product image"
+                        alt="Product"
                       />
                       <div>
                         <div class="product-title">{{ product.title }}</div>
@@ -132,11 +134,44 @@
         </v-btn>
       </v-card-actions>
     </v-card>
+
+    <!-- New login required card when NOT logged in -->
+    <v-card v-else-if="isChatOpen && !loggedIn" class="chat-card login-card">
+      <!-- Header without AI Recommender text -->
+      <v-card-title class="d-flex align-center header">
+        <div class="ebay-logo">
+          <span class="e">e</span>
+          <span class="b">b</span>
+          <span class="a">a</span>
+          <span class="y">y</span>
+        </div>
+        <v-spacer></v-spacer>
+        <v-btn icon @click="toggleChat" class="close-btn">
+          <v-icon>mdi-close</v-icon>
+        </v-btn>
+      </v-card-title>
+
+      <!-- Login Required Content -->
+      <div class="login-required-content">
+        <v-icon size="64" color="warning" class="mb-4">mdi-account-lock</v-icon>
+        <h3 class="text-h5 mb-3">eBay Login Required</h3>
+        <p class="text-body-1 mb-4">
+          Please sign in to your eBay account to use the shopping assistant.
+        </p>
+        <v-btn @click="handleLogin" class="login-btn">
+          Sign in to eBay
+        </v-btn>
+        <p class="text-body-2 mt-4">
+          After signing in, please refresh the page or click the chat button again.
+        </p>
+      </div>
+    </v-card>
   </transition>
 </template>
-
 <script>
+import { ebayAuth } from "../services/auth.js"; // Import your eBay authentication module
 export default {
+  name: "ChatBox",
   data() {
     return {
       userInput: "",
@@ -149,56 +184,13 @@ export default {
       welcomeMessageTimestamp: "", // Timestamp for the welcome message
       apiBaseUrl: "http://localhost:5000", // Base URL for API
       userId: null, // Add userId property
+      loggedIn: false, // Add loggedIn property
     };
   },
-  // Add created() lifecycle hook to get userId on component creation
-  async created() {
-    this.userId = await this.getUserId(); // Fetch userId when component is created
-    console.log("User ID:", this.userId); // For debugging
+  mounted() {
+    this.checkEbayLoginStatus();
   },
   methods: {
-    // --- Placeholder function for getting userId ---
-    // Replace this with your actual implementation for getting the eBay user ID
-    async getUserId() {
-      // Example using chrome.identity (requires 'identity' permission in manifest.json)
-      // return new Promise((resolve) => {
-      //   if (chrome && chrome.identity && chrome.identity.getProfileUserInfo) {
-      //     chrome.identity.getProfileUserInfo({ accountStatus: 'ANY' }, (userInfo) => {
-      //       resolve(userInfo.id || `anon_${Date.now()}`); // Use Google ID or fallback
-      //     });
-      //   } else {
-      //     console.warn("chrome.identity API not available. Using fallback ID.");
-      //     resolve(`anon_${Date.now()}`); // Fallback for development or if API unavailable
-      //   }
-      // });
-
-      // --- OR --- Example using chrome.storage.local
-      // return new Promise((resolve) => {
-      //   if (chrome && chrome.storage && chrome.storage.local) {
-      //     chrome.storage.local.get(['extensionUserId'], (result) => {
-      //       if (result.extensionUserId) {
-      //         resolve(result.extensionUserId);
-      //       } else {
-      //         const newId = `extUser_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`;
-      //         chrome.storage.local.set({ extensionUserId: newId }, () => {
-      //           resolve(newId);
-      //         });
-      //       }
-      //     });
-      //   } else {
-      //      console.warn("chrome.storage API not available. Using fallback ID.");
-      //      resolve(`anon_${Date.now()}`); // Fallback
-      //   }
-      // });
-
-      // --- OR --- Simple fallback for testing without browser APIs
-      console.warn(
-        "Using placeholder getUserId. Replace with actual implementation."
-      );
-      return `testUser_${Date.now()}`; // Replace this line
-    },
-    // --- End Placeholder ---
-
     async sendMessage() {
       if (this.userInput.trim() === "") return;
 
@@ -270,13 +262,11 @@ export default {
 
     toggleChat() {
       this.isChatOpen = !this.isChatOpen;
-      if (this.isChatOpen && !this.showWelcomeMessage) {
-        this.showWelcomeMessage = true;
-        this.simulateFirstMessageLoading();
-        // Optionally try to get userId again if it wasn't available initially
-        if (!this.userId) {
-          this.created(); // Re-run the created logic to try fetching userId
-        }
+      if (this.isChatOpen) {
+        // Update login status when opening the chat.
+        // this.checkEbayLoginStatus() will set this.loggedIn and this.userId,
+        // and also handle showing the welcome message if the user is logged in.
+        this.checkEbayLoginStatus();
       }
     },
 
@@ -290,6 +280,45 @@ export default {
         this.isFirstMessageLoading = false;
         this.welcomeMessageTimestamp = this.getCurrentTimestamp();
       }, 1000);
+    },
+
+    handleLogin() {
+      ebayAuth.initiateLogin();
+      // The page will redirect to eBay, then back to your app
+    },
+
+    async checkEbayLoginStatus() {
+      try {
+        // Directly fetch status and user data in one call
+        const response = await fetch(`${this.apiBaseUrl}/auth/status`, {
+          credentials: "include", // Ensures cookies are sent
+        });
+
+        if (!response.ok) {
+          this.loggedIn = false;
+          this.userId = null;
+          return; // Exit if the request failed
+        }
+
+        const data = await response.json();
+        this.loggedIn = data.authenticated;
+
+        if (this.loggedIn) {
+          this.userId = data.userId;
+          console.log("User logged in with ID:", this.userId);
+
+          if (this.isChatOpen && !this.showWelcomeMessage) {
+            this.showWelcomeMessage = true;
+            this.simulateFirstMessageLoading();
+          }
+        } else {
+          this.userId = null;
+        }
+      } catch (error) {
+        console.error("Error in checkEbayLoginStatus:", error);
+        this.loggedIn = false;
+        this.userId = null;
+      }
     },
   },
 };
@@ -496,8 +525,6 @@ export default {
   font-weight: 500;
   font-size: 0.9rem;
   margin-bottom: 4px;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
@@ -523,5 +550,30 @@ export default {
 
 .product-link:hover {
   text-decoration: underline;
+}
+
+/* Login card styling */
+.login-card {
+  display: flex;
+  flex-direction: column;
+}
+
+.login-required-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 2rem;
+  background-color: #fff3cd12;
+}
+
+.login-btn {
+  min-width: 180px;
+}
+
+.close-btn {
+  margin-left: auto;
 }
 </style>
