@@ -182,13 +182,45 @@ export default {
       showWelcomeMessage: false, // Controls visibility of the welcome message
       isFirstMessageLoading: true, // Controls loading state for the first message
       welcomeMessageTimestamp: "", // Timestamp for the welcome message
-      apiBaseUrl: "http://localhost:5000", // Base URL for API
+      apiBaseUrl: "https://secure-openly-moth.ngrok-free.app", // Base URL for API
       userId: null, // Add userId property
       loggedIn: false, // Add loggedIn property
     };
   },
   mounted() {
-    this.checkEbayLoginStatus();
+    // Check for token in URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const token = urlParams.get("token");
+
+    if (token) {
+      // Store token in localStorage
+      localStorage.setItem("ebay_token", token);
+      // Clean URL
+      window.history.replaceState({}, document.title, window.location.pathname);
+      this.checkLoginStatus();
+    } else {
+      this.checkLoginStatus();
+    }
+
+    // Check for login redirect parameters
+    const loginParams = new URLSearchParams(window.location.search);
+    if (loginParams.get("login_success") === "true") {
+      // Force another status check after redirect
+      setTimeout(() => {
+        this.checkEbayLoginStatus();
+
+        // If we need to redirect to eBay after login
+        if (loginParams.get("ebay_redirect") === "true") {
+          window.location.href = "https://www.ebay.com/";
+        } else {
+          // Otherwise just open the chat
+          this.isChatOpen = true;
+        }
+      }, 1000);
+
+      // Clean up the URL
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
   },
   methods: {
     async sendMessage() {
@@ -282,9 +314,24 @@ export default {
       }, 1000);
     },
 
+    startPollingAuthStatus() {
+      const pollInterval = setInterval(() => {
+        this.checkEbayLoginStatus().then((status) => {
+          if (status) {
+            clearInterval(pollInterval);
+            this.isChatOpen = true;
+            this.showWelcomeMessage = true;
+            this.simulateFirstMessageLoading();
+          }
+        });
+      }, 2000);
+      // Stop polling after 30 seconds
+      setTimeout(() => clearInterval(pollInterval), 30000);
+    },
+
     handleLogin() {
       ebayAuth.initiateLogin();
-      // The page will redirect to eBay, then back to your app
+      this.startPollingAuthStatus();
     },
 
     async checkEbayLoginStatus() {
@@ -318,6 +365,23 @@ export default {
         console.error("Error in checkEbayLoginStatus:", error);
         this.loggedIn = false;
         this.userId = null;
+      }
+    },
+
+    checkLoginStatus() {
+      const token = localStorage.getItem("ebay_token");
+      if (token) {
+        // Use token in API requests
+        fetch(`${this.apiBaseUrl}/auth/status`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        })
+          .then((response) => response.json())
+          .then((data) => {
+            this.loggedIn = data.authenticated;
+            this.userId = data.userId;
+          });
       }
     },
   },

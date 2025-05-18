@@ -1,7 +1,16 @@
 export const ebayAuth = {
   // Initiate login by redirecting to the backend endpoint
   initiateLogin() {
-    window.location.href = "http://localhost:5000/auth/ebay-login";
+    const loginUrl = "http://localhost:5000/auth/ebay-login";
+    // Attempt to navigate the top-level window.
+    // This is important if your chat widget or script is running inside an iframe.
+    if (window.top) {
+      window.top.location.href = loginUrl;
+    } else {
+      // Fallback if window.top is not accessible (e.g., sandboxed iframe without allow-top-navigation)
+      // or if not in a frame.
+      window.location.href = loginUrl;
+    }
   },
 
   // Check if user is logged in by asking the backend
