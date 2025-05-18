@@ -9,3 +9,7 @@ Werkzeug<2.1
 seaborn==0.13.2
 matplotlib==3.10.1
 scikit-learn==1.6.1
+selenium==3.141.0
+requests==2.21.0
+PyYAML==5.4
+PyJWT=-2.10.1
