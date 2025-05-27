@@ -1,11 +1,11 @@
-from flask import Flask, request, jsonify, redirect, make_response
+from flask import Flask, request, jsonify, redirect, make_response, send_from_directory # Ensure send_from_directory is imported
 from flask_cors import CORS
 from custom_nlp import EBayNLP
 from ebay_service import EBayService
 import requests
 import logging
 import csv
-import os
+import os # Ensure os is imported
 from threading import Lock
 from pymongo import MongoClient  # Import MongoClient
 from pymongo.errors import ConnectionFailure
@@ -15,8 +15,8 @@ from metrics import analyze_feedback_data, analyze_user_preferences, analyze_tra
 from urllib.parse import quote_plus, urljoin  # Ensure urljoin is used for EBAY_REDIRECT_URI
 import sys
 import json  # Import json for parsing token responses
-import jwt  # Import jwt for to ken generation
 from datetime import datetime, timedelta  # Import datetime and timedelta for token expiration
+import random
 
 # Add the library's parent directory to sys.path to find the oauthclient module
 # Assuming app.py is in 'backend' and 'ebay-oauth-python-client' is also in 'backend'
@@ -30,10 +30,6 @@ from ebay_oauth_python_client.oauthclient.model.model import credentials as Ebay
 
 # Fix the CORS configuration to allow requests from your frontend
 app = Flask(__name__)
-CORS(app, 
-     origins=["http://localhost:8080", "https://secure-openly-moth.ngrok-free.app"],
-     supports_credentials=True,
-     expose_headers=["Authorization", "Content-Type"])
 load_dotenv()  # Load environment variables from .env
 
 # --- Configuration ---
@@ -49,13 +45,17 @@ EBAY_CLIENT_SECRET = os.environ.get("EBAY_CLIENT_SECRET")
 EBAY_DEV_ID = os.environ.get("EBAY_DEV_ID") # Add this to your .env file
 EBAY_RUNAME = os.environ.get("EBAY_RUNAME") # Get RuName from .env
 
-APP_BASE_URL = os.environ.get("APP_BACKEND_URL", "http://localhost:5000")
+# Use an environment variable for the app's base URL, defaulting for local development
+# This URL is where your Flask app is accessible.
+APP_BASE_URL = os.environ.get("APP_BACKEND_URL", "https://secure-openly-moth.ngrok-free.app")
 EBAY_CALLBACK_PATH = "/auth/ebay-callback"
-# This variable below is the ACTUAL URL where your app receives the callback.
-# This full URL must be registered in the eBay developer portal FOR your EBAY_RUNAME.
-YOUR_APPLICATION_CALLBACK_URL = urljoin(APP_BASE_URL, EBAY_CALLBACK_PATH) 
+# This YOUR_APPLICATION_CALLBACK_URL must be registered in your eBay app settings for the EBAY_RUNAME.
+YOUR_APPLICATION_CALLBACK_URL = urljoin(APP_BASE_URL, EBAY_CALLBACK_PATH)
 
-FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://localhost:8080")
+# For same-origin, FRONTEND_URL should also be the APP_BASE_URL, as Flask serves the frontend.
+FRONTEND_URL = APP_BASE_URL
+# Add path to your frontend's build directory
+FRONTEND_BUILD_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'frontend', 'dist')) # Adjust 'dist' if your build folder has a different name
 
 # Determine eBay Environment from .env (e.g., EBAY_API_ENVIRONMENT="SANDBOX" or "PRODUCTION")
 ebay_api_env_str = os.environ.get("EBAY_API_ENVIRONMENT", "PRODUCTION").upper()
@@ -79,6 +79,9 @@ os.makedirs('data', exist_ok=True)
 log_lock = Lock()
 
 # --- Initialize MongoDB Connection ---
+SESSION_COLLECTION = "auth_sessions"
+auth_sessions_collection = None
+
 mongo_client = None
 db = None
 preferences_collection = None
@@ -91,17 +94,20 @@ try:
         mongo_client.admin.command('ismaster')
         db = mongo_client[DB_NAME]
         preferences_collection = db[PREF_COLLECTION]
+        auth_sessions_collection = db[SESSION_COLLECTION]  # Add this line
         logging.info(f"Successfully connected to MongoDB. Using database '{DB_NAME}', collection '{PREF_COLLECTION}'.")
 except ConnectionFailure:
     logging.error("MongoDB connection failed. User preferences will not be saved.")
     mongo_client = None
     db = None
     preferences_collection = None
+    auth_sessions_collection = None
 except Exception as e:
     logging.error(f"An error occurred during MongoDB initialization: {e}", exc_info=True)
     mongo_client = None
     db = None
     preferences_collection = None
+    auth_sessions_collection = None
 
 # Initialize eBay OAuth client
 ebay_oauth_client = oauth2api()
@@ -206,197 +212,273 @@ def save_user_preference(user_id: str, extracted_data: dict):
 # --- API Endpoints ---
 @app.route('/search', methods=['POST'])
 def search():
-    if not nlp_processor or not ebay_service:
-        logging.error("Attempted search with uninitialized services.")
-        return jsonify({"error": "Backend services not available"}), 500
-
-    data = request.json
-    query = data.get('query')
-    # --- Get user_id from request ---
-    user_id = data.get('userId')  # Assuming frontend sends 'userId'
-
-    if not query or not query.strip():
-        logging.warning("Received search request with no query.")
-        return jsonify({"error": "Query is required"}), 400
-
-    logging.info(f"Received search query: {query}" + (f" from user: {user_id}" if user_id else ""))
-
     try:
+        data = request.json
+        query = data.get('query', '')
+        
+        # Get auth token from header
+        auth_header = request.headers.get('Authorization')
+        user_id = None
+        
+        if auth_header and auth_header.startswith('Bearer '):
+            token = auth_header.split(' ')[1]
+            user_id = validate_session_token(token)
+        
+        # Check if NLP processor is available
+        if nlp_processor is None:
+            logging.error("NLP processor is not initialized. Cannot process query.")
+            return jsonify({"error": "Search service unavailable"}), 500
+            
+        # Process query and extract entities directly using the nlp_processor
         extracted_data = nlp_processor.extract_entities(query)
-        logging.info(f"NLP Extraction Result: {extracted_data}")
-
-        # Log data for continuous learning
+        
+        # Log feedback from the query
         log_feedback(
-            query=extracted_data.get("raw_query", query),
-            intent=extracted_data.get("intent", "unknown_intent"),
-            raw_entities=extracted_data.get("raw_entities", [])
+            query, 
+            extracted_data.get("intent", "unknown"), 
+            extracted_data.get("raw_entities", [])
         )
-
-        # --- Save user preferences ---
+        
+        # Save user preferences if authenticated
         if user_id:
             save_user_preference(user_id, extracted_data)
-        # --- End saving preferences ---
-
-        # Pass user_id to the search service
-        search_results = ebay_service.search(intent=extracted_data, user_id=user_id)  # Pass user_id
-
-        logging.info(f"eBay search successful for query: {query}")
+        
+        # Check if eBay service is available
+        if ebay_service is None:
+            logging.error("eBay service is not initialized. Cannot perform search.")
+            return jsonify({"error": "Search service unavailable"}), 500
+            
+        # Directly use the ebay_service to perform the search
+        search_results = ebay_service.search(intent=extracted_data, user_id=user_id)
+        
         return jsonify(search_results)
-
     except Exception as e:
-        logging.error(f"Error processing search query '{query}': {e}", exc_info=True)
-        return jsonify({"error": "An error occurred processing your request"}), 500
+        logging.error(f"Error in search: {str(e)}", exc_info=True)
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/auth/ebay-login', methods=['GET'])
 def initiate_ebay_login():
-    """Initiates the eBay OAuth flow using the ebay-oauth-python-client library."""
-    if not all([EBAY_CLIENT_ID, EBAY_CLIENT_SECRET, EBAY_DEV_ID]):  # Check if credentials were loaded for the library
-        logging.error("eBay credentials not properly configured for OAuth client library. Cannot initiate login.")
-        return jsonify({"error": "Server configuration error for eBay login (credentials)."}), 500
-    try:
-        auth_url = ebay_oauth_client.generate_user_authorization_url(
-            EBAY_ENVIRONMENT,
-            EBAY_SCOPES
+    """Initiates the eBay OAuth flow"""
+    # Get client ID from query parameter
+    client_id = request.args.get('client_id')
+    
+    if not client_id:
+        # Generate a client ID if not provided
+        client_id = f"client_{int(time.time())}_{random.randint(1000, 9999)}" # time.time() is fine for generation
+    
+    # Store the initial auth request in MongoDB
+    if auth_sessions_collection is not None:
+        current_dt = datetime.utcnow() # Use datetime object
+        auth_sessions_collection.update_one(
+            {'client_id': client_id},
+            {
+                '$set': {
+                    'client_id': client_id,
+                    'created_at': current_dt, # Store as datetime
+                    'is_polling': False,
+                    'authenticated': False,
+                    'last_poll': current_dt # Store as datetime
+                }
+            },
+            upsert=True
         )
-        logging.info(f"Redirecting user to eBay auth URL ({EBAY_ENVIRONMENT.config_id}): {auth_url.split('?')[0]}...")
-        return redirect(auth_url)
-    except Exception as e:
-        logging.error(f"Error generating eBay authorization URL: {e}", exc_info=True)
-        return jsonify({"error": "Server configuration error for eBay login."}), 500
+    
+    # Create an auth URL for eBay with the state parameter
+    ebay_auth_url = ebay_oauth_client.generate_user_authorization_url(
+        env_type=EBAY_ENVIRONMENT,
+        scopes=EBAY_SCOPES,
+        state=client_id
+    )
+    
+    return redirect(ebay_auth_url)
 
 @app.route(EBAY_CALLBACK_PATH, methods=['GET'])
 def handle_ebay_callback():
-    """Handles the callback from eBay using the ebay-oauth-python-client library."""
-    auth_code = request.args.get('code')
-
-    if not auth_code:
-        logging.warning("Authorization code not provided in eBay callback.")
-        return redirect(f"{FRONTEND_URL}?auth_error=code_missing")
-
+    """Handles the callback from eBay"""
     try:
-        user_oauth_token: oAuth_token = ebay_oauth_client.exchange_code_for_access_token(
-            EBAY_ENVIRONMENT,
-            auth_code
-        )
-
-        if user_oauth_token.error:
-            # Use hasattr for safer access to error_description
-            error_desc = user_oauth_token.error_description if hasattr(user_oauth_token, 'error_description') and user_oauth_token.error_description else user_oauth_token.error
-            logging.error(f"eBay token exchange failed ({EBAY_ENVIRONMENT.config_id}): {error_desc}")
-            return redirect(f"{FRONTEND_URL}?auth_error=token_exchange_failed&details={quote_plus(str(error_desc))}")
-
-        user_access_token = user_oauth_token.access_token
-        user_refresh_token = user_oauth_token.refresh_token
+        # Get authorization code and state (our client_id) from query parameters
+        code = request.args.get('code')
+        client_id = request.args.get('state')
         
-        raw_token_data = {}
-        if hasattr(user_oauth_token, 'token_response'):
-            if isinstance(user_oauth_token.token_response, dict):
-                raw_token_data = user_oauth_token.token_response
-            elif isinstance(user_oauth_token.token_response, str):  # Sometimes it might be a string
-                try:
-                    raw_token_data = json.loads(user_oauth_token.token_response)  # Ensure json is imported if not already
-                except json.JSONDecodeError:
-                    logging.warning(f"Could not parse token_response string from eBay OAuth library: {user_oauth_token.token_response}")
+        logging.info(f"Callback received for client_id: {client_id}, code: {'present' if code else 'missing'}")
+
+        if not code:
+            logging.error(f"Missing authorization code in callback for client_id: {client_id}")
+            return redirect(f"{FRONTEND_URL}?error=MissingAuthorizationCode&client_id={client_id if client_id else ''}")
+            
+        oauth2api_inst = oauth2api()
+        token_obj = oauth2api_inst.exchange_code_for_access_token(EBAY_ENVIRONMENT, code) 
         
-        expires_in = raw_token_data.get('expires_in')
-
-        if not user_access_token:
-            logging.error("User access token not found in library's response after successful exchange.")
-            return redirect(f"{FRONTEND_URL}?auth_error=token_missing")
-
-        ebay_user_details = get_ebay_user_info(user_access_token)  # Ensure this function is robust
-        app_user_id = ebay_user_details.get('userId')  # CRITICAL: Ensure 'userId' is the correct, stable ID field
-
-        if not app_user_id:
-            logging.error(f"Could not retrieve a stable eBay user ID from get_ebay_user_info. Response: {ebay_user_details}. Check the 'get_ebay_user_info' function and the eBay API response structure.")
-            return redirect(f"{FRONTEND_URL}?auth_error=ebay_user_id_missing")
-
-        # Ensure expires_in is an integer for time calculations
-        try:
-            expires_in_int = int(expires_in) if expires_in is not None else None
-        except ValueError:
-            logging.warning(f"Could not convert expires_in ('{expires_in}') to int for user {app_user_id}.")
-            expires_in_int = None  # Default to None if conversion fails
-
-        if user_refresh_token and expires_in_int is not None:
-            token_data_for_storage = {
-                'access_token': user_access_token,
-                'refresh_token': user_refresh_token,
-                'expires_in': expires_in_int
-            }
-            store_user_token(app_user_id, token_data_for_storage)
-        else:
-            logging.warning(f"Refresh token or expires_in missing/invalid from library for user {app_user_id}. Cannot fully store eBay tokens. Expires_in: {expires_in}, Refresh Token Present: {bool(user_refresh_token)}")
-            if expires_in_int is not None:  # Store at least access token if expires_in is valid
-                token_data_for_storage = {
-                    'access_token': user_access_token,
-                    'expires_in': expires_in_int
-                }
-                store_user_token(app_user_id, token_data_for_storage)
+        if token_obj.error:
+            logging.error(f"eBay token exchange error for client_id {client_id}: {token_obj.error}")
+            if auth_sessions_collection is not None and client_id:
+                auth_sessions_collection.update_one(
+                    {'client_id': client_id},
+                    {'$set': {'authenticated': False, 'error': f"TokenExchangeFailed: {token_obj.error}", 'updated_at': datetime.utcnow()}}
+                )
+            return redirect(f"{FRONTEND_URL}?error=TokenExchangeFailed&details={quote_plus(token_obj.error)}&client_id={client_id if client_id else ''}")
         
-        application_session_token = generate_session_token(app_user_id)
-
-        logging.info(f"Successfully obtained eBay user token. Creating app session for app_user_id: {app_user_id}")
-
-        # Get secret from environment variables
-        JWT_SECRET_KEY = os.environ.get("JWT_SECRET_KEY")
-        if not JWT_SECRET_KEY:
-            logging.warning("JWT_SECRET_KEY not set! Using a temporary key - THIS IS INSECURE")
-            JWT_SECRET_KEY = os.urandom(32).hex()  # Fallback (still better than hardcoded)
-
-        # Generate JWT token
-        jwt_payload = {
-            'user_id': app_user_id,
-            'exp': datetime.utcnow() + timedelta(days=1)  # 24 hour expiration
-        }
-        token = jwt.encode(jwt_payload, JWT_SECRET_KEY, algorithm='HS256')
-
-        # Simplify by just using JWT token in URL parameters
-        redirect_url = f'https://ebay.com/?login_success=true&token={token}'
-        return redirect(redirect_url)
-
-    except Exception as e:
-        logging.error(f"Unexpected error in eBay OAuth callback: {e}", exc_info=True)
-        return redirect(f"{FRONTEND_URL}?auth_error=internal_server_error")
-
-@app.route('/auth/status', methods=['GET'])
-def check_auth_status():
-    """Check if the user is authenticated using JWT token"""
-    auth_header = request.headers.get('Authorization', '')
-    
-    if not auth_header.startswith('Bearer '):
-        return jsonify({"authenticated": False})
-        
-    token = auth_header.split(' ')[1]
-    JWT_SECRET_KEY = os.environ.get("JWT_SECRET_KEY")
-    
-    try:
-        payload = jwt.decode(token, JWT_SECRET_KEY, algorithms=['HS256'])
-        user_id = payload.get('user_id')
+        access_token = token_obj.access_token
+        refresh_token = token_obj.refresh_token
+        token_data = getattr(token_obj, 'token_response', {})
+            
+        user_info = get_ebay_user_info(access_token)
+        user_id = user_info.get('userId') # Or 'userid', check eBay's exact response field
+        username = user_info.get('username')
         
         if not user_id:
-            return jsonify({"authenticated": False})
-            
-        user_prefs = {}
+            logging.error(f"Failed to get user_id from eBay user info for client_id: {client_id}.")
+            if auth_sessions_collection is not None and client_id:
+                auth_sessions_collection.update_one(
+                    {'client_id': client_id},
+                    {'$set': {'authenticated': False, 'error': 'UserInfoFailed', 'updated_at': datetime.utcnow()}}
+                )
+            return redirect(f"{FRONTEND_URL}?error=UserInfoFailed&client_id={client_id if client_id else ''}")
+        
+        # Store user data and eBay tokens in MongoDB (preferences_collection)
         if preferences_collection is not None:
-            user_prefs = preferences_collection.find_one({'user_id': user_id}) or {}
+            preferences_collection.update_one(
+                {'user_id': user_id},
+                {
+                    '$set': {
+                        'ebay_username': username,
+                        'access_token': access_token,
+                        'refresh_token': refresh_token,
+                        'token_expiry': datetime.utcnow() + timedelta(seconds=int(token_data.get('expires_in', 7200))),
+                        'last_login': datetime.utcnow()
+                    }
+                },
+                upsert=True
+            )
+        
+        # Generate your application's session token
+        session_token = generate_session_token(user_id) # Your helper function
+        
+        # Update the auth_sessions collection for polling
+        if auth_sessions_collection is not None and client_id:
+            update_result = auth_sessions_collection.update_one(
+                {'client_id': client_id},
+                {
+                    '$set': {
+                        'authenticated': True, 
+                        'session_token': session_token,
+                        'user_id': user_id,
+                        'ebay_username': username,
+                        'updated_at': datetime.utcnow(),
+                        'expires_at': datetime.utcnow() + timedelta(seconds=SESSION_EXPIRY)
+                    },
+                    '$unset': {'error': ""} 
+                }
+            )
+            if update_result.modified_count > 0 or update_result.upserted_id is not None:
+                logging.info(f"Successfully updated auth_sessions for client_id {client_id} with session_token.")
+            else:
+                logging.warning(f"Did not update auth_sessions for client_id {client_id}. Matched: {update_result.matched_count}")
+
+        else:
+            logging.error(f"Failed to update auth_sessions for client_id {client_id}. auth_sessions_collection is None or client_id is missing.")
             
+        return redirect(f"{FRONTEND_URL}?auth=success&client_id={client_id}")
+        
+    except Exception as e:
+        client_id_from_req = request.args.get('state') # Try to get client_id even in exception
+        logging.error(f"Error in eBay callback for client_id '{client_id_from_req}': {str(e)}", exc_info=True)
+        if auth_sessions_collection is not None and client_id_from_req:
+            auth_sessions_collection.update_one(
+                {'client_id': client_id_from_req},
+                {'$set': {'authenticated': False, 'error': f"CallbackProcessingError: {str(e)}", 'updated_at': datetime.utcnow()}}
+            )
+        error_param = f"&client_id={client_id_from_req}" if client_id_from_req else ""
+        return redirect(f"{FRONTEND_URL}?error=CallbackProcessingError{error_param}")
+
+@app.route('/auth/poll-status', methods=['GET'])
+def poll_auth_status():
+    """Endpoint for polling authentication status"""
+    client_id = request.args.get('client_id')
+    if not client_id:
+        logging.warning("/auth/poll-status: Client ID is missing from request.")
+        return jsonify({'error': 'Client ID is required'}), 400
+
+    if auth_sessions_collection is None:
+        logging.error("/auth/poll-status: auth_sessions_collection is None. Cannot poll.")
+        return jsonify({'authenticated': False, 'error': 'Auth session storage not available'}), 500
+
+    logging.info(f"/auth/poll-status: Polling for client_id: {client_id}")
+    session_data = auth_sessions_collection.find_one({'client_id': client_id})
+
+    if not session_data:
+        logging.warning(f"/auth/poll-status: No session data found for client_id: {client_id}")
+        # It's important to return 'authenticated: False' so frontend continues to poll if appropriate,
+        # rather than a 404 which might break the polling loop differently.
+        return jsonify({'authenticated': False, 'status': 'pending_creation', 'error': 'No session found for client_id'}), 200
+
+    # Log the full session_data retrieved
+    logging.info(f"/auth/poll-status: Found session data for client_id {client_id}: {session_data}")
+
+    if session_data.get('authenticated') and session_data.get('session_token'):
+        logging.info(f"/auth/poll-status: Client {client_id} is authenticated. Returning session token.")
         return jsonify({
-            "authenticated": True,
-            "userId": user_id,
-            "preferences": user_prefs
-        })
-    except jwt.ExpiredSignatureError:
-        return jsonify({"authenticated": False, "error": "Token expired"})
-    except jwt.InvalidTokenError:
-        return jsonify({"authenticated": False, "error": "Invalid token"})
+            'authenticated': True,
+            'session_token': session_data.get('session_token'),
+            'user_id': session_data.get('user_id'),
+            'ebay_username': session_data.get('ebay_username')
+        }), 200
+    
+    # Check if there was an error recorded during the callback for this client_id
+    error_message = session_data.get('error')
+    if error_message:
+        logging.warning(f"/auth/poll-status: Client {client_id} has a recorded error: {error_message}")
+        return jsonify({'authenticated': False, 'error': error_message, 'status': 'error'}), 200
+
+    logging.info(f"/auth/poll-status: Client {client_id} is still pending authentication (authenticated flag is false or session_token missing).")
+    return jsonify({'authenticated': False, 'status': 'pending_authentication'}), 200
+
+@app.route('/auth/check-session', methods=['POST'])
+def check_session():
+    """Check if a session token is valid"""
+    data = request.json
+    session_id = data.get('session_id')
+    
+    if not session_id or auth_sessions_collection is None:
+        return jsonify({'authenticated': False, 'error': 'Invalid token'}), 200
+    
+    # Look up session in MongoDB
+    session = auth_sessions_collection.find_one({'session_token': session_id})
+    
+    if not session:
+        return jsonify({'authenticated': False, 'error': 'Session not found'}), 200
+    
+    # Check expiration
+    # Ensure we compare datetime with datetime
+    if 'expires_at' in session and isinstance(session['expires_at'], datetime) and session['expires_at'] < datetime.utcnow():
+        auth_sessions_collection.delete_one({'session_token': session_id}) # Clean up expired session
+        return jsonify({'authenticated': False, 'error': 'Session expired'}), 200
+    elif 'expires_at' in session and not isinstance(session['expires_at'], datetime):
+        # Log an error if expires_at is not a datetime object, as it should be
+        logging.error(f"Session {session_id} has an invalid expires_at type: {type(session['expires_at'])}")
+        return jsonify({'authenticated': False, 'error': 'Invalid session data (expiry format)'}), 200
+    
+    # Valid session
+    return jsonify({
+        'authenticated': True,
+        'userId': session.get('user_id'),
+        'ebayUsername': session.get('ebay_username')
+    }), 200
 
 @app.route('/auth/logout', methods=['POST'])
 def logout():
     """Logout the user by invalidating their session"""
-    response = make_response(jsonify({"status": "success"}))
-    response.delete_cookie('ebay_session')
-    return response
+    data = request.json
+    session_id = data.get('session_id')
+    
+    if session_id and auth_sessions_collection is not None:
+        # Find any sessions with this token and mark them as logged out
+        auth_sessions_collection.update_many(
+            {'session_token': session_id},
+            {'$set': {'authenticated': False}}
+        )
+    
+    return jsonify({"status": "success"}), 200
 
 # Helper functions
 def get_ebay_user_info(access_token):
@@ -463,19 +545,32 @@ def generate_session_token(user_id):
     return token
 
 def validate_session_token(token):
-    if not token or token not in SESSION_TOKENS:
-        logging.warning(f"Invalid session token attempted: {token[:10]}...")
+    """Validate a session token from MongoDB"""
+    if not token or auth_sessions_collection is None:
         return None
-        
-    token_data = SESSION_TOKENS.get(token)
     
-    if time.time() > token_data['expires_at']:
-        SESSION_TOKENS.pop(token, None)
-        logging.warning(f"Expired session token: {token[:10]}...")
+    # Look for the token in MongoDB
+    session = auth_sessions_collection.find_one({'session_token': token})
+    
+    if not session:
+        logging.warning(f"Invalid session token attempted")
         return None
-        
-    logging.debug(f"Valid session for user: {token_data['user_id']}")
-    return token_data['user_id']
+    
+    # Check if token is expired
+    if 'expires_at' in session and datetime.utcnow() > session['expires_at']: # Use datetime.utcnow() for comparison
+        logging.warning(f"Expired session token for user {session.get('user_id')}") # Added user_id for context
+        # Optionally, delete the expired session here or let cleanup_expired_sessions handle it
+        # auth_sessions_collection.delete_one({'session_token': token})
+        return None
+    
+    # Update last used time
+    auth_sessions_collection.update_one(
+        {'session_token': token},
+        {'$set': {'last_used': datetime.utcnow()}} # Use datetime for last_used as well for consistency
+    )
+    
+    logging.debug(f"Valid session for user: {session['user_id']}")
+    return session['user_id']
 
 @app.route('/health', methods=['GET'])
 def health_check():
@@ -507,5 +602,29 @@ def get_all_metrics():
 def dashboard():
     return app.send_static_file('metrics.html')
 
+# --- Serve Frontend ---
+@app.route('/', defaults={'path': ''})
+@app.route('/<path:path>')
+def serve_vue_app(path):
+    if path != "" and os.path.exists(os.path.join(FRONTEND_BUILD_DIR, path)):
+        return send_from_directory(FRONTEND_BUILD_DIR, path)
+    else:
+        # For any path not found in static files, serve index.html for client-side routing
+        return send_from_directory(FRONTEND_BUILD_DIR, 'index.html')
+
+def cleanup_expired_sessions():
+    """Remove expired sessions from MongoDB"""
+    if auth_sessions_collection is not None:
+        current_time_dt = datetime.utcnow() # Use datetime object
+        result = auth_sessions_collection.delete_many({
+            'expires_at': {'$lt': current_time_dt} # Compare datetime with datetime
+        })
+        logging.info(f"Cleaned up {result.deleted_count} expired sessions")
+
+# Run cleanup on startup and periodically
+
 if __name__ == '__main__':
-    app.run(debug=True, port=5000)
+    cleanup_expired_sessions()
+    # Ensure host is '0.0.0.0' to be accessible externally if needed (e.g. for eBay callback testing with ngrok)
+    # or when running in a container. For purely local, 'localhost' or '127.0.0.1' is also fine.
+    app.run(debug=True, port=5000, host='0.0.0.0')

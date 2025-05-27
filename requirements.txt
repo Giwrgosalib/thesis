@@ -11,5 +11,4 @@ matplotlib==3.10.1
 scikit-learn==1.6.1
 selenium==3.141.0
 requests==2.21.0
-PyYAML==5.4
-PyJWT=-2.10.1
+cryptography>=3.4.7
