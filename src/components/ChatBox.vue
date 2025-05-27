@@ -158,7 +158,7 @@
         <p class="text-body-1 mb-4">
           Please sign in to your eBay account to use the shopping assistant.
         </p>
-        <v-btn @click="handleLogin" class="login-btn">
+        <v-btn @click="initiateEbaySignIn" class="login-btn">
           Sign in to eBay
         </v-btn>
         <p class="text-body-2 mt-4">
@@ -169,7 +169,8 @@
   </transition>
 </template>
 <script>
-import { ebayAuth } from "../services/auth.js"; // Import your eBay authentication module
+import { appAuth } from "../services/auth.js";
+
 export default {
   name: "ChatBox",
   data() {
@@ -179,54 +180,272 @@ export default {
       isChatOpen: false,
       isTyping: false,
       isLoading: false,
-      showWelcomeMessage: false, // Controls visibility of the welcome message
-      isFirstMessageLoading: true, // Controls loading state for the first message
-      welcomeMessageTimestamp: "", // Timestamp for the welcome message
-      apiBaseUrl: "https://secure-openly-moth.ngrok-free.app", // Base URL for API
-      userId: null, // Add userId property
-      loggedIn: false, // Add loggedIn property
+      showWelcomeMessage: false,
+      isFirstMessageLoading: true,
+      welcomeMessageTimestamp: "",
+      apiBaseUrl: " https://secure-openly-moth.ngrok-free.app", // Changed to relative path
+
+      // --- Authentication State (managed in component memory) ---
+      loggedIn: false,
+      userId: null,
+      appSessionToken: null, // This will NOT be populated from URL parameters here.
+      // It must be set by other means if a session is to be recognized.
+      ebayUsername: null,
+      // --- End Authentication State ---
+
+      authError: "",
+      authLoading: false,
+      authCheckLoading: true,
+
+      pollingActive: false,
+      clientId: null, // Initialize clientId to null
+      pollingInterval: null, // This might not be directly used if setInterval is managed in auth.js
     };
   },
-  mounted() {
-    // Check for token in URL
-    const urlParams = new URLSearchParams(window.location.search);
-    const token = urlParams.get("token");
+  async mounted() {
+    this.authCheckLoading = true;
+    console.log("ChatBox mounted. Initial clientId:", this.clientId);
 
-    if (token) {
-      // Store token in localStorage
-      localStorage.setItem("ebay_token", token);
-      // Clean URL
-      window.history.replaceState({}, document.title, window.location.pathname);
-      this.checkLoginStatus();
+    const authReturn = appAuth.checkForAuthReturn(); // Checks URL params
+
+    if (authReturn.isReturn) {
+      if (authReturn.success && authReturn.clientId) {
+        console.log(
+          "Detected return from eBay auth, using clientId from URL:",
+          authReturn.clientId
+        );
+        this.clientId = authReturn.clientId;
+        sessionStorage.setItem("authClientId", this.clientId); // Store it for potential refreshes during polling
+        this.startAuthPolling();
+      } else if (authReturn.error) {
+        this.authError = `Authentication failed: ${authReturn.error}. Please try again.`;
+        this.authLoading = false;
+        this.authCheckLoading = false;
+        sessionStorage.removeItem("authClientId"); // Clear on error
+      }
     } else {
-      this.checkLoginStatus();
+      // Not an auth return, check for existing session token or ongoing polling via sessionStorage
+      const storedClientId = sessionStorage.getItem("authClientId");
+      if (storedClientId) {
+        console.log("Found clientId in sessionStorage:", storedClientId);
+        this.clientId = storedClientId;
+      } else {
+        // Generate a new one if no auth process is in flight and none in session storage
+        this.clientId = "client_" + Math.random().toString(36).substring(2, 15);
+        sessionStorage.setItem("authClientId", this.clientId); // Store new one
+        console.log(
+          "Generated new clientId and stored in sessionStorage:",
+          this.clientId
+        );
+      }
+
+      // Now check if we have an appSessionToken or need to resume polling
+      await this.performAuthCheck(); // Checks existing appSessionToken
+      if (!this.loggedIn && this.clientId && !this.pollingActive) {
+        // If not logged in, but we have a clientId (possibly from sessionStorage indicating a prior attempt)
+        // and not currently polling, consider resuming.
+        // However, startAuthPolling is typically called after initiateEbaySignIn or authReturn.
+        // This logic might need refinement based on desired resume behavior.
+        // For now, checkAuthOnLoad handles resuming if clientId is set and no token.
+        console.log(
+          "No auth return, checking if polling needs to be resumed for clientId:",
+          this.clientId
+        );
+        this.checkAuthOnLoad();
+      }
     }
-
-    // Check for login redirect parameters
-    const loginParams = new URLSearchParams(window.location.search);
-    if (loginParams.get("login_success") === "true") {
-      // Force another status check after redirect
-      setTimeout(() => {
-        this.checkEbayLoginStatus();
-
-        // If we need to redirect to eBay after login
-        if (loginParams.get("ebay_redirect") === "true") {
-          window.location.href = "https://www.ebay.com/";
-        } else {
-          // Otherwise just open the chat
-          this.isChatOpen = true;
-        }
-      }, 1000);
-
-      // Clean up the URL
-      window.history.replaceState({}, document.title, window.location.pathname);
+    // If the chat is intended to be open by default and user is logged in
+    if (this.isChatOpen && this.loggedIn && !this.showWelcomeMessage) {
+      this.showWelcomeMessage = true;
+      this.simulateFirstMessageLoading();
     }
+    this.authCheckLoading = false;
+  },
+  beforeUnmount() {
+    this.pollingActive = false;
   },
   methods: {
+    async performAuthCheck() {
+      this.authCheckLoading = true;
+      if (this.appSessionToken) {
+        // Check if a token exists in component memory
+        console.log("Performing auth check with token:", this.appSessionToken);
+        const status = await appAuth.checkStatus(this.appSessionToken); // auth.js sends this token
+        if (status.authenticated) {
+          this.loggedIn = true;
+          this.userId = status.userId;
+          this.ebayUsername = status.ebayUsername;
+          this.authError = "";
+          console.log(
+            "User session is active. User ID:",
+            this.userId,
+            "eBay Username:",
+            this.ebayUsername
+          );
+        } else {
+          // Token was invalid or session expired on backend
+          this.loggedIn = false;
+          this.appSessionToken = null; // Clear the invalid token from memory
+          this.userId = null;
+          this.ebayUsername = null;
+          this.authError =
+            status.error ||
+            "Your session is invalid or has expired. Please sign in again.";
+          console.warn(
+            "Stored session token is invalid or session expired on backend."
+          );
+        }
+      } else {
+        // No session token in component memory, so user is not logged in
+        this.loggedIn = false;
+        this.userId = null;
+        this.ebayUsername = null;
+        console.log("No appSessionToken in memory. User is not logged in.");
+      }
+      this.authCheckLoading = false;
+    },
+
+    async toggleChat() {
+      this.isChatOpen = !this.isChatOpen;
+      if (this.isChatOpen) {
+        console.log("Chat toggled open. Performing auth check.");
+        // When chat opens, always check/verify authentication status
+        // This will use this.appSessionToken if it's already in memory from a previous successful login
+        // where the token was somehow passed to this component instance.
+        await this.performAuthCheck();
+        // If logged in and welcome message hasn't been shown, show it.
+        if (this.loggedIn && !this.showWelcomeMessage) {
+          this.showWelcomeMessage = true;
+          this.simulateFirstMessageLoading();
+        }
+      }
+    },
+
+    async initiateEbaySignIn() {
+      this.authLoading = true;
+      this.authError = "";
+
+      const healthCheck = await appAuth.checkApiHealth();
+      if (healthCheck.status !== "ok") {
+        this.authError = `API connection error: ${healthCheck.message}. Please ensure the backend is running.`;
+        this.authLoading = false;
+        return;
+      }
+
+      // Generate a new client ID for this specific auth attempt
+      this.clientId = "client_" + Math.random().toString(36).substring(2, 15);
+      sessionStorage.setItem("authClientId", this.clientId); // Store it
+      console.log("Initiating eBay sign-in with new clientId:", this.clientId);
+
+      this.startAuthPolling();
+      appAuth.initiateEbayLogin(this.clientId);
+    },
+
+    startAuthPolling() {
+      if (this.pollingActive) {
+        console.warn("Polling is already active for clientId:", this.clientId);
+        return;
+      }
+      if (!this.clientId) {
+        console.error("Cannot start polling without a client ID.");
+        this.authLoading = false;
+        return;
+      }
+
+      this.pollingActive = true;
+      this.authLoading = true;
+      console.log(
+        "Starting authentication polling with client ID:",
+        this.clientId
+      );
+
+      appAuth
+        .pollForAuthCompletion(this.clientId)
+        .then((result) => {
+          console.log("Authentication polling successful:", result);
+          this.pollingActive = false;
+          this.authLoading = false;
+          sessionStorage.removeItem("authClientId"); // Clean up clientId on success
+
+          this.loggedIn = true;
+          this.appSessionToken = result.sessionToken;
+          this.userId = result.userId;
+          this.ebayUsername = result.ebayUsername;
+          this.authError = "";
+
+          if (!this.showWelcomeMessage) {
+            this.showWelcomeMessage = true;
+            this.simulateFirstMessageLoading();
+          }
+        })
+        .catch((error) => {
+          console.error("Authentication polling failed:", error);
+          this.pollingActive = false;
+          this.authLoading = false;
+          this.authError =
+            error.message || "Authentication polling timed out or failed.";
+          sessionStorage.removeItem("authClientId"); // Clean up clientId on failure
+        });
+    },
+
+    async checkAuthOnLoad() {
+      // This method is called if no direct authReturn, to see if polling should resume
+      const storedToken = sessionStorage.getItem("appSessionToken");
+      if (storedToken) {
+        // If there's a token, performAuthCheck should validate it.
+        // This method is more about resuming polling if no token but a clientId exists.
+        return;
+      }
+
+      // If we have a clientId (likely from sessionStorage from a previous attempt)
+      // and no session token, and not already polling, try to resume.
+      if (this.clientId && !this.appSessionToken && !this.pollingActive) {
+        console.log(
+          "checkAuthOnLoad: Resuming polling for clientId from sessionStorage:",
+          this.clientId
+        );
+        this.startAuthPolling();
+      } else {
+        console.log(
+          "checkAuthOnLoad: Conditions not met to resume polling. ClientId:",
+          this.clientId,
+          "Token:",
+          this.appSessionToken,
+          "PollingActive:",
+          this.pollingActive
+        );
+      }
+    },
+
+    async handleLogout() {
+      if (this.appSessionToken) {
+        await appAuth.logout(this.appSessionToken); // auth.js sends this token
+      }
+      // Clear client-side authentication state
+      this.loggedIn = false;
+      this.userId = null;
+      this.appSessionToken = null; // Clear token from component memory
+      this.ebayUsername = null;
+      this.messages = [];
+      this.showWelcomeMessage = false;
+      this.authError = "";
+      this.authCheckLoading = false;
+      sessionStorage.removeItem("authClientId"); // Clear clientId on logout
+      console.log(
+        "User logged out. Client-side state, token, and authClientId cleared."
+      );
+    },
+
     async sendMessage() {
+      // Ensure this.userId is not directly added to requestBody unless that's intended.
+      // The backend should derive the user from the appSessionToken sent in the Authorization header.
+      // The existing code from #attachment-ChatBox-vue-L238 sends requestBody.userId,
+      // which might be redundant if the backend uses the session token for user identification.
+      // For consistency with session token auth, it's better if backend relies on the token.
+      // I will adjust it to match the pattern of sending the token in the header for auth.
+
       if (this.userInput.trim() === "") return;
 
-      // Add user's message
       this.messages.push({
         sender: "user",
         text: this.userInput,
@@ -239,37 +458,44 @@ export default {
       this.isLoading = true;
 
       try {
-        // Prepare request body, including userId if available
-        const requestBody = {
-          query: query,
+        const requestBody = { query: query }; // Only send the query
+        const headers = {
+          "Content-Type": "application/json",
+          "bypass-tunnel-reminder": "true",
+          "User-Agent": "TampermonkeyClient",
         };
-        if (this.userId) {
-          requestBody.userId = this.userId; // Add userId to the request body
+
+        if (this.loggedIn && this.appSessionToken) {
+          headers["Authorization"] = `Bearer ${this.appSessionToken}`;
+        } else {
+          console.warn(
+            "Sending search query without an active session token (user might not be logged in)."
+          );
         }
 
-        const response = await fetch(`${this.apiBaseUrl}/search`, {
+        const response = await fetch(`/search`, {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          // Send the body including the userId
+          headers: headers,
           body: JSON.stringify(requestBody),
         });
 
         if (!response.ok) {
-          throw new Error(`Server responded with status: ${response.status}`);
+          const errorData = await response.json().catch(() => ({
+            error: `Server responded with status: ${response.status}`,
+          }));
+          throw new Error(
+            errorData.error ||
+              `Server responded with status: ${response.status}`
+          );
         }
-
         const data = await response.json();
-
-        // Handle response (same as before)
+        // ... (handle search results display as in your existing code, e.g., #attachment-ChatBox-vue-L262)
         if (data && data.length > 0) {
-          // Assuming backend returns a list directly now
           this.messages.push({
             sender: "ai",
             isProductResults: true,
-            products: data.slice(0, 5), // Show top 5 results
-            text: `I found some products matching your search.`, // Adjusted text
+            products: data.slice(0, 5),
+            text: `I found some products matching your search.`,
             timestamp: this.getCurrentTimestamp(),
           });
         } else {
@@ -283,22 +509,14 @@ export default {
         console.error("Error fetching search results:", error);
         this.messages.push({
           sender: "ai",
-          text: "Sorry, I encountered an error while searching. Please try again later.",
+          text: `Sorry, I encountered an error: ${
+            error.message || "Please try again."
+          }`,
           timestamp: this.getCurrentTimestamp(),
         });
       } finally {
         this.isTyping = false;
         this.isLoading = false;
-      }
-    },
-
-    toggleChat() {
-      this.isChatOpen = !this.isChatOpen;
-      if (this.isChatOpen) {
-        // Update login status when opening the chat.
-        // this.checkEbayLoginStatus() will set this.loggedIn and this.userId,
-        // and also handle showing the welcome message if the user is logged in.
-        this.checkEbayLoginStatus();
       }
     },
 
@@ -308,81 +526,12 @@ export default {
     },
 
     simulateFirstMessageLoading() {
+      this.isFirstMessageLoading = true;
+      this.welcomeMessageTimestamp = "";
       setTimeout(() => {
         this.isFirstMessageLoading = false;
         this.welcomeMessageTimestamp = this.getCurrentTimestamp();
       }, 1000);
-    },
-
-    startPollingAuthStatus() {
-      const pollInterval = setInterval(() => {
-        this.checkEbayLoginStatus().then((status) => {
-          if (status) {
-            clearInterval(pollInterval);
-            this.isChatOpen = true;
-            this.showWelcomeMessage = true;
-            this.simulateFirstMessageLoading();
-          }
-        });
-      }, 2000);
-      // Stop polling after 30 seconds
-      setTimeout(() => clearInterval(pollInterval), 30000);
-    },
-
-    handleLogin() {
-      ebayAuth.initiateLogin();
-      this.startPollingAuthStatus();
-    },
-
-    async checkEbayLoginStatus() {
-      try {
-        // Directly fetch status and user data in one call
-        const response = await fetch(`${this.apiBaseUrl}/auth/status`, {
-          credentials: "include", // Ensures cookies are sent
-        });
-
-        if (!response.ok) {
-          this.loggedIn = false;
-          this.userId = null;
-          return; // Exit if the request failed
-        }
-
-        const data = await response.json();
-        this.loggedIn = data.authenticated;
-
-        if (this.loggedIn) {
-          this.userId = data.userId;
-          console.log("User logged in with ID:", this.userId);
-
-          if (this.isChatOpen && !this.showWelcomeMessage) {
-            this.showWelcomeMessage = true;
-            this.simulateFirstMessageLoading();
-          }
-        } else {
-          this.userId = null;
-        }
-      } catch (error) {
-        console.error("Error in checkEbayLoginStatus:", error);
-        this.loggedIn = false;
-        this.userId = null;
-      }
-    },
-
-    checkLoginStatus() {
-      const token = localStorage.getItem("ebay_token");
-      if (token) {
-        // Use token in API requests
-        fetch(`${this.apiBaseUrl}/auth/status`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        })
-          .then((response) => response.json())
-          .then((data) => {
-            this.loggedIn = data.authenticated;
-            this.userId = data.userId;
-          });
-      }
     },
   },
 };
