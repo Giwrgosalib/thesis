@@ -47,7 +47,7 @@ EBAY_RUNAME = os.environ.get("EBAY_RUNAME") # Get RuName from .env
 
 # Use an environment variable for the app's base URL, defaulting for local development
 # This URL is where your Flask app is accessible.
-APP_BASE_URL = os.environ.get("APP_BACKEND_URL", "https://secure-openly-moth.ngrok-free.app")
+APP_BASE_URL = os.environ.get("APP_BACKEND_URL", "https://localhost:5000")  # Default to localhost for local development
 EBAY_CALLBACK_PATH = "/auth/ebay-callback"
 # This YOUR_APPLICATION_CALLBACK_URL must be registered in your eBay app settings for the EBAY_RUNAME.
 YOUR_APPLICATION_CALLBACK_URL = urljoin(APP_BASE_URL, EBAY_CALLBACK_PATH)
