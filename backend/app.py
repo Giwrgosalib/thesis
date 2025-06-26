@@ -47,7 +47,7 @@ EBAY_RUNAME = os.environ.get("EBAY_RUNAME") # Get RuName from .env
 
 # Use an environment variable for the app's base URL, defaulting for local development
 # This URL is where your Flask app is accessible.
-APP_BASE_URL = os.environ.get("APP_BACKEND_URL", "https://localhost:5000")  # Default to localhost for local development
+APP_BASE_URL = os.environ.get("APP_BACKEND_URL", "https://secure-openly-moth.ngrok-free.app")  # Default to localhost for local development
 EBAY_CALLBACK_PATH = "/auth/ebay-callback"
 # This YOUR_APPLICATION_CALLBACK_URL must be registered in your eBay app settings for the EBAY_RUNAME.
 YOUR_APPLICATION_CALLBACK_URL = urljoin(APP_BASE_URL, EBAY_CALLBACK_PATH)
@@ -65,8 +65,7 @@ if ebay_api_env_str == "SANDBOX":
 else:
     EBAY_ENVIRONMENT = environment.PRODUCTION  # Default to PRODUCTION if not specified or invalid
     logging.info("Using eBay PRODUCTION environment.")
-
-EBAY_SCOPES = os.environ.get("EBAY_SCOPES", "https://api.ebay.com/oauth/api_scope").split(' ')  # Library expects a list of scopes
+EBAY_SCOPES = os.environ.get("EBAY_SCOPES", "https://api.ebay.com/oauth/api_scope https://api.ebay.com/oauth/api_scope/commerce.identity.readonly").split(' ')  # Library expects a list of scopes
 
 # Store active session tokens
 SESSION_TOKENS = {}
@@ -323,6 +322,7 @@ def handle_ebay_callback():
         token_data = getattr(token_obj, 'token_response', {})
             
         user_info = get_ebay_user_info(access_token)
+        logging.info(f"eBay user info retrieved: {user_info}")
         user_id = user_info.get('userId') # Or 'userid', check eBay's exact response field
         username = user_info.get('username')
         
@@ -603,13 +603,18 @@ def dashboard():
     return app.send_static_file('metrics.html')
 
 # --- Serve Frontend ---
-@app.route('/', defaults={'path': ''})
+@app.route('/')
+def serve_frontend():
+    """Serve the main frontend application"""
+    return send_from_directory(FRONTEND_BUILD_DIR, 'index.html')
+
 @app.route('/<path:path>')
-def serve_vue_app(path):
-    if path != "" and os.path.exists(os.path.join(FRONTEND_BUILD_DIR, path)):
+def serve_static_files(path):
+    """Serve static files from the frontend build directory"""
+    try:
         return send_from_directory(FRONTEND_BUILD_DIR, path)
-    else:
-        # For any path not found in static files, serve index.html for client-side routing
+    except Exception:
+        # If file not found, serve index.html for client-side routing
         return send_from_directory(FRONTEND_BUILD_DIR, 'index.html')
 
 def cleanup_expired_sessions():
