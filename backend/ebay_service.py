@@ -433,18 +433,24 @@ class EBayService:
 
         enhanced_intent = intent.copy()
 
+        # A helper function to check if a preference is already in the intent
+        def is_preference_set(key):
+            return key in enhanced_intent and enhanced_intent[key]
+
         # Apply size preference if not explicitly specified in current query
-        if 'SIZE' not in enhanced_intent and 'preferred_size' in user_prefs:
-            enhanced_intent['SIZE'] = user_prefs['preferred_size']
-            logging.info(f"Applied preferred size: {user_prefs['preferred_size']}")
+        if not is_preference_set('SIZE') and 'preferred_size' in user_prefs:
+            # Add a specific check to ignore nonsensical or placeholder values
+            if user_prefs['preferred_size'] and user_prefs['preferred_size'] != ['over']:
+                enhanced_intent['SIZE'] = user_prefs['preferred_size']
+                logging.info(f"Applied preferred size: {user_prefs['preferred_size']}")
 
         # Apply width preference if not explicitly specified
-        if 'WIDTH' not in enhanced_intent and 'preferred_width' in user_prefs:
+        if not is_preference_set('WIDTH') and 'preferred_width' in user_prefs:
             enhanced_intent['WIDTH'] = user_prefs['preferred_width']
             logging.info(f"Applied preferred width: {user_prefs['preferred_width']}")
             
         # Apply color preference if not explicitly specified
-        if 'COLOR' not in enhanced_intent and 'preferred_color' in user_prefs:
+        if not is_preference_set('COLOR') and 'preferred_color' in user_prefs:
             enhanced_intent['COLOR'] = user_prefs['preferred_color']
             logging.info(f"Applied preferred color: {user_prefs['preferred_color']}")
 

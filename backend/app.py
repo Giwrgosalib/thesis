@@ -151,6 +151,7 @@ except Exception as e:
 # --- Initialize Services ---
 try:
     nlp_processor = EBayNLP()
+    nlp_processor._prepare_models() # Ensure models are loaded
     # Pass the preferences collection to EBayService
     ebay_service = EBayService(preferences_collection=preferences_collection)
     logging.info("NLP and eBay services initialized successfully.")
