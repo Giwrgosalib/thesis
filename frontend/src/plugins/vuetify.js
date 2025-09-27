@@ -7,24 +7,39 @@ export default createVuetify({
   components,
   directives,
   theme: {
-    defaultTheme: "ebayTheme", // Set the default theme
+    defaultTheme: "ebayTheme",
     themes: {
       ebayTheme: {
-        dark: false, // Light theme
+        dark: false,
         colors: {
-          primary: "#E53238", // eBay Red
-          secondary: "#0064D2", // eBay Blue
-          accent: "#86B817", // eBay Green
-          error: "#FF5252", // Default error color
-          info: "#2196F3", // Default info color
-          success: "#4CAF50", // Default success color
-          warning: "#F5AF02", // eBay Yellow
-          background: "#FFFFFF", // White background
-          surface: "#FFFFFF", // White surface
-          "on-primary": "#FFFFFF", // Text on primary color (white)
-          "on-secondary": "#FFFFFF", // Text on secondary color (white)
-          "on-background": "#333333", // Text on background (eBay Gray)
-          "on-surface": "#333333", // Text on surface (eBay Gray)
+          // eBay Brand Colors
+          'ebay-red': '#e53238',
+          'ebay-blue': '#0064d2', 
+          'ebay-yellow': '#f5af02',
+          'ebay-green': '#86b817',
+          
+          // Vuetify Standard Colors
+          primary: '#e53238', // eBay Red
+          secondary: '#0064d2', // eBay Blue
+          accent: '#86b817', // eBay Green
+          error: '#e53238', // eBay Red for errors
+          info: '#0064d2', // eBay Blue for info
+          success: '#86b817', // eBay Green for success
+          warning: '#f5af02', // eBay Yellow for warnings
+          
+          // Background and Surface
+          background: '#f8f9fa',
+          surface: '#ffffff',
+          
+          // Text Colors
+          'on-primary': '#ffffff',
+          'on-secondary': '#ffffff', 
+          'on-background': '#2c2c2c',
+          'on-surface': '#2c2c2c',
+          'on-error': '#ffffff',
+          'on-info': '#ffffff',
+          'on-success': '#ffffff',
+          'on-warning': '#2c2c2c',
         },
       },
     },

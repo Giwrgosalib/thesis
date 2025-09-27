@@ -1,22 +1,40 @@
-from flask import Flask, request, jsonify, redirect, make_response, send_from_directory # Ensure send_from_directory is imported
+from flask import Flask, request, jsonify, redirect, make_response, send_from_directory, g
 from flask_cors import CORS
 from custom_nlp import EBayNLP
 from ebay_service import EBayService
 import requests
 import logging
 import csv
-import os # Ensure os is imported
+import os
 from threading import Lock
-from pymongo import MongoClient  # Import MongoClient
+from pymongo import MongoClient
 from pymongo.errors import ConnectionFailure
-from dotenv import load_dotenv  # Import load_dotenv
+from dotenv import load_dotenv
 import time
-from metrics import analyze_feedback_data, analyze_user_preferences, analyze_training_dataset  # Import metrics functions
-from urllib.parse import quote_plus, urljoin  # Ensure urljoin is used for EBAY_REDIRECT_URI
+from metrics import analyze_feedback_data, analyze_user_preferences, analyze_training_dataset
+from urllib.parse import quote_plus, urljoin
 import sys
-import json  # Import json for parsing token responses
-from datetime import datetime, timedelta  # Import datetime and timedelta for token expiration
+import json
+from datetime import datetime, timedelta
 import random
+import uuid
+import re
+
+# Import new utilities
+from config import get_config
+from utils.logging_config import setup_logging, get_logger, log_request, log_response, log_error
+from utils.error_handlers import (
+    register_error_handlers, APIError, ValidationError, AuthenticationError,
+    AuthorizationError, NotFoundError, RateLimitError, ExternalServiceError,
+    ModelError, DatabaseError, handle_database_error, handle_external_api_error,
+    handle_model_error
+)
+from utils.rate_limiting import rate_limit, rate_limit_by_user, rate_limit_by_endpoint
+from utils.validation import (
+    validate_json_request, validate_query_params, SearchRequestSchema,
+    AuthRequestSchema, ClientIdSchema, sanitize_string, validate_user_id,
+    validate_session_token, validate_authorization_header
+)
 
 # Add the library's parent directory to sys.path to find the oauthclient module
 # Assuming app.py is in 'backend' and 'ebay-oauth-python-client' is also in 'backend'
@@ -28,91 +46,75 @@ from ebay_oauth_python_client.oauthclient.model.model import environment, oAuth_
 from ebay_oauth_python_client.oauthclient.credentialutil import credentialutil
 from ebay_oauth_python_client.oauthclient.model.model import credentials as EbayOauthCredentials
 
-# Fix the CORS configuration to allow requests from your frontend
+# Initialize configuration
+config = get_config()
+
+# Initialize Flask app
 app = Flask(__name__)
-load_dotenv()  # Load environment variables from .env
+app.config['MAX_CONTENT_LENGTH'] = config.app.max_request_size
 
-# --- Configuration ---
+# Setup CORS
+CORS(app, origins=[config.app.frontend_url], supports_credentials=True)
+
+# Setup logging
+setup_logging(
+    level=config.logging.level,
+    log_file=config.logging.file_path,
+    max_file_size=config.logging.max_file_size,
+    backup_count=config.logging.backup_count
+)
+
+logger = get_logger(__name__)
+
+# Register error handlers
+register_error_handlers(app)
+
+# --- Configuration Variables ---
 FEEDBACK_LOG_PATH = os.path.join('data', 'feedback_log.csv')
-LOG_FORMAT = '%(asctime)s - %(levelname)s - %(message)s'
-LOG_LEVEL = logging.INFO
-MONGO_URI = os.environ.get("MONGO_URI")  # Get MongoDB URI from env
-DB_NAME = "ebay_extension_prefs"
-PREF_COLLECTION = "user_preferences"
-
-EBAY_CLIENT_ID = os.environ.get("EBAY_CLIENT_ID")
-EBAY_CLIENT_SECRET = os.environ.get("EBAY_CLIENT_SECRET")
-EBAY_DEV_ID = os.environ.get("EBAY_DEV_ID") # Add this to your .env file
-EBAY_RUNAME = os.environ.get("EBAY_RUNAME") # Get RuName from .env
-
-# Use an environment variable for the app's base URL, defaulting for local development
-# This URL is where your Flask app is accessible.
-APP_BASE_URL = os.environ.get("APP_BACKEND_URL", "https://secure-openly-moth.ngrok-free.app")  # Default to localhost for local development
 EBAY_CALLBACK_PATH = "/auth/ebay-callback"
-# This YOUR_APPLICATION_CALLBACK_URL must be registered in your eBay app settings for the EBAY_RUNAME.
-YOUR_APPLICATION_CALLBACK_URL = urljoin(APP_BASE_URL, EBAY_CALLBACK_PATH)
+YOUR_APPLICATION_CALLBACK_URL = urljoin(config.app.app_base_url, EBAY_CALLBACK_PATH)
+FRONTEND_BUILD_DIR = os.path.join('..', 'frontend', 'dist')
+FRONTEND_URL = config.app.frontend_url
+EBAY_ENVIRONMENT = environment.SANDBOX if config.ebay.environment == "SANDBOX" else environment.PRODUCTION
+SESSION_EXPIRY = 3600  # 1 hour
 
-# For same-origin, FRONTEND_URL should also be the APP_BASE_URL, as Flask serves the frontend.
-FRONTEND_URL = APP_BASE_URL
-# Add path to your frontend's build directory
-FRONTEND_BUILD_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'frontend', 'dist')) # Adjust 'dist' if your build folder has a different name
-
-# Determine eBay Environment from .env (e.g., EBAY_API_ENVIRONMENT="SANDBOX" or "PRODUCTION")
-ebay_api_env_str = os.environ.get("EBAY_API_ENVIRONMENT", "PRODUCTION").upper()
-if ebay_api_env_str == "SANDBOX":
-    EBAY_ENVIRONMENT = environment.SANDBOX
-    logging.info("Using eBay SANDBOX environment.")
-else:
-    EBAY_ENVIRONMENT = environment.PRODUCTION  # Default to PRODUCTION if not specified or invalid
-    logging.info("Using eBay PRODUCTION environment.")
-EBAY_SCOPES = os.environ.get("EBAY_SCOPES", "https://api.ebay.com/oauth/api_scope https://api.ebay.com/oauth/api_scope/commerce.identity.readonly").split(' ')  # Library expects a list of scopes
-
-# Store active session tokens
+# Store active session tokens (for backward compatibility)
 SESSION_TOKENS = {}
-# Session expiry time in seconds (24 hours)
-SESSION_EXPIRY = 86400 
 
-# --- Setup Logging ---
-logging.basicConfig(level=LOG_LEVEL, format=LOG_FORMAT)
+# --- Setup Data Directory ---
 os.makedirs('data', exist_ok=True)
 log_lock = Lock()
 
 # --- Initialize MongoDB Connection ---
-SESSION_COLLECTION = "auth_sessions"
-auth_sessions_collection = None
-
 mongo_client = None
 db = None
 preferences_collection = None
+auth_sessions_collection = None
+
 try:
-    if not MONGO_URI:
-        logging.warning("MONGO_URI not set in environment variables. User preferences will not be saved.")
-    else:
-        mongo_client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=5000)
-        # The ismaster command is cheap and does not require auth.
-        mongo_client.admin.command('ismaster')
-        db = mongo_client[DB_NAME]
-        preferences_collection = db[PREF_COLLECTION]
-        auth_sessions_collection = db[SESSION_COLLECTION]  # Add this line
-        logging.info(f"Successfully connected to MongoDB. Using database '{DB_NAME}', collection '{PREF_COLLECTION}'.")
-except ConnectionFailure:
-    logging.error("MongoDB connection failed. User preferences will not be saved.")
-    mongo_client = None
-    db = None
-    preferences_collection = None
-    auth_sessions_collection = None
+    mongo_client = MongoClient(
+        config.database.mongo_uri,
+        serverSelectionTimeoutMS=config.database.connection_timeout,
+        maxPoolSize=config.database.max_pool_size
+    )
+    # Test connection
+    mongo_client.admin.command('ismaster')
+    db = mongo_client[config.database.db_name]
+    preferences_collection = db[config.database.pref_collection]
+    auth_sessions_collection = db[config.database.session_collection]
+    
+    logger.info(f"Successfully connected to MongoDB. Database: '{config.database.db_name}'")
+except ConnectionFailure as e:
+    logger.error(f"MongoDB connection failed: {e}")
+    raise DatabaseError("Database connection failed")
 except Exception as e:
-    logging.error(f"An error occurred during MongoDB initialization: {e}", exc_info=True)
-    mongo_client = None
-    db = None
-    preferences_collection = None
-    auth_sessions_collection = None
+    logger.error(f"MongoDB initialization error: {e}", exc_info=True)
+    raise DatabaseError("Database initialization failed")
 
 # Initialize eBay OAuth client
 ebay_oauth_client = oauth2api()
 
-# Create a temporary config file with your credentials
-# This follows how the library is designed to work
+# Create eBay OAuth configuration
 ebay_config_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'ebay_config')
 os.makedirs(ebay_config_dir, exist_ok=True)
 
@@ -121,16 +123,16 @@ ebay_config_path = os.path.join(ebay_config_dir, 'ebay-credentials.yaml')
 # Create a YAML config file with the structure the library expects
 ebay_config_content = {
     environment.SANDBOX.config_id: {
-        'appid': EBAY_CLIENT_ID,
-        'certid': EBAY_CLIENT_SECRET,
-        'devid': EBAY_DEV_ID,
-        'redirecturi': EBAY_RUNAME  # Use the RuName from your eBay Developer Portal
+        'appid': config.ebay.client_id,
+        'certid': config.ebay.client_secret,
+        'devid': config.ebay.dev_id,
+        'redirecturi': config.ebay.runame
     },
     environment.PRODUCTION.config_id: {
-        'appid': EBAY_CLIENT_ID,
-        'certid': EBAY_CLIENT_SECRET,
-        'devid': EBAY_DEV_ID,
-        'redirecturi': EBAY_RUNAME  # Use the RuName from your eBay Developer Portal
+        'appid': config.ebay.client_id,
+        'certid': config.ebay.client_secret,
+        'devid': config.ebay.dev_id,
+        'redirecturi': config.ebay.runame
     }
 }
 
@@ -139,26 +141,24 @@ try:
     import yaml
     with open(ebay_config_path, 'w') as f:
         yaml.dump(ebay_config_content, f)
-    logging.info(f"Created temporary eBay credentials config file at: {ebay_config_path}")
+    logger.info(f"Created eBay credentials config file at: {ebay_config_path}")
     
     # Load the credentials into the library
     credentialutil.load(ebay_config_path)
-    logging.info(f"Successfully loaded eBay credentials for environments: {list(ebay_config_content.keys())}")
+    logger.info(f"Successfully loaded eBay credentials for environments: {list(ebay_config_content.keys())}")
 except Exception as e:
-    logging.error(f"CRITICAL: Failed to create or load eBay credentials: {e}", exc_info=True)
-    # Handle this critical error appropriately in your application
+    logger.error(f"Failed to create or load eBay credentials: {e}", exc_info=True)
+    raise ExternalServiceError("eBay", "Failed to initialize OAuth credentials")
 
 # --- Initialize Services ---
 try:
     nlp_processor = EBayNLP()
-    nlp_processor._prepare_models() # Ensure models are loaded
-    # Pass the preferences collection to EBayService
+    nlp_processor._prepare_models()
     ebay_service = EBayService(preferences_collection=preferences_collection)
-    logging.info("NLP and eBay services initialized successfully.")
+    logger.info("NLP and eBay services initialized successfully.")
 except Exception as e:
-    logging.error(f"Error initializing services: {e}", exc_info=True)
-    nlp_processor = None
-    ebay_service = None
+    logger.error(f"Error initializing services: {e}", exc_info=True)
+    raise ModelError("Failed to initialize ML services")
 
 # --- Helper Function for Logging Feedback ---
 def log_feedback(query: str, intent: str, raw_entities: list):
@@ -211,26 +211,35 @@ def save_user_preference(user_id: str, extracted_data: dict):
 
 # --- API Endpoints ---
 @app.route('/search', methods=['POST'])
-def search():
+@rate_limit_by_endpoint(limit=30, window=60)  # 30 requests per minute per endpoint
+@validate_json_request(SearchRequestSchema)
+def search(validated_data):
+    """Search for products using natural language query."""
     try:
-        data = request.json
-        query = data.get('query', '')
+        # Generate request ID for tracking
+        request_id = str(uuid.uuid4())
+        g.request_id = request_id
         
-        # Get auth token from header
-        auth_header = request.headers.get('Authorization')
+        # Log request
+        log_request(logger, request, request_id=request_id)
+        
+        query = validated_data['query']
+        
+        # Get and validate auth token
+        token = validate_authorization_header()
         user_id = None
         
-        if auth_header and auth_header.startswith('Bearer '):
-            token = auth_header.split(' ')[1]
+        if token:
             user_id = validate_session_token(token)
+            if user_id:
+                g.user_id = user_id
         
-        # Check if NLP processor is available
-        if nlp_processor is None:
-            logging.error("NLP processor is not initialized. Cannot process query.")
-            return jsonify({"error": "Search service unavailable"}), 500
-            
-        # Process query and extract entities directly using the nlp_processor
-        extracted_data = nlp_processor.extract_entities(query)
+        # Process query and extract entities
+        try:
+            extracted_data = nlp_processor.extract_entities(query)
+        except Exception as e:
+            logger.error(f"NLP processing error: {e}", exc_info=True)
+            raise ModelError("Failed to process query")
         
         # Log feedback from the query
         log_feedback(
@@ -243,54 +252,86 @@ def search():
         if user_id:
             save_user_preference(user_id, extracted_data)
         
-        # Check if eBay service is available
-        if ebay_service is None:
-            logging.error("eBay service is not initialized. Cannot perform search.")
-            return jsonify({"error": "Search service unavailable"}), 500
-            
-        # Directly use the ebay_service to perform the search
-        search_results = ebay_service.search(intent=extracted_data, user_id=user_id)
+        # Perform eBay search
+        try:
+            search_results = ebay_service.search(intent=extracted_data, user_id=user_id)
+        except Exception as e:
+            logger.error(f"eBay search error: {e}", exc_info=True)
+            raise ExternalServiceError("eBay", "Search service unavailable")
         
-        return jsonify(search_results)
+        # Log response
+        log_response(logger, 200, request_id=request_id, result_count=len(search_results))
+        
+        return jsonify({
+            'results': search_results,
+            'query': query,
+            'intent': extracted_data.get("intent", "unknown"),
+            'entities': extracted_data.get("raw_entities", []),
+            'request_id': request_id
+        })
+        
+    except APIError:
+        # Re-raise API errors (they're already properly formatted)
+        raise
     except Exception as e:
-        logging.error(f"Error in search: {str(e)}", exc_info=True)
-        return jsonify({"error": str(e)}), 500
+        logger.error(f"Unexpected error in search: {e}", exc_info=True)
+        raise APIError("An unexpected error occurred during search")
 
 @app.route('/auth/ebay-login', methods=['GET'])
+@rate_limit(limit=10, window=60)  # 10 login attempts per minute
 def initiate_ebay_login():
     """Initiates the eBay OAuth flow"""
-    # Get client ID from query parameter
-    client_id = request.args.get('client_id')
-    
-    if not client_id:
-        # Generate a client ID if not provided
-        client_id = f"client_{int(time.time())}_{random.randint(1000, 9999)}" # time.time() is fine for generation
-    
-    # Store the initial auth request in MongoDB
-    if auth_sessions_collection is not None:
-        current_dt = datetime.utcnow() # Use datetime object
+    try:
+        # Generate request ID for tracking
+        request_id = str(uuid.uuid4())
+        g.request_id = request_id
+        
+        # Log request
+        log_request(logger, request, request_id=request_id)
+        
+        # Get client ID from query parameter
+        client_id = request.args.get('client_id')
+        
+        if not client_id:
+            # Generate a client ID if not provided
+            client_id = f"client_{int(time.time())}_{random.randint(1000, 9999)}"
+        
+        # Validate client ID format
+        if not re.match(r'^[a-zA-Z0-9_\-]+$', client_id):
+            raise ValidationError("Invalid client ID format")
+        
+        # Store the initial auth request in MongoDB
+        current_dt = datetime.utcnow()
         auth_sessions_collection.update_one(
             {'client_id': client_id},
             {
                 '$set': {
                     'client_id': client_id,
-                    'created_at': current_dt, # Store as datetime
+                    'created_at': current_dt,
                     'is_polling': False,
                     'authenticated': False,
-                    'last_poll': current_dt # Store as datetime
+                    'last_poll': current_dt
                 }
             },
             upsert=True
         )
-    
-    # Create an auth URL for eBay with the state parameter
-    ebay_auth_url = ebay_oauth_client.generate_user_authorization_url(
-        env_type=EBAY_ENVIRONMENT,
-        scopes=EBAY_SCOPES,
-        state=client_id
-    )
-    
-    return redirect(ebay_auth_url)
+        
+        # Create an auth URL for eBay with the state parameter
+        ebay_environment = environment.SANDBOX if config.ebay.environment == "SANDBOX" else environment.PRODUCTION
+        ebay_auth_url = ebay_oauth_client.generate_user_authorization_url(
+            env_type=ebay_environment,
+            scopes=config.ebay.scopes,
+            state=client_id
+        )
+        
+        logger.info(f"eBay OAuth initiated for client: {client_id}")
+        return redirect(ebay_auth_url)
+        
+    except ValidationError:
+        raise
+    except Exception as e:
+        logger.error(f"Error initiating eBay login: {e}", exc_info=True)
+        raise APIError("Failed to initiate eBay authentication")
 
 @app.route(EBAY_CALLBACK_PATH, methods=['GET'])
 def handle_ebay_callback():
@@ -575,7 +616,42 @@ def validate_session_token(token):
 
 @app.route('/health', methods=['GET'])
 def health_check():
-    return jsonify({"status": "healthy"}), 200
+    """Health check endpoint for monitoring."""
+    try:
+        # Check database connection
+        db_status = "healthy"
+        try:
+            mongo_client.admin.command('ismaster')
+        except Exception:
+            db_status = "unhealthy"
+        
+        # Check services
+        nlp_status = "healthy" if nlp_processor else "unhealthy"
+        ebay_status = "healthy" if ebay_service else "unhealthy"
+        
+        overall_status = "healthy" if all([
+            db_status == "healthy",
+            nlp_status == "healthy", 
+            ebay_status == "healthy"
+        ]) else "unhealthy"
+        
+        return jsonify({
+            "status": overall_status,
+            "timestamp": datetime.utcnow().isoformat(),
+            "services": {
+                "database": db_status,
+                "nlp": nlp_status,
+                "ebay": ebay_status
+            },
+            "version": "1.0.0"
+        }), 200 if overall_status == "healthy" else 503
+        
+    except Exception as e:
+        logger.error(f"Health check error: {e}", exc_info=True)
+        return jsonify({
+            "status": "unhealthy",
+            "error": "Health check failed"
+        }), 503
 
 @app.route('/metrics/feedback', methods=['GET'])
 def get_feedback_metrics():
@@ -630,7 +706,21 @@ def cleanup_expired_sessions():
 # Run cleanup on startup and periodically
 
 if __name__ == '__main__':
-    cleanup_expired_sessions()
-    # Ensure host is '0.0.0.0' to be accessible externally if needed (e.g. for eBay callback testing with ngrok)
-    # or when running in a container. For purely local, 'localhost' or '127.0.0.1' is also fine.
-    app.run(debug=True, port=5000, host='0.0.0.0')
+    try:
+        # Cleanup expired sessions on startup
+        cleanup_expired_sessions()
+        
+        logger.info(f"Starting eBay AI Chatbot backend on {config.app.host}:{config.app.port}")
+        logger.info(f"Environment: {config.ebay.environment}")
+        logger.info(f"Debug mode: {config.app.debug}")
+        
+        # Run the application
+        app.run(
+            debug=config.app.debug,
+            port=config.app.port,
+            host=config.app.host
+        )
+        
+    except Exception as e:
+        logger.error(f"Failed to start application: {e}", exc_info=True)
+        sys.exit(1)

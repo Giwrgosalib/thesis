@@ -1,23 +1,19 @@
-
-import spacy
 import pandas as pd
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.pipeline import Pipeline
 import joblib
 from typing import Dict, Any, List, Optional
-# from spacy.training import Example # No longer needed for NER
 from collections import defaultdict
 import os
-import random
-# from spacy.util import minibatch, compounding # No longer needed for NER
 import re
-import ast # Use ast.literal_eval for safety
+import ast
+import json
 
-# --- PyTorch Imports for From-Scratch NER Model ---
+# --- PyTorch Imports for Enhanced NER Model ---
 import torch
 import torch.nn as nn
 import torch.optim as optim
+
+# --- Import Enhanced Models ---
+from enhanced_models import EnhancedBiLSTM_CRF
 
 # --- From-Scratch BiLSTM-CRF Model Definition ---
 class BiLSTM_CRF(nn.Module):
@@ -30,12 +26,11 @@ class BiLSTM_CRF(nn.Module):
         self.tagset_size = len(tag_to_ix)
 
         self.word_embeds = nn.Embedding(vocab_size, embedding_dim)
-        self.lstm = nn.LSTM(embedding_dim, hidden_dim // 2,
-                            num_layers=1, bidirectional=True)
+        self.lstm = nn.LSTM(embedding_dim, hidden_dim // 2, num_layers=1, bidirectional=True)
         self.hidden2tag = nn.Linear(hidden_dim, self.tagset_size)
 
-        self.transitions = nn.Parameter(
-            torch.randn(self.tagset_size, self.tagset_size))
+        # Transition matrix for CRF
+        self.transitions = nn.Parameter(torch.randn(self.tagset_size, self.tagset_size))
         self.transitions.data[tag_to_ix["START_TAG"], :] = -10000
         self.transitions.data[:, tag_to_ix["STOP_TAG"]] = -10000
 
@@ -48,12 +43,13 @@ class BiLSTM_CRF(nn.Module):
 
     def _forward_alg(self, feats):
         device = feats.device
-        init_alphas = torch.full((1, self.tagset_size), -10000., device=device)
-        init_alphas[0][self.tag_to_ix["START_TAG"]] = 0.
-        forward_var = init_alphas
+        # Initialize the forward variables in log-space
+        forward_var = torch.full((1, self.tagset_size), -10000., device=device)
+        forward_var[0][self.tag_to_ix["START_TAG"]] = 0.
         for feat in feats:
             alphas_t = []
             for next_tag in range(self.tagset_size):
+                # Emission and transition scores
                 emit_score = feat[next_tag].view(1, -1).expand(1, self.tagset_size)
                 trans_score = self.transitions[next_tag].view(1, -1)
                 next_tag_var = forward_var + trans_score + emit_score
@@ -66,10 +62,10 @@ class BiLSTM_CRF(nn.Module):
     def _score_sentence(self, feats, tags):
         device = feats.device
         score = torch.zeros(1, device=device)
+        # Include START tag in the score
         tags = torch.cat([torch.tensor([self.tag_to_ix["START_TAG"]], dtype=torch.long, device=device), tags])
         for i, feat in enumerate(feats):
-            score = score + \
-                self.transitions[tags[i + 1], tags[i]] + feat[tags[i + 1]]
+            score = score + self.transitions[tags[i+1], tags[i]] + feat[tags[i+1]]
         score = score + self.transitions[self.tag_to_ix["STOP_TAG"], tags[-1]]
         return score
 
@@ -82,138 +78,147 @@ class BiLSTM_CRF(nn.Module):
     def _viterbi_decode(self, feats):
         device = feats.device
         backpointers = []
-        init_vvars = torch.full((1, self.tagset_size), -10000., device=device)
-        init_vvars[0][self.tag_to_ix["START_TAG"]] = 0
-        forward_var = init_vvars
+
+        # Initialize Viterbi variables
+        viterbi_vars = torch.full((1, self.tagset_size), -10000., device=device)
+        viterbi_vars[0][self.tag_to_ix["START_TAG"]] = 0
+
         for feat in feats:
             bptrs_t = []
-            viterbivars_t = []
+            vvars_t = []
             for next_tag in range(self.tagset_size):
-                next_tag_var = forward_var + self.transitions[next_tag]
+                next_tag_var = viterbi_vars + self.transitions[next_tag]
                 best_tag_id = torch.argmax(next_tag_var)
                 bptrs_t.append(best_tag_id)
-                viterbivars_t.append(next_tag_var[0][best_tag_id].view(1))
-            forward_var = (torch.cat(viterbivars_t) + feat).view(1, -1)
+                vvars_t.append(next_tag_var[0][best_tag_id].view(1))
+            viterbi_vars = (torch.cat(vvars_t) + feat).view(1, -1)
             backpointers.append(bptrs_t)
-        terminal_var = forward_var + self.transitions[self.tag_to_ix["STOP_TAG"]]
+
+        # Transition to STOP_TAG
+        terminal_var = viterbi_vars + self.transitions[self.tag_to_ix["STOP_TAG"]]
         best_tag_id = torch.argmax(terminal_var)
         path_score = terminal_var[0][best_tag_id]
+
+        # Backtrack through pointers to decode best path
         best_path = [best_tag_id]
         for bptrs_t in reversed(backpointers):
             best_tag_id = bptrs_t[best_tag_id]
             best_path.append(best_tag_id)
-        start = best_path.pop()
-        assert start == self.tag_to_ix["START_TAG"]
+        # Drop the START tag
+        best_path.pop()
         best_path.reverse()
         return path_score, best_path
 
     def forward(self, sentence):
+        # Run forward algorithm (BiLSTM + CRF decoding)
         lstm_feats = self._get_lstm_features(sentence)
         score, tag_seq = self._viterbi_decode(lstm_feats)
         return score, tag_seq
 
-# Helper function for PyTorch model
+# Helper function to convert word sequence to tensor of indices
 def prepare_sequence(seq, to_ix):
-    idxs = [to_ix.get(w, 0) for w in seq] # Use .get(w, 0) to handle unknown words
+    idxs = [to_ix.get(w, 0) for w in seq]
     return torch.tensor(idxs, dtype=torch.long)
 
 class EBayNLP:
     def __init__(self):
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         print(f"Using device: {self.device}")
-        # ML Models
-        self.intent_pipeline = None
-        # self.entity_recognizer = None # Old spaCy model
         
-        # --- New From-Scratch NER Model Components ---
+        # Single intent architecture - no intent classifier needed!
+        self.intent = "search_product"
+        
+        # Enhanced NER Model Components
         self.ner_model = None
-        self.word_to_ix = {"[UNK]": 0} # Add UNK token for unknown words
+        self.word_to_ix = {"[UNK]": 0, "[PAD]": 1}
         self.tag_to_ix = {}
         self.ix_to_tag = {}
-        # -------------------------------------------
-
+        self.model_config = {}
+        
+        # Initialize spaCy English tokenizer for robust tokenization
+        try:
+            import spacy
+            self.spacy_nlp = spacy.blank("en")
+        except ImportError:
+            print("spaCy not available, using basic tokenization")
+            self.spacy_nlp = None
+        
         self._prepare_models()
 
     def _prepare_models(self):
-        """Initialize or load trained models"""
-        self.intent_model_path = os.path.join('models', 'intent_model.pkl')
-        # self.entity_model_path = os.path.join('models', 'entity_model') # Old spaCy path
+        """Initialize or load enhanced models"""
+        # Enhanced model paths
+        self.ner_model_path = os.path.join('models', 'enhanced', 'enhanced_ner_model.pth')
+        self.ner_vocab_path = os.path.join('models', 'enhanced', 'enhanced_ner_model_vocab.pkl')
+        self.model_info_path = os.path.join('models', 'enhanced', 'model_info.json')
         
-        # --- New PyTorch model path ---
-        self.ner_model_path = os.path.join('models', 'ner_model.pth')
-        self.ner_vocab_path = os.path.join('models', 'ner_vocab.pkl')
-        # --------------------------------
-
-        os.makedirs('models', exist_ok=True)
-
-        try:
-            self.intent_pipeline = joblib.load(self.intent_model_path)
-            print("Loaded trained intent model.")
-        except Exception as e:
-            print(f"Could not load trained intent model: {e}. Initializing new pipeline.")
-            self.intent_pipeline = Pipeline([
-                ('tfidf', TfidfVectorizer(ngram_range=(1, 2))),
-                ('clf', RandomForestClassifier(n_estimators=150, class_weight='balanced', random_state=42))
-            ])
-
-        # --- Load From-Scratch NER Model ---
+        # Load enhanced NER model if available
         if os.path.exists(self.ner_model_path) and os.path.exists(self.ner_vocab_path):
-            print("Loading from-scratch NER model...")
+            print("Loading enhanced NER model...")
             try:
-                # Load vocab and tag mappings
+                # Load vocabularies and config
                 vocab_data = joblib.load(self.ner_vocab_path)
                 self.word_to_ix = vocab_data['word_to_ix']
                 self.tag_to_ix = vocab_data['tag_to_ix']
                 self.ix_to_tag = {v: k for k, v in self.tag_to_ix.items()}
-
-                # Initialize model with saved dimensions
-                EMBEDDING_DIM = 128 # Should be saved/loaded as well, but hardcoded for now
-                HIDDEN_DIM = 256
-                self.ner_model = BiLSTM_CRF(len(self.word_to_ix), self.tag_to_ix, EMBEDDING_DIM, HIDDEN_DIM)
+                self.model_config = vocab_data.get('config', {})
                 
-                # Load the trained weights
+                # Load model info if available
+                if os.path.exists(self.model_info_path):
+                    with open(self.model_info_path, 'r') as f:
+                        model_info = json.load(f)
+                        print(f"Model info: {model_info.get('description', 'Enhanced NER model')}")
+                
+                # Initialize enhanced model
+                self.ner_model = EnhancedBiLSTM_CRF(
+                    vocab_size=len(self.word_to_ix),
+                    tag_to_ix=self.tag_to_ix,
+                    embedding_dim=self.model_config.get('embedding_dim', 128),
+                    hidden_dim=self.model_config.get('hidden_dim', 256),
+                    num_layers=self.model_config.get('num_layers', 2),
+                    dropout=self.model_config.get('dropout', 0.3),
+                    use_attention=self.model_config.get('use_attention', True),
+                    use_char_embeddings=self.model_config.get('use_char_embeddings', False)
+                )
                 self.ner_model.load_state_dict(torch.load(self.ner_model_path, map_location=self.device))
                 self.ner_model.to(self.device)
                 print("Loaded trained from-scratch NER model.")
             except Exception as e:
                 print(f"Error loading from-scratch NER model: {e}. Model will be retrained.")
-                self.ner_model = None # Ensure model is None if loading fails
+                self.ner_model = None
         else:
-            print("No trained from-scratch NER model found. Model will be initialized during training.")
-        # -------------------------------------
-
-        """ --- Old spaCy Model Loading ---
-        try:
-            self.entity_recognizer = spacy.load(self.entity_model_path)
-            print("Loaded trained entity model.")
-        except Exception as e:
-            print(f"Could not load trained entity model: {e}. Initializing blank model.")
-            self.entity_recognizer = spacy.blank('en')
-            if not self.entity_recognizer.has_pipe('ner'):
-                self.entity_recognizer.add_pipe('ner')
-        """
+            print("No trained from-scratch NER model found. A new model will be initialized during training.")
 
     def extract_entities(self, query: str) -> Dict[str, Any]:
         """
-        ML-powered entity extraction, where the NER model handles all entities
-        including price ranges.
+        Entity extraction using the enhanced NER model with single intent architecture.
         """
-        intent = self._predict_intent(query)
+        # Single intent - always correct!
+        intent = self.intent
         
-        # --- NER Inference to get text-based entities ---
         grouped_entities = defaultdict(list)
         if self.ner_model:
             with torch.no_grad():
-                query_tokens = re.findall(r'\w+|[.,!?;]', query)
+                # Tokenize query
+                if self.spacy_nlp:
+                    doc = self.spacy_nlp(query)
+                    query_tokens = [token.text for token in doc]
+                else:
+                    # Fallback to basic tokenization
+                    query_tokens = query.split()
+                
+                # Prepare sequence for enhanced model
                 sentence_in = prepare_sequence(query_tokens, self.word_to_ix).to(self.device)
                 
-                score, tag_indices = self.ner_model(sentence_in)
+                # Use enhanced model with attention
+                score, tag_indices = self.ner_model(sentence_in, query_tokens)
                 predicted_tags = [self.ix_to_tag.get(ix.item(), 'O') for ix in tag_indices]
-
+                # Group contiguous tokens for each predicted entity
                 current_entity_text = []
                 current_entity_label = ""
                 for token, tag in zip(query_tokens, predicted_tags):
                     if tag.startswith("B-"):
+                        # Close previous entity if any
                         if current_entity_text:
                             grouped_entities[current_entity_label].append(" ".join(current_entity_text))
                         current_entity_text = [token]
@@ -222,99 +227,74 @@ class EBayNLP:
                         if current_entity_label == tag[2:]:
                             current_entity_text.append(token)
                         else:
+                            # Malformed sequence, close previous entity
                             if current_entity_text:
                                 grouped_entities[current_entity_label].append(" ".join(current_entity_text))
                             current_entity_text = []
                             current_entity_label = ""
                     else:
+                        # tag == 'O', close any open entity
                         if current_entity_text:
                             grouped_entities[current_entity_label].append(" ".join(current_entity_text))
                         current_entity_text = []
                         current_entity_label = ""
-                
                 if current_entity_text:
                     grouped_entities[current_entity_label].append(" ".join(current_entity_text))
         else:
             print("Warning: NER model not available for entity extraction.")
-        
         extracted_data = dict(grouped_entities)
         extracted_data["intent"] = intent
         extracted_data["raw_query"] = query
-
-        # --- Post-processing for specific entities ---
-        
-        # 1. Handle Price Range by parsing the text extracted by the NER model
+        # --- Post-processing for specific entity types ---
+        # 1. Parse and normalize price range text into [min_price, max_price]
         price_range_text = extracted_data.get("PRICE_RANGE", [])
         extracted_data["PRICE_RANGE"] = self._parse_price_range_text(price_range_text)
-
-        # 2. Consolidate CATEGORY and PRODUCT_TYPE
+        # 2. Consolidate CATEGORY and PRODUCT_TYPE labels (if both present, merge them)
         if "PRODUCT_TYPE" in extracted_data and "CATEGORY" not in extracted_data:
             extracted_data["CATEGORY"] = extracted_data.pop("PRODUCT_TYPE")
         elif "CATEGORY" in extracted_data and "PRODUCT_TYPE" in extracted_data:
             extracted_data["CATEGORY"].extend(extracted_data.pop("PRODUCT_TYPE"))
             del extracted_data["PRODUCT_TYPE"]
-
-        # 3. Ensure all expected keys exist
-        expected_keys = ["BRAND", "CATEGORY", "PRODUCT_TYPE", "PRICE_RANGE"]
-        for key in expected_keys:
+        # 3. Ensure all expected keys exist in the result
+        for key in ["BRAND", "CATEGORY", "PRODUCT_TYPE", "PRICE_RANGE"]:
             if key not in extracted_data:
                 extracted_data[key] = []
-
         return extracted_data
 
     def _parse_price_range_text(self, price_texts: List[str]) -> List[Optional[int]]:
         """
-        Parses extracted price range text (e.g., 'under 500') into a structured list.
-        Returns a list like [min_price, max_price].
+        Parses a price range string (e.g., "under 500") into [min_price, max_price] format.
         """
         if not price_texts:
             return []
-
-        # For simplicity, process the first detected price text
         text = price_texts[0].lower()
-        
-        # Match patterns like "under 500", "below $300", etc.
         match = re.search(r'(under|below|less than)\s*\$?(\d+)', text)
         if match:
             price = int(match.group(2))
             return [0, price]
-            
-        # Match patterns like "over 500", "above $300", etc.
         match = re.search(r'(over|above|more than)\s*\$?(\d+)', text)
         if match:
             price = int(match.group(2))
             return [price, None]
-            
-        # Match patterns like "between 300 and 500"
         match = re.search(r'between\s*\$?(\d+)\s*and\s*\$?(\d+)', text)
         if match:
             return [int(match.group(1)), int(match.group(2))]
-        
-        # Handle simple numbers like "$500" as an exact price or a max price
         match = re.search(r'^\$?(\d+)', text)
         if match:
             price = int(match.group(1))
             return [price, price]
-
-        return [] # Return empty if no pattern matched
+        return []  # No pattern matched
 
     def _predict_intent(self, query: str) -> str:
-        # This method remains unchanged
-        if not hasattr(self.intent_pipeline, 'classes_') or self.intent_pipeline.classes_ is None:
-            return "unknown_intent"
-        try:
-            return self.intent_pipeline.predict([query])[0]
-        except Exception as e:
-            print(f"Error during intent prediction: {e}")
-            return "unknown_intent"
+        # Single intent architecture - always return search_product
+        return self.intent
 
     def train(self, dataset_path: str, new_data_path: Optional[str] = None, iterations: int = 10):
         """
-        Train or update both the intent and NER models using a base dataset and optional new data.
-        This function now includes robust data loading, cleaning, and preparation for both models.
+        Train or update both the intent classifier and NER model using a base dataset (and optional new data).
+        This training routine includes robust data loading, validation, and preparation steps.
         """
-        print(f"Starting training process...")
-        
+        print("Starting training process...")
         # --- 1. Data Loading and Preparation ---
         print(f"Loading base dataset from {dataset_path}")
         try:
@@ -322,164 +302,181 @@ class EBayNLP:
         except FileNotFoundError:
             print(f"Error: Base dataset file not found at {dataset_path}")
             return
-
         if new_data_path:
             print(f"Loading new data from {new_data_path}")
             try:
                 df_new = pd.read_csv(new_data_path)
                 df = pd.concat([df_base, df_new], ignore_index=True)
             except FileNotFoundError:
-                print(f"Warning: New data file not found. Proceeding with base dataset only.")
+                print("Warning: New data file not found. Proceeding with base dataset only.")
                 df = df_base
         else:
             df = df_base
-
         required_columns = ['query', 'intent', 'entities']
         if not all(col in df.columns for col in required_columns):
             print(f"Error: Dataset missing one or more required columns: {required_columns}")
             return
-
         # Clean and shuffle the data
         df.drop_duplicates(subset=['query'], keep='last', inplace=True)
         df = df.sample(frac=1, random_state=42).reset_index(drop=True)
         print(f"Total unique queries for training: {len(df)}")
-
         # --- 2. Intent Classifier Training ---
         print("\n--- Training Intent Classifier ---")
         self.intent_pipeline.fit(df['query'], df['intent'])
         print("Intent classifier trained/retrained.")
         joblib.dump(self.intent_pipeline, self.intent_model_path)
         print(f"Intent model saved to {self.intent_model_path}")
-
         # --- 3. From-Scratch NER Model Training ---
         print("\n--- Training From-Scratch NER Model ---")
         print("Preparing aligned data for NER model...")
-        
-        # a. Build vocabulary and tag mappings from the entire dataset
-        self.tag_to_ix = {"O": 0, "START_TAG": 1, "STOP_TAG": 2} # Reset mappings
+        # a. Build vocabulary and tag mappings from the dataset
+        self.tag_to_ix = {"O": 0, "START_TAG": 1, "STOP_TAG": 2}
         self.word_to_ix = {"[UNK]": 0}
         all_training_data = []
-
+        skipped_rows = 0
         for _, row in df.iterrows():
             query = row['query']
+            if not isinstance(query, str) or not query.strip():
+                print(f"Skipping row with invalid query text: {query}")
+                skipped_rows += 1
+                continue
             try:
                 entities = self._parse_entities(row['entities'])
-                if entities:
-                    tokens, tags = self._create_aligned_tags(query, entities)
-                    all_training_data.append((tokens, tags))
-
-                    for word in tokens:
-                        if word not in self.word_to_ix:
-                            self.word_to_ix[word] = len(self.word_to_ix)
-                    for tag in tags:
-                        if tag not in self.tag_to_ix:
-                            self.tag_to_ix[tag] = len(self.tag_to_ix)
             except Exception as e:
-                print(f"Skipping row due to parsing/alignment error: {e}")
+                print(f"Skipping row due to parse error: {e}")
+                skipped_rows += 1
                 continue
-        
+            if not entities:
+                print(f"Skipping query '{query}' due to no valid entities.")
+                skipped_rows += 1
+                continue
+            try:
+                tokens, tags = self._create_aligned_tags(query, entities)
+            except Exception as e:
+                print(f"Skipping row due to alignment error: {e}")
+                skipped_rows += 1
+                continue
+            all_training_data.append((tokens, tags))
+            for word in tokens:
+                if word not in self.word_to_ix:
+                    self.word_to_ix[word] = len(self.word_to_ix)
+            for tag in tags:
+                if tag not in self.tag_to_ix:
+                    self.tag_to_ix[tag] = len(self.tag_to_ix)
+        print(f"Prepared {len(all_training_data)} training examples for NER (skipped {skipped_rows} rows due to errors).")
         self.ix_to_tag = {v: k for k, v in self.tag_to_ix.items()}
-        
         # --- Verification Step ---
         total_entities = sum(1 for _, tags in all_training_data for tag in tags if tag != 'O')
         print(f"Total entities found in training data after parsing: {total_entities}")
         if total_entities == 0:
-            print("CRITICAL WARNING: No entities were found in the training data. The model will not learn to extract any entities. Check the 'entities' column format in your CSV.")
-        # -------------------------
-
+            print("CRITICAL WARNING: No entities were found in the training data. The model will not learn to extract any entities.")
+        # Summarize token count as well
+        total_tokens = sum(len(tokens) for tokens, tags in all_training_data)
+        print(f"Total tokens in training data after cleaning: {total_tokens}")
         print(f"Vocabulary size: {len(self.word_to_ix)}, Tag set size: {len(self.tag_to_ix)}")
-
-        # b. Initialize the model and optimizer
+        # b. Initialize model and optimizer
         EMBEDDING_DIM = 128
         HIDDEN_DIM = 256
-        self.ner_model = BiLSTM_CRF(len(self.word_to_ix), self.tag_to_ix, EMBEDDING_DIM, HIDDEN_DIM).to(self.device)
+        embedding_matrix = None
+        glove_path = os.path.join('data', 'glove.6B.100d.txt')
+        if os.path.exists(glove_path):
+            print(f"Loading pretrained embeddings from {glove_path}...")
+            glove_vectors = {}
+            with open(glove_path, 'r', encoding='utf-8') as f:
+                for line in f:
+                    parts = line.strip().split()
+                    if not parts:
+                        continue
+                    word = parts[0]
+                    if word in self.word_to_ix:
+                        vector = [float(x) for x in parts[1:]]
+                        glove_vectors[word] = vector
+            if glove_vectors:
+                glove_dim = len(next(iter(glove_vectors.values())))
+                if glove_dim != EMBEDDING_DIM:
+                    print(f"Note: GloVe vector length {glove_dim} does not match EMBEDDING_DIM {EMBEDDING_DIM}. Adjusting embedding dimension to {glove_dim}.")
+                    EMBEDDING_DIM = glove_dim
+                vocab_size = len(self.word_to_ix)
+                embedding_matrix = torch.randn(vocab_size, EMBEDDING_DIM)
+                # Initialize [UNK] embedding as zero vector for consistency
+                embedding_matrix[self.word_to_ix["[UNK]"]] = torch.zeros(EMBEDDING_DIM)
+                for word, idx in self.word_to_ix.items():
+                    if word in glove_vectors:
+                        embedding_matrix[idx] = torch.tensor(glove_vectors[word])
+                print(f"Loaded GloVe vectors for {len(glove_vectors)} words out of {len(self.word_to_ix)} in vocabulary.")
+            else:
+                print("Warning: No vocabulary words found in GloVe file; using random init for embeddings.")
+        else:
+            print("GloVe embeddings file not found; using random initialization for embeddings.")
+        self.ner_model = BiLSTM_CRF(len(self.word_to_ix), self.tag_to_ix, EMBEDDING_DIM, HIDDEN_DIM)
+        if embedding_matrix is not None:
+            with torch.no_grad():
+                self.ner_model.word_embeds.weight.copy_(embedding_matrix)
+        self.ner_model = self.ner_model.to(self.device)
         optimizer = optim.SGD(self.ner_model.parameters(), lr=0.01, weight_decay=1e-4)
-
-        # c. The Training Loop
+        # c. Training Loop
         print(f"Starting NER model training with {len(all_training_data)} samples...")
+        from tqdm import tqdm
         for epoch in range(1, iterations + 1):
             total_loss = 0
-            # Add tqdm for a progress bar
-            from tqdm import tqdm
             for tokens, tags in tqdm(all_training_data, desc=f"NER Epoch {epoch}/{iterations}"):
                 self.ner_model.zero_grad()
-                
                 sentence_in = prepare_sequence(tokens, self.word_to_ix).to(self.device)
                 targets = torch.tensor([self.tag_to_ix[t] for t in tags], dtype=torch.long).to(self.device)
-
                 loss = self.ner_model.neg_log_likelihood(sentence_in, targets)
                 total_loss += loss.item()
                 loss.backward()
                 optimizer.step()
             print(f"NER Epoch {epoch}/{iterations}, Loss: {total_loss}")
-
-        # d. Save the trained model and vocab
+        # d. Save the trained model and mappings
         print("Saving from-scratch NER model...")
         torch.save(self.ner_model.state_dict(), self.ner_model_path)
-        joblib.dump({
-            'word_to_ix': self.word_to_ix,
-            'tag_to_ix': self.tag_to_ix
-        }, self.ner_vocab_path)
-        print(f"From-scratch NER model saved successfully to {self.ner_model_path}")
-        print("\nTraining process completed.")
+        joblib.dump({'word_to_ix': self.word_to_ix, 'tag_to_ix': self.tag_to_ix, 'embedding_dim': EMBEDDING_DIM}, self.ner_vocab_path)
+        print(f"From-scratch NER model saved to {self.ner_model_path}")
+        print("Training process completed.")
 
     def _parse_entities(self, entity_value):
-        """Helper function to parse the entity string safely."""
+        """Helper function to safely parse the 'entities' field."""
         if pd.isna(entity_value):
             return []
         if isinstance(entity_value, list):
-            # Already parsed, just validate structure
             return [tuple(item) for item in entity_value if isinstance(item, (tuple, list)) and len(item) == 3]
         if isinstance(entity_value, str):
             try:
-                # Use ast.literal_eval for safer evaluation than eval
                 parsed = ast.literal_eval(entity_value)
                 if isinstance(parsed, list):
-                    # Validate the structure of each item in the list
                     validated_entities = []
                     for item in parsed:
                         if isinstance(item, (tuple, list)) and len(item) == 3:
                             validated_entities.append(tuple(item))
                         else:
-                            # Log or handle malformed items within the list
                             print(f"Warning: Skipping malformed entity item: {item}")
                     return validated_entities
                 else:
                     print(f"Warning: Parsed entity string is not a list: {entity_value}")
                     return []
             except (ValueError, SyntaxError, TypeError) as e:
-                # Catch specific errors from literal_eval
                 print(f"Warning: Could not parse entity string: {entity_value}. Error: {e}")
                 return []
         return []
 
     def _create_aligned_tags(self, query: str, entities: List[tuple]) -> (List[str], List[str]):
         """
-        Aligns character-offset entities to token-level IOB tags.
-        Returns a list of tokens and a corresponding list of IOB tags.
+        Align character-indexed entities to token-level BIO tags using spaCy tokenization.
+        Returns a list of tokens and a parallel list of IOB tags.
         """
-        tokens = re.findall(r'\w+|[.,!?;]', query)
+        # Tokenize the query with spaCy for robust splitting
+        doc = self.spacy_nlp(query)
+        tokens = [token.text for token in doc]
         tags = ['O'] * len(tokens)
-        
-        token_spans = []
-        current_pos = 0
-        for token in tokens:
-            start = query.find(token, current_pos)
-            if start == -1:
-                continue
-            end = start + len(token)
-            token_spans.append((start, end))
-            current_pos = end
-
+        token_spans = [(token.idx, token.idx + len(token)) for token in doc]
         for ent_start, ent_end, ent_label in entities:
             is_first_token = True
             for i, (tok_start, tok_end) in enumerate(token_spans):
-                # Check for any overlap between token and entity
-                if max(tok_start, ent_start) < min(tok_end, ent_end):
+                if max(tok_start, ent_start) < min(tok_end, ent_end):  # overlap with entity span
                     if is_first_token:
                         tags[i] = f"B-{ent_label}"
                         is_first_token = False
                     else:
                         tags[i] = f"I-{ent_label}"
-        
         return tokens, tags

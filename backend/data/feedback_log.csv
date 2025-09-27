@@ -1,9 +1,5 @@
 query,intent,entities
-i need a gaming laptop under 500,buy_laptop,"[(16, 22, 'PRODUCT_TYPE'), (23, 32, 'PRICE_RANGE')]"
-a gaming laptop under 2000$,buy_laptop,"[(2, 15, 'PRODUCT_TYPE'), (16, 27, 'PRICE_RANGE')]"
-laptops over 500$,buy_electronics,"[(0, 7, 'PRODUCT_TYPE'), (8, 16, 'USAGE')]"
-i want a red t shirt,buy_electronics,[]
-big black dildo\,buy_electronics,"[(0, 3, 'PRODUCT_TYPE'), (4, 9, 'COLOR')]"
-i want a good looking doll over 100 dollars,buy_electronics,"[(22, 26, 'FEATURE'), (27, 31, 'SIZE'), (32, 43, 'QUANTITY')]"
-i want a nice sex doll ,buy_electronics,"[(9, 17, 'STORAGE'), (18, 22, 'PRODUCT_TYPE')]"
-im looking for a samsung galaxy s23,buy_phone,"[(17, 24, 'BRAND'), (25, 35, 'MODEL')]"
+find me a set of lord of the rings books ,buy_product,[]
+get a nice blue t shirt,buy_product,[]
+find me warhammer figurines ,buy_product,[]
+i want lord of the rings trilogy books,buy_product,[]
