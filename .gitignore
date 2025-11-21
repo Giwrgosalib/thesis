@@ -1,0 +1,44 @@
+# Python caches and virtual environments
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+.venv/
+venv/
+env/
+
+# Local environment overrides
+.env.local
+.envrc
+
+# Model artifacts and checkpoints
+backend/models/enhanced/*.pth
+backend/models/enhanced/*.pkl
+backend/models/enhanced/*.pt
+backend_nextgen/models/ner/checkpoint-*/
+backend_nextgen/models/ner/*.bin
+backend_nextgen/models/ner/*.pt
+backend_nextgen/models/ner/*.safetensors
+backend_nextgen/models/ner/cache/
+backend_nextgen/models/ner/*.json
+backend_nextgen/models/ner/*.jsonl
+backend_nextgen/models/ner/*.txt
+backend_nextgen/models/ner/*.model
+backend_nextgen/models/ner/*.spm
+backend_nextgen/models/ner/tokenizer*
+
+# Frontend build output
+frontend/dist/
+
+# Logs and metrics
+*.log
+backend_nextgen/observability/*.db
+backend_nextgen/observability/*.sqlite
+data/observability/
+data/vector_store/
+backend_nextgen/data/
+backend/data/
+backend/__pycache__/
+
+# Thesis documents
+thesis/

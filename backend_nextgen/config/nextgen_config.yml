@@ -1,0 +1,51 @@
+app:
+  name: ebay-ai-chatbot-nextgen
+  environment: research
+  logging_level: INFO
+
+nlp:
+  model_name: microsoft/deberta-v3-base
+  max_sequence_length: 256
+  use_crf_head: true  # requires torchcrf to be installed
+  enable_char_encoder: false
+  device: auto
+  confidence_threshold: 0.55
+  trained_model_path: models/ner
+
+retrieval:
+  encoder_name: intfloat/e5-base-v2
+  embedding_dim: 768
+  index_path: data/vector_store/faiss_index.npy
+  metadata_store: data/vector_store/metadata.npy
+  top_k: 20
+
+rag:
+  generator_name: gpt2
+  max_context_docs: 5
+  response_max_tokens: 384
+  temperature: 0.4
+
+ranking:
+  candidate_pool: 100
+  rerank_top_k: 20
+  model_name: cross-encoder/ms-marco-MiniLM-L-6-v2
+
+personalization:
+  bandit_algorithm: contextual_thompson_sampling
+  feature_store: data/personalization/features.parquet
+  exploration_rate: 0.1
+
+active_learning:
+  uncertainty_metric: entropy
+  disagreement_threshold: 0.25
+  batch_size: 128
+
+knowledge_graph:
+  graph_store: data/knowledge_graph/kg.parquet
+  embedding_model: distmult
+  embedding_dim: 256
+
+observability:
+  metrics_path: data/observability/metrics.db
+  drift_threshold: 0.15
+  alerting_webhook: https://example.com/alerts

@@ -105,18 +105,33 @@ class NextGenAIOrchestrator:
         self.knowledge_graph = KnowledgeGraph()
         self.ebay_service = EBayService()
 
-    def handle_query(self, query: str, user_context: Dict[str, Any]) -> Dict[str, Any]:
+    def handle_query_stream(
+        self, query: str, user_context: Dict[str, Any], limit: int = 10, offset: int = 0
+    ):
         """
-        Entry point for conversational handling.
+        Generator that yields events for the conversational pipeline.
+        Events:
+        - {"type": "status", "content": "..."}
+        - {"type": "results", "content": [...]}
+        - {"type": "token", "content": "..."}
+        - {"type": "done", "content": ""}
         """
+        yield {"type": "status", "content": "Analyzing your request..."}
+        
         entity_payload = {}
         if self.ner_inference:
             entity_payload = self.ner_inference.extract_entities(query)
+        
+        yield {"type": "status", "content": "Searching for products..."}
 
         intent_payload = self._build_intent_payload(query, entity_payload)
         intent_payload = self._merge_user_preferences(intent_payload, user_context)
-        ebay_items = self._search_ebay(intent_payload, user_context)
+        
+        # Pass pagination params
+        ebay_items = self._search_ebay(intent_payload, user_context, limit=limit, offset=offset)
         normalized_items = [self._normalize_item(item) for item in ebay_items]
+
+        yield {"type": "status", "content": "Ranking best matches..."}
 
         reranked = self._rerank_items(query, normalized_items, user_context)
 
@@ -134,9 +149,33 @@ class NextGenAIOrchestrator:
             ]
         )
 
+        # Yield results immediately
+        yield {
+            "type": "results", 
+            "content": {
+                "items": normalized_items,
+                "entities": entity_payload,
+                "citations": self._build_citations(reranked),
+                "recommendation": recommendation.metadata
+            }
+        }
+
+        # If this is a "Show More" request (offset > 0), we might skip RAG or keep it brief.
+        # For now, we always generate a response if it's the first page, 
+        # or a brief "Here are more results" if it's a subsequent page.
+        
+        if offset > 0:
+            yield {"type": "token", "content": "Here are some more results matching your criteria."}
+            yield {"type": "done", "content": ""}
+            return
+
+        yield {"type": "status", "content": "Generating answer..."}
+
         rag_response = None
         if self.rag:
             try:
+                # TODO: If RAG supports streaming, hook it up here. 
+                # For now, we simulate streaming the generated text.
                 rag_response = self.rag.answer(query, normalized_items)
             except Exception as exc:
                 self.metric_sink.log(
@@ -153,19 +192,19 @@ class NextGenAIOrchestrator:
         self.metric_sink.log(
             MetricRecord(
                 name="nextgen_response_latency_ms",
-                value=42.0,
+                value=42.0, # Placeholder, ideally measure start-end time
                 metadata={"query": query[:50]},
             )
         )
 
-        return {
-            "query": query,
-            "entities": entity_payload,
-            "retrieval": normalized_items,
-            "recommendation": recommendation.metadata,
-            "answer": answer_text,
-            "citations": self._build_citations(reranked),
-        }
+        # Simulate token streaming
+        import time
+        tokens = answer_text.split(" ")
+        for token in tokens:
+            yield {"type": "token", "content": token + " "}
+            time.sleep(0.02) # Artificial delay for "typing" effect
+
+        yield {"type": "done", "content": ""}
 
     def _load_tag_mapping(self) -> Dict[str, int]:
         """Load the enhanced entity schema to keep transformer NER tags aligned."""
@@ -332,12 +371,12 @@ class NextGenAIOrchestrator:
             shipping_entities["SHIPPING"] = merged_shipping
         return intent_payload
 
-    def _search_ebay(self, intent_payload: Dict[str, Any], user_context: Dict[str, Any]) -> List[Dict[str, Any]]:
+    def _search_ebay(self, intent_payload: Dict[str, Any], user_context: Dict[str, Any], limit: int = 10, offset: int = 0) -> List[Dict[str, Any]]:
         user_id = None
         if isinstance(user_context, dict):
             user_id = user_context.get("userId") or user_context.get("user_id")
         try:
-            return self.ebay_service.search(intent_payload, user_id=user_id)
+            return self.ebay_service.search(intent_payload, user_id=user_id, limit=limit, offset=offset)
         except Exception as exc:
             # Log metric and fall back to vector index
             self.metric_sink.log(

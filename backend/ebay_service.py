@@ -78,8 +78,8 @@ class EBayService:
         encoded_credentials = base64.b64encode(credentials.encode('utf-8')).decode('utf-8')
         return encoded_credentials
 
-    # Modify search signature to accept user_id
-    def search(self, intent: Dict, user_id: Optional[str] = None) -> List[Dict]:
+    # Modify search signature to accept user_id, limit, and offset
+    def search(self, intent: Dict, user_id: Optional[str] = None, limit: int = 10, offset: int = 0) -> List[Dict]:
         """Convert ML output to eBay API params, perform search, and personalize results."""
         query = intent.get('raw_query', '').strip()
         logging.info(f"eBay search intent: {intent}")
@@ -98,7 +98,8 @@ class EBayService:
         # Build API parameters
         params = {
             "q": query,
-            "limit": 20
+            "limit": str(limit),
+            "offset": str(offset)
         }
 
         filters = self._build_filters(intent)
@@ -125,7 +126,11 @@ class EBayService:
                 category
             )
             # Pass user_prefs to rerank
-            return self._rerank_results(mock_results, intent, user_prefs)
+            reranked = self._rerank_results(mock_results, intent, user_prefs)
+            # Apply pagination to mock results
+            start = offset
+            end = offset + limit
+            return reranked[start:end]
 
         try:
             token = self._get_access_token()
@@ -316,8 +321,8 @@ class EBayService:
         # Sort items by score in descending order
         scored_items.sort(key=lambda x: x['score'], reverse=True)
 
-        # Return only the top N items (e.g., top 10)
-        return [scored['item'] for scored in scored_items[:10]]
+        # Return all scored items (pagination handled by API or caller)
+        return [scored['item'] for scored in scored_items]
 
     # Modify _match_score slightly for clarity
     def _match_score(self, item: Dict, intent: Dict) -> float:

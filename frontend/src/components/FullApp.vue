@@ -599,24 +599,44 @@
                                   size="small"
                                   class="view-btn"
                                 >
-                                  <v-icon start>mdi-open-in-new</v-icon>
-                                  View listing
+                                  <v-icon>mdi-open-in-new</v-icon>
+                                  View
                                 </v-btn>
                               </v-card-actions>
                             </v-card>
                           </div>
+
+                          <!-- Show More Button -->
                           <div
-                            class="show-more"
-                            v-if="hasMoreProducts(message)"
+                            v-if="
+                              hasMoreResults && message.products.length >= 10
+                            "
+                            class="show-more-container"
                           >
                             <v-btn
                               variant="outlined"
                               color="ebay-blue"
-                              size="small"
-                              @click="showMoreProducts(index)"
+                              :loading="isLoadingMore"
+                              @click="loadMore(index)"
+                              prepend-icon="mdi-plus"
                             >
-                              Show more results
+                              Show More Results
                             </v-btn>
+                          </div>
+
+                          <!-- Streaming Status -->
+                          <div
+                            v-if="message.streaming && streamingStatus"
+                            class="streaming-status"
+                          >
+                            <v-progress-circular
+                              indeterminate
+                              size="16"
+                              width="2"
+                              color="ebay-blue"
+                              class="mr-2"
+                            ></v-progress-circular>
+                            <span>{{ streamingStatus }}</span>
                           </div>
                         </div>
                         <small class="timestamp">{{ message.timestamp }}</small>
@@ -724,6 +744,11 @@ export default {
       metricsLoading: false,
       metricsError: "",
       metricsLastFetchedAt: 0,
+      streamingStatus: "",
+      currentOffset: 0,
+      hasMoreResults: true,
+      isLoadingMore: false,
+      currentQuery: "",
       metricsCacheDuration: 60000,
     };
   },
@@ -992,7 +1017,7 @@ export default {
           headers["Authorization"] = `Bearer ${this.appSessionToken}`;
         }
 
-        const response = await fetch("/metrics", {
+        const response = await fetch("/api/nextgen/metrics", {
           method: "GET",
           headers,
         });
@@ -1035,30 +1060,68 @@ export default {
     async sendMessage() {
       if (this.userInput.trim() === "") return;
 
+      // Reset pagination state for new query
+      this.currentQuery = this.userInput;
+      this.currentOffset = 0;
+      this.hasMoreResults = true;
+
       this.messages.push({
         sender: "user",
         text: this.userInput,
         timestamp: this.getCurrentTimestamp(),
       });
 
-      const query = this.userInput;
       this.userInput = "";
       this.isTyping = true;
       this.isLoading = true;
+      this.streamingStatus = "Starting...";
 
+      // Create a placeholder message for the AI response
+      const aiMessage = {
+        sender: "ai",
+        text: "",
+        products: [],
+        isProductResults: false,
+        timestamp: this.getCurrentTimestamp(),
+        streaming: true,
+      };
+      this.messages.push(aiMessage);
+
+      await this.fetchStream(this.currentQuery, 0, aiMessage);
+    },
+
+    async loadMore(messageIndex) {
+      const message = this.messages[messageIndex];
+      if (!message) return;
+
+      this.currentOffset += 10;
+      this.isLoadingMore = true;
+
+      await this.fetchStream(
+        this.currentQuery,
+        this.currentOffset,
+        message,
+        true
+      );
+
+      this.isLoadingMore = false;
+    },
+
+    async fetchStream(query, offset, messageObject, isLoadMore = false) {
       try {
         const requestBody = {
           query: query,
           user_context: this.buildUserContext(),
+          limit: 10,
+          offset: offset,
         };
+
         const headers = {
           "Content-Type": "application/json",
         };
 
         if (this.loggedIn && this.appSessionToken) {
           headers["Authorization"] = `Bearer ${this.appSessionToken}`;
-        } else {
-          console.warn("Sending search query without authentication");
         }
 
         const response = await fetch(`/api/nextgen/query`, {
@@ -1067,63 +1130,72 @@ export default {
           body: JSON.stringify(requestBody),
         });
 
-        if (response.status === 401 || response.status === 403) {
-          this.handleSessionExpired(
-            "Your session has expired. Please sign in again to continue."
-          );
-          throw new Error("Authentication required");
-        }
-
         if (!response.ok) {
-          const errorData = await response.json().catch(() => ({
-            error: `Server responded with status: ${response.status}`,
-          }));
-          throw new Error(
-            errorData.error ||
-              `Server responded with status: ${response.status}`
-          );
+          throw new Error(`Server error: ${response.status}`);
         }
 
-        const data = await response.json();
-        const products = Array.isArray(data?.retrieval) ? data.retrieval : [];
-        const answerText =
-          data?.answer ||
-          "I found a set of listings that align with what you asked for.";
-        const entitiesSummary = this.buildEntitySummary(data?.entities);
-        const citations = Array.isArray(data?.citations) ? data.citations : [];
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
 
-        if (products.length > 0) {
-          this.messages.push({
-            sender: "ai",
-            isProductResults: true,
-            products,
-            visibleCount: this.resultsPageSize,
-            text: answerText,
-            entitiesSummary,
-            citations,
-            timestamp: this.getCurrentTimestamp(),
-          });
-        } else {
-          this.messages.push({
-            sender: "ai",
-            text:
-              answerText ||
-              "I couldn't find any products matching your search. Could you try a different query?",
-            timestamp: this.getCurrentTimestamp(),
-          });
+        let isReading = true;
+        while (isReading) {
+          const { done, value } = await reader.read();
+          if (done) {
+            isReading = false;
+            break;
+          }
+
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split("\n\n");
+          buffer = lines.pop();
+
+          for (const line of lines) {
+            if (line.startsWith("data: ")) {
+              const jsonStr = line.slice(6);
+              try {
+                const event = JSON.parse(jsonStr);
+                this.handleStreamEvent(event, messageObject, isLoadMore);
+              } catch (e) {
+                console.error("Error parsing stream event", e);
+              }
+            }
+          }
         }
       } catch (error) {
-        console.error("Error fetching search results:", error);
-        this.messages.push({
-          sender: "ai",
-          text: `Sorry, I encountered an error: ${
-            error.message || "Please try again."
-          }`,
-          timestamp: this.getCurrentTimestamp(),
-        });
+        console.error("Stream error:", error);
+        messageObject.text += `\n[Error: ${error.message}]`;
       } finally {
         this.isTyping = false;
         this.isLoading = false;
+        this.streamingStatus = "";
+        messageObject.streaming = false;
+      }
+    },
+
+    handleStreamEvent(event, message, isLoadMore) {
+      if (event.type === "status") {
+        this.streamingStatus = event.content;
+      } else if (event.type === "results") {
+        const newProducts = event.content.items || [];
+        if (newProducts.length < 10) {
+          this.hasMoreResults = false;
+        }
+
+        if (isLoadMore) {
+          message.products.push(...newProducts);
+        } else {
+          message.products = newProducts;
+          message.isProductResults = newProducts.length > 0;
+          message.entitiesSummary = this.buildEntitySummary(
+            event.content.entities
+          );
+          message.citations = event.content.citations;
+        }
+      } else if (event.type === "token") {
+        message.text += event.content;
+      } else if (event.type === "done") {
+        // Stream finished
       }
     },
 
@@ -1358,3 +1430,21 @@ export default {
   },
 };
 </script>
+
+<style scoped>
+.show-more-container {
+  display: flex;
+  justify-content: center;
+  margin-top: 16px;
+  margin-bottom: 8px;
+}
+
+.streaming-status {
+  display: flex;
+  align-items: center;
+  margin-top: 12px;
+  font-size: 0.9rem;
+  color: #666;
+  font-style: italic;
+}
+</style>
