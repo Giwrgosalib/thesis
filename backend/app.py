@@ -1,12 +1,8 @@
 from flask import Flask, request, jsonify, redirect, make_response, send_from_directory, g
 from flask_cors import CORS
-from custom_nlp import EBayNLP
-from ebay_service import EBayService
 import requests
 import logging
-import csv
 import os
-from threading import Lock
 from pymongo import MongoClient
 from pymongo.errors import ConnectionFailure
 from dotenv import load_dotenv
@@ -20,6 +16,8 @@ import random
 import uuid
 import re
 
+from typing import Any, Callable, Dict, Optional
+
 # Import new utilities
 from config import get_config
 from utils.logging_config import setup_logging, get_logger, log_request, log_response, log_error
@@ -31,14 +29,36 @@ from utils.error_handlers import (
 )
 from utils.rate_limiting import rate_limit, rate_limit_by_user, rate_limit_by_endpoint
 from utils.validation import (
-    validate_json_request, validate_query_params, SearchRequestSchema,
-    AuthRequestSchema, ClientIdSchema, sanitize_string, validate_user_id,
-    validate_session_token, validate_authorization_header
+    validate_query_params,
+    AuthRequestSchema,
+    ClientIdSchema,
+    sanitize_string,
+    validate_user_id,
+    validate_session_token,
 )
 
 # Add the library's parent directory to sys.path to find the oauthclient module
 # Assuming app.py is in 'backend' and 'ebay-oauth-python-client' is also in 'backend'
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))  # Adds 'backend' to path
+backend_dir = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, backend_dir)  # Adds 'backend' to path
+
+repo_root = os.path.dirname(backend_dir)
+if repo_root not in sys.path:
+    sys.path.insert(0, repo_root)
+
+# Optional next-gen experimental API
+NEXTGEN_IMPORT_ERROR = None
+try:
+    from backend_nextgen.api.experimental import (  # type: ignore
+        blueprint as nextgen_ai_blueprint,
+        configure_preference_loader,
+        configure_preference_writer,
+    )
+except Exception as exc:  # noqa: BLE001
+    nextgen_ai_blueprint = None
+    NEXTGEN_IMPORT_ERROR = exc
+    configure_preference_writer = None
+    configure_preference_loader = None
 
 # Now you can import from the library
 from ebay_oauth_python_client.oauthclient.oauth2api import oauth2api  # Import for the client instance
@@ -69,8 +89,17 @@ logger = get_logger(__name__)
 # Register error handlers
 register_error_handlers(app)
 
+# Register experimental next-gen blueprint if available
+if nextgen_ai_blueprint is not None:
+    app.register_blueprint(nextgen_ai_blueprint)
+    logger.info("Registered next-gen experimental API blueprint at /api/nextgen")
+else:
+    message = "Next-gen experimental API unavailable (optional dependencies missing)."
+    if NEXTGEN_IMPORT_ERROR:
+        message += f" Details: {NEXTGEN_IMPORT_ERROR}"
+    logger.warning(message)
+
 # --- Configuration Variables ---
-FEEDBACK_LOG_PATH = os.path.join('data', 'feedback_log.csv')
 EBAY_CALLBACK_PATH = "/auth/ebay-callback"
 YOUR_APPLICATION_CALLBACK_URL = urljoin(config.app.app_base_url, EBAY_CALLBACK_PATH)
 FRONTEND_BUILD_DIR = os.path.join('..', 'frontend', 'dist')
@@ -83,7 +112,6 @@ SESSION_TOKENS = {}
 
 # --- Setup Data Directory ---
 os.makedirs('data', exist_ok=True)
-log_lock = Lock()
 
 # --- Initialize MongoDB Connection ---
 mongo_client = None
@@ -150,133 +178,166 @@ except Exception as e:
     logger.error(f"Failed to create or load eBay credentials: {e}", exc_info=True)
     raise ExternalServiceError("eBay", "Failed to initialize OAuth credentials")
 
-# --- Initialize Services ---
-try:
-    nlp_processor = EBayNLP()
-    nlp_processor._prepare_models()
-    ebay_service = EBayService(preferences_collection=preferences_collection)
-    logger.info("NLP and eBay services initialized successfully.")
-except Exception as e:
-    logger.error(f"Error initializing services: {e}", exc_info=True)
-    raise ModelError("Failed to initialize ML services")
-
-# --- Helper Function for Logging Feedback ---
-def log_feedback(query: str, intent: str, raw_entities: list):
-    """Logs query, intent, and entities to the feedback CSV file."""
-    entities_str = str(raw_entities)
-    with log_lock:
-        try:
-            file_exists = os.path.isfile(FEEDBACK_LOG_PATH)
-            with open(FEEDBACK_LOG_PATH, 'a', newline='', encoding='utf-8') as csvfile:
-                fieldnames = ['query', 'intent', 'entities']
-                writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
-                if not file_exists or os.path.getsize(FEEDBACK_LOG_PATH) == 0:
-                    writer.writeheader()
-                writer.writerow({'query': query, 'intent': intent, 'entities': entities_str})
-        except Exception as e:
-            logging.error(f"Error writing to feedback log: {e}", exc_info=True)
-
-# --- Helper Function for Saving Preferences ---
-def save_user_preference(user_id: str, extracted_data: dict):
-    """Saves extracted information as user preferences in MongoDB."""
-    if preferences_collection is None or not user_id:
+# --- Preference Persistence for Next-Gen ---
+def persist_preferences(user_id: str, preference_payload: Dict[str, Any]) -> None:
+    """Persist structured preference signals for authenticated users."""
+    if not preferences_collection or not user_id:
         return
 
     try:
-        update_doc = {
-            '$push': {'search_history': {'query': extracted_data.get("raw_query"), 'timestamp': time.time()}},
-            '$addToSet': {}  # Use addToSet to avoid duplicates in lists
-        }
-        # Add preferred brands/categories if found
-        if extracted_data.get("BRAND"):
-            update_doc['$addToSet']['preferred_brands'] = {'$each': extracted_data["BRAND"]}
-        if extracted_data.get("CATEGORY"):
-            # Use the consolidated category list
-            update_doc['$addToSet']['preferred_categories'] = {'$each': extracted_data["CATEGORY"]}
-        if extracted_data.get("SHIPPING"):
-            update_doc['$addToSet']['preferred_shipping'] = {'$each': extracted_data["SHIPPING"]}
-        # Add more entity types to store
-        for entity_type in ["SIZE","WIDTH"]:
-            if extracted_data.get(entity_type):
-                update_doc['$addToSet'][f'preferred_{entity_type.lower()}'] = {'$each': extracted_data[entity_type]}
+        entities_section = preference_payload.get("entities") or {}
+        entity_buckets = entities_section.get("entities") or entities_section
 
-        # Perform the update, creating the document if it doesn't exist (upsert=True)
-        preferences_collection.update_one(
-            {'user_id': user_id},
-            update_doc,
-            upsert=True
+        def _clean(values: Optional[Any]) -> list[str]:
+            cleaned: list[str] = []
+            if not values:
+                return cleaned
+            iterable = values if isinstance(values, (list, tuple, set)) else [values]
+            for value in iterable:
+                if value is None:
+                    continue
+                text = sanitize_string(str(value))
+                if text:
+                    cleaned.append(text)
+            return cleaned
+
+        brand_values = _clean(entity_buckets.get("BRAND"))
+        category_values = _clean(
+            entity_buckets.get("CATEGORY") or entity_buckets.get("PRODUCT_TYPE")
         )
-    except Exception as e:
-        logging.error(f"Error saving preferences for user {user_id}: {e}", exc_info=True)
+        shipping_values = _clean(entity_buckets.get("SHIPPING"))
+        price_values = _clean(entity_buckets.get("PRICE_RANGE"))
+
+        cleaned_query = ""
+        if preference_payload.get("query"):
+            cleaned_query = sanitize_string(str(preference_payload["query"])) or ""
+
+        entity_snapshot = {
+            label: values
+            for label in sorted(entity_buckets.keys())
+            if (values := _clean(entity_buckets.get(label)))
+        }
+
+        search_entry = {
+            "query": cleaned_query or preference_payload.get("query", ""),
+            "timestamp": datetime.utcnow(),
+            "entities": entity_snapshot,
+        }
+
+        set_fields: Dict[str, Any] = {
+            "updated_at": datetime.utcnow(),
+            "authenticated": True,
+        }
+        if cleaned_query:
+            set_fields["last_query"] = cleaned_query
+        if preference_payload.get("answer"):
+            set_fields["last_answer_excerpt"] = str(preference_payload["answer"])[:256]
+
+        push_fields = {
+            "search_history": {
+                "$each": [search_entry],
+                "$slice": -25,
+            }
+        }
+
+        add_to_set: Dict[str, Any] = {}
+        if brand_values:
+            add_to_set["preferred_brands"] = {"$each": brand_values}
+        if category_values:
+            add_to_set["preferred_categories"] = {"$each": category_values}
+        if shipping_values:
+            add_to_set["preferred_shipping"] = {"$each": shipping_values}
+        if price_values:
+            add_to_set["preferred_price_ranges"] = {"$each": price_values}
+
+        update_doc: Dict[str, Any] = {
+            "$set": set_fields,
+            "$push": push_fields,
+            "$setOnInsert": {"created_at": datetime.utcnow()},
+        }
+        if add_to_set:
+            update_doc["$addToSet"] = add_to_set
+
+        preferences_collection.update_one(
+            {"user_id": user_id},
+            update_doc,
+            upsert=True,
+        )
+    except Exception as exc:
+        logger.warning(
+            f"Preference persistence failed for user {user_id}: {exc}",
+            exc_info=True,
+        )
+
+
+def load_user_preferences(user_id: str) -> Optional[Dict[str, Any]]:
+    """Load a concise preference snapshot for downstream personalization."""
+    if not preferences_collection or not user_id:
+        return None
+
+    try:
+        doc = preferences_collection.find_one({"user_id": user_id})
+        if not doc:
+            return None
+
+        def _extract_list(field: str, limit: int = 5) -> list[str]:
+            values = doc.get(field) or []
+            cleaned: list[str] = []
+            for value in values:
+                if value is None:
+                    continue
+                text = sanitize_string(str(value))
+                if text:
+                    cleaned.append(text)
+                if len(cleaned) >= limit:
+                    break
+            return cleaned
+
+        history_entries = doc.get("search_history") or []
+        recent_history = []
+        for entry in history_entries[-5:]:
+            query_text = sanitize_string(str(entry.get("query", "")))
+            timestamp = entry.get("timestamp")
+            if hasattr(timestamp, "isoformat"):
+                timestamp_str = timestamp.isoformat()
+            else:
+                timestamp_str = str(timestamp) if timestamp else ""
+            recent_history.append(
+                {
+                    "query": query_text,
+                    "timestamp": timestamp_str,
+                    "entities": entry.get("entities", {}),
+                }
+            )
+
+        snapshot = {
+            "brands": _extract_list("preferred_brands"),
+            "categories": _extract_list("preferred_categories"),
+            "shipping": _extract_list("preferred_shipping"),
+            "price_ranges": _extract_list("preferred_price_ranges"),
+            "recent_queries": recent_history,
+            "updated_at": str(doc.get("updated_at") or ""),
+        }
+        return snapshot
+    except Exception as exc:
+        logger.warning(
+            f"Preference loader failed for user {user_id}: {exc}",
+            exc_info=True,
+        )
+        return None
+
+
+if nextgen_ai_blueprint is not None and configure_preference_writer:
+    configure_preference_writer(persist_preferences)
+    logger.info("Configured preference writer for NextGen AI blueprint.")
+if nextgen_ai_blueprint is not None and configure_preference_loader:
+    configure_preference_loader(load_user_preferences)
+    logger.info("Configured preference loader for NextGen AI blueprint.")
+
+# --- Service Mode ---
+logger.info("Legacy NLP pipeline disabled; relying solely on the NextGen AI orchestrator.")
 
 # --- API Endpoints ---
-@app.route('/search', methods=['POST'])
-@rate_limit_by_endpoint(limit=30, window=60)  # 30 requests per minute per endpoint
-@validate_json_request(SearchRequestSchema)
-def search(validated_data):
-    """Search for products using natural language query."""
-    try:
-        # Generate request ID for tracking
-        request_id = str(uuid.uuid4())
-        g.request_id = request_id
-        
-        # Log request
-        log_request(logger, request, request_id=request_id)
-        
-        query = validated_data['query']
-        
-        # Get and validate auth token
-        token = validate_authorization_header()
-        user_id = None
-        
-        if token:
-            user_id = validate_session_token(token)
-            if user_id:
-                g.user_id = user_id
-        
-        # Process query and extract entities
-        try:
-            extracted_data = nlp_processor.extract_entities(query)
-        except Exception as e:
-            logger.error(f"NLP processing error: {e}", exc_info=True)
-            raise ModelError("Failed to process query")
-        
-        # Log feedback from the query
-        log_feedback(
-            query, 
-            extracted_data.get("intent", "unknown"), 
-            extracted_data.get("raw_entities", [])
-        )
-        
-        # Save user preferences if authenticated
-        if user_id:
-            save_user_preference(user_id, extracted_data)
-        
-        # Perform eBay search
-        try:
-            search_results = ebay_service.search(intent=extracted_data, user_id=user_id)
-        except Exception as e:
-            logger.error(f"eBay search error: {e}", exc_info=True)
-            raise ExternalServiceError("eBay", "Search service unavailable")
-        
-        # Log response
-        log_response(logger, 200, request_id=request_id, result_count=len(search_results))
-        
-        return jsonify({
-            'results': search_results,
-            'query': query,
-            'intent': extracted_data.get("intent", "unknown"),
-            'entities': extracted_data.get("raw_entities", []),
-            'request_id': request_id
-        })
-        
-    except APIError:
-        # Re-raise API errors (they're already properly formatted)
-        raise
-    except Exception as e:
-        logger.error(f"Unexpected error in search: {e}", exc_info=True)
-        raise APIError("An unexpected error occurred during search")
-
 @app.route('/auth/ebay-login', methods=['GET'])
 @rate_limit(limit=10, window=60)  # 10 login attempts per minute
 def initiate_ebay_login():
@@ -626,13 +687,11 @@ def health_check():
             db_status = "unhealthy"
         
         # Check services
-        nlp_status = "healthy" if nlp_processor else "unhealthy"
-        ebay_status = "healthy" if ebay_service else "unhealthy"
+        nextgen_status = "healthy" if nextgen_ai_blueprint is not None else "unavailable"
         
         overall_status = "healthy" if all([
             db_status == "healthy",
-            nlp_status == "healthy", 
-            ebay_status == "healthy"
+            nextgen_status == "healthy",
         ]) else "unhealthy"
         
         return jsonify({
@@ -640,8 +699,7 @@ def health_check():
             "timestamp": datetime.utcnow().isoformat(),
             "services": {
                 "database": db_status,
-                "nlp": nlp_status,
-                "ebay": ebay_status
+                "nextgen_ai": nextgen_status,
             },
             "version": "1.0.0"
         }), 200 if overall_status == "healthy" else 503

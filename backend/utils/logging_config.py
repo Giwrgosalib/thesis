@@ -8,7 +8,7 @@ import logging.handlers
 import os
 import sys
 from typing import Optional
-from datetime import datetime
+from datetime import datetime, timezone
 import json
 
 class JSONFormatter(logging.Formatter):
@@ -17,7 +17,7 @@ class JSONFormatter(logging.Formatter):
     def format(self, record):
         """Format log record as JSON."""
         log_entry = {
-            'timestamp': datetime.now(datetime.timezone.utc).isoformat(),
+            'timestamp': datetime.now(timezone.utc).isoformat(),
             'level': record.levelname,
             'logger': record.name,
             'message': record.getMessage(),
@@ -45,7 +45,7 @@ class RequestFormatter(logging.Formatter):
     
     def format(self, record):
         """Format request/response log record."""
-        timestamp = datetime.now(datetime.timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
+        timestamp = datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
         
         if hasattr(record, 'method') and hasattr(record, 'path'):
             # Request log

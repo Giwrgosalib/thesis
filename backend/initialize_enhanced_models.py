@@ -12,9 +12,18 @@ import json
 import os
 from collections import Counter, defaultdict
 from typing import Dict, List, Tuple
+from pathlib import Path
 import joblib
 
+# Path constants
+BACKEND_ROOT = Path(__file__).resolve().parent
+DATA_DIR = BACKEND_ROOT / 'data'
+MODELS_DIR = BACKEND_ROOT / 'models'
+ENHANCED_MODELS_DIR = MODELS_DIR / 'enhanced'
+
 from enhanced_models import EnhancedBiLSTM_CRF, EnhancedIntentClassifier
+
+DEFAULT_DATASET_FILE = DATA_DIR / 'refined_balanced_dataset_train.csv'
 
 class ModelInitializer:
     """Initialize enhanced models for single intent architecture."""
@@ -37,11 +46,14 @@ class ModelInitializer:
         # Single intent (no intent classifier needed!)
         self.intent = "search_product"
         
-    def build_vocabularies(self, dataset_path: str) -> Tuple[Dict, Dict]:
+    def build_vocabularies(self, dataset_path: Path) -> Tuple[Dict, Dict]:
         """Build vocabularies from the refined dataset."""
         print(f"Building vocabularies from {dataset_path}...")
         
-        df = pd.read_csv(dataset_path)
+        try:
+            df = pd.read_csv(dataset_path)
+        except FileNotFoundError as exc:
+            raise FileNotFoundError(f"Dataset not found at {dataset_path}.") from exc
         
         # Word vocabulary
         word_to_ix = {"[UNK]": 0, "[PAD]": 1}
@@ -101,11 +113,12 @@ class ModelInitializer:
     
     def save_model_artifacts(self, model: nn.Module, word_to_ix: Dict, tag_to_ix: Dict, model_name: str):
         """Save model and vocabularies."""
-        os.makedirs('models/enhanced', exist_ok=True)
-        
+        ENHANCED_MODELS_DIR.mkdir(parents=True, exist_ok=True)
+
         # Save model state
-        torch.save(model.state_dict(), f'models/enhanced/{model_name}.pth')
-        
+        model_path = ENHANCED_MODELS_DIR / f"{model_name}.pth"
+        torch.save(model.state_dict(), model_path)
+
         # Save vocabularies
         vocab_data = {
             'word_to_ix': word_to_ix,
@@ -113,10 +126,11 @@ class ModelInitializer:
             'config': self.config,
             'intent': self.intent
         }
-        
-        joblib.dump(vocab_data, f'models/enhanced/{model_name}_vocab.pkl')
-        
-        print(f"Saved {model_name} to models/enhanced/")
+
+        vocab_path = ENHANCED_MODELS_DIR / f"{model_name}_vocab.pkl"
+        joblib.dump(vocab_data, vocab_path)
+
+        print(f"Saved {model_name} to {ENHANCED_MODELS_DIR}")
     
     def create_model_info(self, word_to_ix: Dict, tag_to_ix: Dict):
         """Create model information file."""
@@ -133,34 +147,63 @@ class ModelInitializer:
             'description': 'Single intent architecture with enhanced NER model for eBay product search'
         }
         
-        with open('models/enhanced/model_info.json', 'w') as f:
+        ENHANCED_MODELS_DIR.mkdir(parents=True, exist_ok=True)
+        model_info_path = ENHANCED_MODELS_DIR / "model_info.json"
+        with model_info_path.open('w', encoding='utf-8') as f:
             json.dump(model_info, f, indent=2)
-        
-        print("Model information saved to models/enhanced/model_info.json")
+
+        print(f"Model information saved to {model_info_path}")
     
-    def initialize_models(self, dataset_path: str = 'data/refined_balanced_dataset_train.csv'):
+    def _resolve_dataset_path(self, dataset_path: str) -> Path:
+        """Resolve dataset path with sensible fallbacks."""
+        candidate_strings = [dataset_path] if dataset_path else []
+        candidate_strings.extend([
+            'backend/data/refined_balanced_dataset_train.csv',
+            'backend/data/refined_balanced_dataset.csv',
+            'backend/data/train.csv',
+            'backend/data/training.csv'
+        ])
+
+        seen = set()
+        candidates = []
+        for candidate in candidate_strings:
+            if candidate and candidate not in seen:
+                seen.add(candidate)
+                candidates.append(Path(candidate))
+
+        for candidate in candidates:
+            if candidate.exists():
+                print(f"Using dataset file: {candidate}")
+                return candidate
+
+        checked = ', '.join(str(p) for p in candidates)
+        raise FileNotFoundError(f"No dataset file found. Checked: {checked}")
+
+    def initialize_models(self, dataset_path: str = 'backend/data/refined_balanced_dataset_train.csv'):
         """Initialize all models for the single intent architecture."""
-        print("🚀 Initializing Enhanced Models for Single Intent Architecture")
+        print("Initializing Enhanced Models for Single Intent Architecture")
         print("=" * 60)
-        
+
+        resolved_dataset = self._resolve_dataset_path(dataset_path)
+
         # Build vocabularies
-        word_to_ix, tag_to_ix = self.build_vocabularies(dataset_path)
-        
+        word_to_ix, tag_to_ix = self.build_vocabularies(resolved_dataset)
+
         # Initialize NER model (no intent model needed!)
         ner_model = self.initialize_ner_model(word_to_ix, tag_to_ix)
-        
+
         # Save model artifacts
         self.save_model_artifacts(ner_model, word_to_ix, tag_to_ix, 'enhanced_ner_model')
-        
+
         # Create model information
         self.create_model_info(word_to_ix, tag_to_ix)
-        
-        print(f"\n🎉 MODEL INITIALIZATION COMPLETE!")
-        print(f"📁 Models saved to: models/enhanced/")
-        print(f"🎯 Architecture: Single intent + Enhanced NER")
-        print(f"📊 Vocabulary sizes: {len(word_to_ix)} words, {len(tag_to_ix)} tags")
-        print(f"🚀 Ready for training with enhanced datasets!")
-        
+
+        print("\nMODEL INITIALIZATION COMPLETE!")
+        print("Models saved to: models/enhanced/")
+        print("Architecture: Single intent + Enhanced NER")
+        print(f"Vocabulary sizes: {len(word_to_ix)} words, {len(tag_to_ix)} tags")
+        print("Ready for training with enhanced datasets!")
+
         return ner_model, word_to_ix, tag_to_ix
 
 def main():
@@ -170,17 +213,17 @@ def main():
     # Initialize models
     ner_model, word_to_ix, tag_to_ix = initializer.initialize_models()
     
-    print(f"\n📋 MODEL SUMMARY:")
+    print("\nMODEL SUMMARY:")
     print(f"   Intent: {initializer.intent} (always correct!)")
-    print(f"   NER Model: Enhanced BiLSTM-CRF with attention")
+    print("   NER Model: Enhanced BiLSTM-CRF with attention")
     print(f"   Parameters: {sum(p.numel() for p in ner_model.parameters()):,}")
     print(f"   Entity Types: {len([tag for tag in tag_to_ix.keys() if tag not in ['O', 'START_TAG', 'STOP_TAG']])}")
-    
-    print(f"\n🎓 Perfect for your thesis!")
-    print(f"   ✅ Single intent architecture")
-    print(f"   ✅ Enhanced NER model")
-    print(f"   ✅ Production-ready structure")
-    print(f"   ✅ Clean, optimized codebase")
+
+    print("\nHighlights:")
+    print("   - Single intent architecture")
+    print("   - Enhanced NER model")
+    print("   - Production-ready structure")
+    print("   - Clean, optimized codebase")
 
 if __name__ == "__main__":
     main()

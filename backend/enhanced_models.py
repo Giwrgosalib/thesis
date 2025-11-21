@@ -153,15 +153,18 @@ class EnhancedBiLSTM_CRF(nn.Module):
         
         # LSTM forward pass
         lstm_out, _ = self.lstm(word_embeds)  # (seq_len, 1, hidden_dim)
-        lstm_out = lstm_out.squeeze(1)  # (seq_len, hidden_dim)
-        
+
         # Apply attention if enabled
         if self.use_attention:
-            lstm_out = lstm_out.unsqueeze(1)  # (seq_len, 1, hidden_dim)
-            attended_out, attention_weights = self.attention(lstm_out)
-            lstm_out = attended_out.unsqueeze(0)  # (1, seq_len, hidden_dim)
-            lstm_out = lstm_out.squeeze(0)  # (seq_len, hidden_dim)
+            attention_input = lstm_out  # preserve sequence length
+            attended_out, attention_weights = self.attention(attention_input)
+            # attention_weights shape: (seq_len, batch)
+            attention_weights = attention_weights.unsqueeze(-1)  # (seq_len, batch, 1)
+            lstm_out = attention_input * attention_weights
         
+        # Remove batch dimension
+        lstm_out = lstm_out.squeeze(1)  # (seq_len, hidden_dim)
+
         # Project to tag space
         tag_space = self.hidden2tag(lstm_out)  # (seq_len, tagset_size)
         

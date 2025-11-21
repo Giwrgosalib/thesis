@@ -1,11 +1,12 @@
 import pandas as pd
 import joblib
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Set
 from collections import defaultdict
 import os
 import re
 import ast
 import json
+from pathlib import Path
 
 # --- PyTorch Imports for Enhanced NER Model ---
 import torch
@@ -14,6 +15,20 @@ import torch.optim as optim
 
 # --- Import Enhanced Models ---
 from enhanced_models import EnhancedBiLSTM_CRF
+from utils.resource_loader import load_json_resource
+
+# Path helpers
+BACKEND_ROOT = Path(__file__).resolve().parent
+MODELS_DIR = BACKEND_ROOT / 'models'
+ENHANCED_MODELS_DIR = MODELS_DIR / 'enhanced'
+DATA_DIR = BACKEND_ROOT / 'data'
+NLP_RESOURCES_DIR = DATA_DIR / 'nlp'
+
+# NLP resource file names (loaded at runtime to avoid hardcoded heuristics)
+ENTITY_NORMALIZATION_FILE = NLP_RESOURCES_DIR / 'entity_normalization_map.json'
+BRAND_ALIASES_FILE = NLP_RESOURCES_DIR / 'brand_aliases.json'
+PRODUCT_KEYWORD_FILE = NLP_RESOURCES_DIR / 'product_keyword_map.json'
+KNOWN_BRANDS_FILE = NLP_RESOURCES_DIR / 'known_brands.json'
 
 # --- From-Scratch BiLSTM-CRF Model Definition ---
 class BiLSTM_CRF(nn.Module):
@@ -134,6 +149,13 @@ class EBayNLP:
         self.tag_to_ix = {}
         self.ix_to_tag = {}
         self.model_config = {}
+
+        # Data-driven NLP resources
+        self.entity_normalization_map: Dict[str, str] = {}
+        self.brand_aliases: Dict[str, str] = {}
+        self.product_keyword_map: List[Dict[str, Any]] = []
+        self.known_brands: Set[str] = set()
+        self._load_static_resources()
         
         # Initialize spaCy English tokenizer for robust tokenization
         try:
@@ -145,15 +167,62 @@ class EBayNLP:
         
         self._prepare_models()
 
+    def _load_static_resources(self) -> None:
+        """Load NLP resource files so heuristics remain data-driven."""
+        normalization_map = load_json_resource(ENTITY_NORMALIZATION_FILE, {})
+        if not isinstance(normalization_map, dict):
+            print(f"Normalization map invalid; expected dict, got {type(normalization_map).__name__}.")
+            normalization_map = {}
+        self.entity_normalization_map = {
+            str(label).upper(): str(target)
+            for label, target in normalization_map.items()
+        }
+
+        brand_aliases = load_json_resource(BRAND_ALIASES_FILE, {})
+        if not isinstance(brand_aliases, dict):
+            print(f"Brand alias data invalid; expected dict, got {type(brand_aliases).__name__}.")
+            brand_aliases = {}
+        # Normalize alias keys to lowercase for matching
+        self.brand_aliases = {str(k).lower(): str(v) for k, v in brand_aliases.items()}
+
+        keyword_map = load_json_resource(PRODUCT_KEYWORD_FILE, [])
+        if not isinstance(keyword_map, list):
+            print(f"Keyword map invalid; expected list, got {type(keyword_map).__name__}.")
+            keyword_map = []
+        # Sort by pattern length descending to preserve original precedence
+        self.product_keyword_map = sorted(
+            [
+                {
+                    "pattern": str(entry.get("pattern", "")).lower(),
+                    "product": entry.get("product"),
+                    "category": entry.get("category"),
+                    "brand": entry.get("brand")
+                }
+                for entry in keyword_map
+                if entry.get("pattern")
+            ],
+            key=lambda item: len(item["pattern"]),
+            reverse=True
+        )
+
+        known_brands = load_json_resource(KNOWN_BRANDS_FILE, [])
+        if isinstance(known_brands, dict):
+            # Support both list and dict-of-flags
+            known_brands = list(known_brands.keys())
+        if not isinstance(known_brands, list):
+            print(f"Known brands invalid; expected list, got {type(known_brands).__name__}.")
+            known_brands = []
+        self.known_brands = {str(brand).lower() for brand in known_brands if isinstance(brand, str)}
+
     def _prepare_models(self):
         """Initialize or load enhanced models"""
         # Enhanced model paths
-        self.ner_model_path = os.path.join('models', 'enhanced', 'enhanced_ner_model.pth')
-        self.ner_vocab_path = os.path.join('models', 'enhanced', 'enhanced_ner_model_vocab.pkl')
-        self.model_info_path = os.path.join('models', 'enhanced', 'model_info.json')
+        self.ner_model_path = ENHANCED_MODELS_DIR / 'enhanced_ner_model.pth'
+        self.ner_vocab_path = ENHANCED_MODELS_DIR / 'enhanced_ner_model_vocab.pkl'
+        self.model_info_path = ENHANCED_MODELS_DIR / 'model_info.json'
         
         # Load enhanced NER model if available
-        if os.path.exists(self.ner_model_path) and os.path.exists(self.ner_vocab_path):
+        if self.ner_model_path.exists() and self.ner_vocab_path.exists():
             print("Loading enhanced NER model...")
             try:
                 # Load vocabularies and config
@@ -164,8 +233,8 @@ class EBayNLP:
                 self.model_config = vocab_data.get('config', {})
                 
                 # Load model info if available
-                if os.path.exists(self.model_info_path):
-                    with open(self.model_info_path, 'r') as f:
+                if self.model_info_path.exists():
+                    with self.model_info_path.open('r', encoding='utf-8') as f:
                         model_info = json.load(f)
                         print(f"Model info: {model_info.get('description', 'Enhanced NER model')}")
                 
@@ -187,7 +256,7 @@ class EBayNLP:
                 print(f"Error loading from-scratch NER model: {e}. Model will be retrained.")
                 self.ner_model = None
         else:
-            print("No trained from-scratch NER model found. A new model will be initialized during training.")
+            print(f"No trained from-scratch NER model found at {self.ner_model_path}. A new model will be initialized during training.")
 
     def extract_entities(self, query: str) -> Dict[str, Any]:
         """
@@ -197,6 +266,7 @@ class EBayNLP:
         intent = self.intent
         
         grouped_entities = defaultdict(list)
+        raw_entities = []
         if self.ner_model:
             with torch.no_grad():
                 # Tokenize query
@@ -216,50 +286,415 @@ class EBayNLP:
                 # Group contiguous tokens for each predicted entity
                 current_entity_text = []
                 current_entity_label = ""
+
+                def finalize_entity():
+                    nonlocal current_entity_text, current_entity_label
+                    if current_entity_text and current_entity_label:
+                        entity_text = " ".join(current_entity_text)
+                        grouped_entities[current_entity_label].append(entity_text)
+                        raw_entities.append({
+                            'label': current_entity_label,
+                            'value': entity_text
+                        })
+                    current_entity_text = []
+                    current_entity_label = ""
+
                 for token, tag in zip(query_tokens, predicted_tags):
                     if tag.startswith("B-"):
-                        # Close previous entity if any
-                        if current_entity_text:
-                            grouped_entities[current_entity_label].append(" ".join(current_entity_text))
+                        finalize_entity()
                         current_entity_text = [token]
                         current_entity_label = tag[2:]
                     elif tag.startswith("I-"):
-                        if current_entity_label == tag[2:]:
+                        label = tag[2:]
+                        if current_entity_label == label:
                             current_entity_text.append(token)
                         else:
-                            # Malformed sequence, close previous entity
-                            if current_entity_text:
-                                grouped_entities[current_entity_label].append(" ".join(current_entity_text))
-                            current_entity_text = []
-                            current_entity_label = ""
+                            if not current_entity_text:
+                                # Treat standalone I- as beginning of a new entity
+                                current_entity_text = [token]
+                                current_entity_label = label
+                            else:
+                                # Malformed sequence, close previous entity and start a new one
+                                finalize_entity()
+                                current_entity_text = [token]
+                                current_entity_label = label
                     else:
                         # tag == 'O', close any open entity
-                        if current_entity_text:
-                            grouped_entities[current_entity_label].append(" ".join(current_entity_text))
-                        current_entity_text = []
-                        current_entity_label = ""
-                if current_entity_text:
-                    grouped_entities[current_entity_label].append(" ".join(current_entity_text))
+                        finalize_entity()
+                finalize_entity()
         else:
             print("Warning: NER model not available for entity extraction.")
-        extracted_data = dict(grouped_entities)
+        normalized_grouped = defaultdict(list)
+        normalized_raw_entities = []
+        for label, values in grouped_entities.items():
+            target_label = self.entity_normalization_map.get(label, label)
+            normalized_grouped[target_label].extend(values)
+        for entity in raw_entities:
+            target_label = self.entity_normalization_map.get(entity['label'], entity['label'])
+            normalized_raw_entities.append({
+                'label': target_label,
+                'value': entity['value']
+            })
+
+        extracted_data = dict(normalized_grouped)
         extracted_data["intent"] = intent
         extracted_data["raw_query"] = query
-        # --- Post-processing for specific entity types ---
-        # 1. Parse and normalize price range text into [min_price, max_price]
-        price_range_text = extracted_data.get("PRICE_RANGE", [])
-        extracted_data["PRICE_RANGE"] = self._parse_price_range_text(price_range_text)
-        # 2. Consolidate CATEGORY and PRODUCT_TYPE labels (if both present, merge them)
-        if "PRODUCT_TYPE" in extracted_data and "CATEGORY" not in extracted_data:
-            extracted_data["CATEGORY"] = extracted_data.pop("PRODUCT_TYPE")
-        elif "CATEGORY" in extracted_data and "PRODUCT_TYPE" in extracted_data:
-            extracted_data["CATEGORY"].extend(extracted_data.pop("PRODUCT_TYPE"))
-            del extracted_data["PRODUCT_TYPE"]
-        # 3. Ensure all expected keys exist in the result
-        for key in ["BRAND", "CATEGORY", "PRODUCT_TYPE", "PRICE_RANGE"]:
-            if key not in extracted_data:
-                extracted_data[key] = []
+        extracted_data["raw_entities"] = normalized_raw_entities
+
+        return self._post_process_entities(extracted_data)
+
+    def _post_process_entities(self, extracted_data: Dict[str, Any]) -> Dict[str, Any]:
+
+        """Normalize, deduplicate, and enrich extracted entity data."""
+
+        query = extracted_data.get('raw_query', '') or ''
+
+        query_lower = query.lower()
+
+
+
+        raw_entities_list = extracted_data.get('raw_entities', [])
+
+
+
+        def add_raw(label: str, value: Any) -> None:
+
+            if value is None:
+
+                return
+
+            if not isinstance(value, str):
+
+                value = str(value)
+
+            normalized = value.strip()
+
+            if not normalized:
+
+                return
+
+            entry = {'label': label, 'value': normalized}
+
+            if entry not in raw_entities_list:
+
+                raw_entities_list.append(entry)
+
+
+
+        def add_value(key: str, value: Any, label: Optional[str] = None) -> None:
+
+            if value is None:
+
+                return
+
+            if isinstance(value, str):
+
+                value_to_use = value.strip()
+
+                if not value_to_use:
+
+                    return
+
+            else:
+
+                value_to_use = value
+
+            container = extracted_data.setdefault(key, [])
+
+            if value_to_use not in container:
+
+                container.append(value_to_use)
+
+            if label:
+
+                add_raw(label, value_to_use)
+
+
+
+        # Collect price clues
+
+        price_tokens = []
+
+        price_tokens.extend(extracted_data.get('PRICE_RANGE', []))
+
+        price_tokens.extend(extracted_data.pop('PRICE_TOKEN', []))
+
+        price_tokens.extend(extracted_data.pop('PRICE_QUALIFIER', []))
+
+
+
+        combined_price_text = ' '.join(token for token in price_tokens if isinstance(token, str))
+
+        price_range = []
+
+        if combined_price_text:
+
+            price_range = self._parse_price_range_text([combined_price_text])
+
+        if not price_range:
+
+            price_range = self._parse_price_range_text([query])
+
+        if not price_range:
+
+            price_range = self._regex_price_parse(query)
+
+        extracted_data['PRICE_RANGE'] = price_range or []
+
+
+
+        # Merge model tokens and variants
+
+        model_tokens = extracted_data.get('MODEL', []) + extracted_data.pop('MODEL_VARIANT', [])
+
+        if model_tokens:
+
+            combined_model = ' '.join(model_tokens).strip()
+
+            extracted_data['MODEL'] = [combined_model] if combined_model else []
+
+        else:
+
+            extracted_data['MODEL'] = []
+
+
+
+        # Ensure expected keys exist
+
+        for key in ['BRAND', 'CATEGORY', 'PRODUCT_TYPE', 'MODEL', 'PRICE_RANGE', 'SIZE']:
+
+            extracted_data.setdefault(key, [])
+
+
+
+        # Convert usage tokens to size when context implies it
+
+        if 'size' in query_lower and extracted_data.get('USAGE'):
+
+            remaining_usage = []
+
+            for value in extracted_data['USAGE']:
+
+                if isinstance(value, str) and re.fullmatch(r'\d+(?:\.\d{1,2})?', value.strip()):
+
+                    add_value('SIZE', value.strip(), 'SIZE')
+
+                else:
+
+                    remaining_usage.append(value)
+
+            extracted_data['USAGE'] = remaining_usage
+
+
+
+        # Keyword-based enrichment for product types, categories, and brands
+
+        for entry in self.product_keyword_map:
+
+            pattern = entry['pattern']
+
+            if pattern and pattern in query_lower:
+
+                if entry.get('product'):
+                    add_value('PRODUCT_TYPE', entry['product'], 'PRODUCT_TYPE')
+
+                if entry.get('category'):
+
+                    add_value('CATEGORY', entry['category'], 'CATEGORY')
+
+                if entry.get('brand'):
+
+                    add_value('BRAND', entry['brand'], 'BRAND')
+
+
+
+        # Additional category inference from model contents
+
+        for model_value in list(extracted_data['MODEL']):
+
+            lowered = model_value.lower()
+
+            if any(token in lowered for token in ['shoe', 'sneaker', 'boot']):
+
+                add_value('CATEGORY', 'Footwear', 'CATEGORY')
+
+            if 'headphone' in lowered or 'earbud' in lowered:
+
+                add_value('CATEGORY', 'Audio', 'CATEGORY')
+
+
+
+        # Size parsing from query text
+
+        size_patterns = [
+
+            r'size\s*(\d+(?:\.\d{1,2})?)',
+
+            r'(?:us|uk|eu)\s*(\d+(?:\.\d{1,2})?)',
+
+            r'(\d+(?:\.\d{1,2})?)\s*(?:cm|mm|in|inch|inches)'
+
+        ]
+
+        for pattern in size_patterns:
+
+            for match in re.finditer(pattern, query, re.IGNORECASE):
+
+                size_value = match.group(1) if match.groups() else match.group(0)
+
+                add_value('SIZE', size_value, 'SIZE')
+
+
+
+        # Harmonize brand names using alias map
+
+        harmonized_brands = []
+
+        for brand in extracted_data['BRAND']:
+
+            if isinstance(brand, str):
+
+                alias = self.brand_aliases.get(brand.lower())
+
+                harmonized_brands.append(alias or brand)
+
+        extracted_data['BRAND'] = harmonized_brands
+
+
+
+        # Brand fallback using known brand lexicon
+
+        if not extracted_data['BRAND']:
+
+            brand_candidates = []
+
+            for source in extracted_data.get('PRODUCT_TYPE', []) + extracted_data.get('MODEL', []):
+
+                if isinstance(source, str) and source.lower() in self.known_brands:
+
+                    brand_candidates.append(source)
+
+            for token in re.split(r'[^A-Za-z0-9\-]+', query):
+
+                if token and token.lower() in self.known_brands:
+
+                    brand_candidates.append(token)
+
+            if brand_candidates:
+
+                alias = self.brand_aliases.get(brand_candidates[0].lower())
+
+                add_value('BRAND', alias or brand_candidates[0], 'BRAND')
+
+
+
+        # Deduplicate values while preserving order
+
+        for key, values in list(extracted_data.items()):
+
+            if key == 'raw_entities' or not isinstance(values, list):
+
+                continue
+
+            seen = set()
+
+            deduped = []
+
+            for value in values:
+
+                if isinstance(value, (int, float)):
+
+                    if value not in deduped:
+
+                        deduped.append(value)
+
+                    continue
+
+                if not isinstance(value, str):
+
+                    continue
+
+                normalized = value.strip()
+
+                if not normalized:
+
+                    continue
+
+                lowered = normalized.lower()
+
+                if lowered not in seen:
+
+                    deduped.append(normalized)
+
+                    seen.add(lowered)
+
+            extracted_data[key] = deduped
+
+
+
+        extracted_data['raw_entities'] = raw_entities_list
+
         return extracted_data
+
+
+
+
+
+    def _regex_price_parse(self, text: str) -> List[int]:
+
+        lowered = text.lower()
+
+        triggers = ['$', 'under', 'below', 'less than', 'over', 'more than', 'between']
+
+        if not any(trigger in lowered for trigger in triggers):
+
+            return []
+
+
+
+        matches = list(re.finditer(r'(?:under|below|less than|upto|up to)\s*\$?(\d+)', text, re.IGNORECASE))
+
+        if matches:
+
+            value = int(matches[-1].group(1))
+
+            return [0, value]
+
+
+
+        between = re.search(r'between\s*\$?(\d+)\s*and\s*\$?(\d+)', text, re.IGNORECASE)
+
+        if between:
+
+            return [int(between.group(1)), int(between.group(2))]
+
+
+
+        currency = re.search(r'\$\s*(\d+(?:,\d{3})*)', text)
+
+        if currency:
+
+            value = int(currency.group(1).replace(',', ''))
+
+            return [value, value]
+
+
+
+        single = re.search(r'(\d+)', text)
+
+        if single:
+
+            value = int(single.group(1))
+
+            return [value, value]
+
+
+
+        return []
+
+
+
+
 
     def _parse_price_range_text(self, price_texts: List[str]) -> List[Optional[int]]:
         """
@@ -378,11 +813,11 @@ class EBayNLP:
         EMBEDDING_DIM = 128
         HIDDEN_DIM = 256
         embedding_matrix = None
-        glove_path = os.path.join('data', 'glove.6B.100d.txt')
-        if os.path.exists(glove_path):
+        glove_path = DATA_DIR / 'glove.6B.100d.txt'
+        if glove_path.exists():
             print(f"Loading pretrained embeddings from {glove_path}...")
             glove_vectors = {}
-            with open(glove_path, 'r', encoding='utf-8') as f:
+            with glove_path.open('r', encoding='utf-8') as f:
                 for line in f:
                     parts = line.strip().split()
                     if not parts:

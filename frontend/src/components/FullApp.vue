@@ -1,7 +1,7 @@
 <!-- filepath: frontend/src/components/FullApp.vue -->
 <template>
-  <v-app class="ebay-chat-app">
-    <!-- Modern Header with eBay Branding -->
+  <v-app class="ebay-chat-app" :class="{ 'dark-mode': isDarkMode }">
+    <!-- Enhanced Header with AI Showcase -->
     <v-app-bar app elevation="0" class="ebay-header">
       <div class="header-content">
         <div class="ebay-logo-container">
@@ -13,11 +13,50 @@
           </div>
           <div class="logo-text">
             <h1 class="app-title">AI Shopping Assistant</h1>
-            <p class="app-subtitle">Find the perfect products with AI</p>
+            <p class="app-subtitle">
+              Advanced NLP • Enhanced NER • Smart Search
+            </p>
           </div>
         </div>
 
         <div class="header-actions">
+          <!-- AI Status Indicator -->
+          <v-chip
+            v-if="loggedIn"
+            color="success"
+            variant="flat"
+            class="ai-status-chip"
+          >
+            <v-icon start>mdi-brain</v-icon>
+            AI Active
+          </v-chip>
+
+          <!-- System Metrics Toggle -->
+          <v-btn
+            v-if="loggedIn"
+            @click="toggleMetricsPanel"
+            variant="text"
+            color="ebay-blue"
+            class="metrics-toggle"
+            size="small"
+          >
+            <v-icon>mdi-chart-line</v-icon>
+          </v-btn>
+
+          <!-- Dark Mode Toggle -->
+          <v-btn
+            @click="toggleDarkMode"
+            variant="text"
+            color="ebay-blue"
+            class="theme-toggle"
+            size="small"
+          >
+            <v-icon>{{
+              isDarkMode ? "mdi-weather-sunny" : "mdi-weather-night"
+            }}</v-icon>
+          </v-btn>
+
+          <!-- User Info -->
           <v-chip
             v-if="loggedIn"
             color="success"
@@ -27,6 +66,8 @@
             <v-icon start>mdi-account-circle</v-icon>
             {{ ebayUsername }}
           </v-chip>
+
+          <!-- Logout -->
           <v-btn
             v-if="loggedIn"
             @click="logout"
@@ -43,44 +84,78 @@
 
     <v-main>
       <v-container fluid class="fill-height">
-        <!-- Modern Login View -->
+        <!-- Enhanced Login View with AI Showcase -->
         <v-row
           v-if="!loggedIn"
           justify="center"
           align="center"
           class="fill-height login-container"
         >
-          <v-col cols="12" md="6" lg="5" xl="4">
+          <v-col cols="12" md="8" lg="6" xl="5">
             <v-card class="login-card" elevation="8">
               <div class="login-header">
                 <div class="login-icon">
                   <v-icon size="80" color="ebay-red">mdi-robot</v-icon>
                 </div>
-                <h2 class="login-title">Welcome to eBay AI Assistant</h2>
+                <h2 class="login-title">eBay AI Shopping Assistant</h2>
                 <p class="login-subtitle">
-                  Your intelligent shopping companion powered by AI
+                  Advanced AI-powered product discovery with enhanced NLP
                 </p>
               </div>
 
               <v-card-text class="login-content">
+                <!-- AI Capabilities Showcase -->
+                <div class="ai-capabilities">
+                  <h3 class="capabilities-title">
+                    🤖 AI Agents & Capabilities
+                  </h3>
+                  <div class="capabilities-grid">
+                    <div class="capability-card">
+                      <v-icon color="ebay-blue" size="32">mdi-brain</v-icon>
+                      <h4>Enhanced NLP</h4>
+                      <p>BiLSTM-CRF with 208 entity types</p>
+                    </div>
+                    <div class="capability-card">
+                      <v-icon color="ebay-green" size="32">mdi-magnify</v-icon>
+                      <h4>Smart Search</h4>
+                      <p>Intelligent product matching</p>
+                    </div>
+                    <div class="capability-card">
+                      <v-icon color="ebay-yellow" size="32"
+                        >mdi-lightbulb</v-icon
+                      >
+                      <h4>Learning System</h4>
+                      <p>Adaptive user preferences</p>
+                    </div>
+                    <div class="capability-card">
+                      <v-icon color="ebay-red" size="32"
+                        >mdi-shield-check</v-icon
+                      >
+                      <h4>Secure OAuth</h4>
+                      <p>eBay API integration</p>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Technical Features -->
                 <div class="features-list">
                   <div class="feature-item">
                     <v-icon color="ebay-blue" class="feature-icon"
-                      >mdi-magnify</v-icon
+                      >mdi-robot</v-icon
                     >
-                    <span>Smart product search</span>
+                    <span>Single Intent Architecture (100% accuracy)</span>
                   </div>
                   <div class="feature-item">
                     <v-icon color="ebay-yellow" class="feature-icon"
-                      >mdi-lightbulb</v-icon
+                      >mdi-brain</v-icon
                     >
-                    <span>Personalized recommendations</span>
+                    <span>1.75M parameter BiLSTM-CRF model</span>
                   </div>
                   <div class="feature-item">
                     <v-icon color="ebay-green" class="feature-icon"
-                      >mdi-shield-check</v-icon
+                      >mdi-chart-line</v-icon
                     >
-                    <span>Secure eBay integration</span>
+                    <span>Real-time analytics & metrics</span>
                   </div>
                 </div>
 
@@ -113,9 +188,153 @@
           </v-col>
         </v-row>
 
-        <!-- Modern Chat Interface -->
+        <!-- Enhanced Chat Interface with Metrics Panel -->
         <v-row v-else class="fill-height chat-container">
-          <v-col cols="12" class="d-flex flex-column">
+          <!-- Metrics Panel (Sidebar) -->
+          <v-col
+            v-if="showMetricsPanel"
+            cols="12"
+            md="4"
+            lg="3"
+            class="metrics-panel"
+          >
+            <v-card class="metrics-card" elevation="2">
+              <v-card-title class="metrics-header">
+                <v-icon color="ebay-blue" class="mr-2">mdi-chart-line</v-icon>
+                System Metrics
+                <v-spacer></v-spacer>
+                <v-btn
+                  icon
+                  variant="text"
+                  size="small"
+                  :disabled="metricsLoading"
+                  @click="fetchMetrics(true)"
+                >
+                  <v-icon size="18">mdi-refresh</v-icon>
+                </v-btn>
+              </v-card-title>
+              <v-card-text class="metrics-content">
+                <div v-if="metricsLoading" class="metrics-loading">
+                  <v-progress-circular
+                    indeterminate
+                    color="ebay-blue"
+                  ></v-progress-circular>
+                  <span>Syncing analytics...</span>
+                </div>
+                <v-alert
+                  v-else-if="metricsError"
+                  type="error"
+                  density="comfortable"
+                  variant="tonal"
+                >
+                  <v-icon start>mdi-alert</v-icon>
+                  {{ metricsError }}
+                </v-alert>
+                <template v-else-if="metricsData">
+                  <div class="metric-item">
+                    <div class="metric-label">AI Status</div>
+                    <v-chip :color="metricsStatusColor" size="small">
+                      {{ metricsStatusLabel }}
+                    </v-chip>
+                  </div>
+                  <div class="metric-item" v-if="feedbackMetrics">
+                    <div class="metric-label">Feedback Quality</div>
+                    <div class="metric-value">
+                      {{ feedbackMetrics.total_feedback || 0 }} entries · Avg
+                      score
+                      {{
+                        feedbackMetrics.average_rating !== undefined
+                          ? feedbackMetrics.average_rating
+                          : "N/A"
+                      }}
+                    </div>
+                  </div>
+                  <div class="metric-item" v-if="userMetrics">
+                    <div class="metric-label">Active Preference Profiles</div>
+                    <div class="metric-value">
+                      {{ userMetrics.total_users || 0 }} users · Sample
+                      {{ userMetrics.sample_size || 0 }}
+                    </div>
+                  </div>
+                  <div class="metric-item" v-if="datasetMetrics">
+                    <div class="metric-label">Training Dataset</div>
+                    <div class="metric-value">
+                      {{
+                        datasetMetrics.metrics?.dataset_name ||
+                        "Enhanced BiLSTM-CRF"
+                      }}
+                      ·
+                      {{
+                        datasetMetrics.total_samples !== undefined
+                          ? datasetMetrics.total_samples
+                          : "N/A"
+                      }}
+                      samples
+                    </div>
+                  </div>
+                  <div
+                    class="metric-item"
+                    v-if="feedbackMetrics?.positive_feedback_percentage"
+                  >
+                    <div class="metric-label">Positive Feedback</div>
+                    <div class="metric-value">
+                      {{ feedbackMetrics.positive_feedback_percentage }}%
+                      positive
+                    </div>
+                  </div>
+                  <div class="metric-item" v-if="intentCount">
+                    <div class="metric-label">Intent Coverage</div>
+                    <div class="metric-value">
+                      {{ intentCount }} tracked intents
+                    </div>
+                  </div>
+                  <div
+                    class="metric-item"
+                    v-if="topCategoryChips.length || topBrandChips.length"
+                  >
+                    <div class="metric-label">Trending Entities</div>
+                    <div class="entity-chips compact">
+                      <template
+                        v-for="(chip, idx) in topCategoryChips"
+                        :key="'cat-' + idx"
+                      >
+                        <v-chip color="ebay-blue" size="x-small" label>
+                          {{ chip }}
+                        </v-chip>
+                      </template>
+                      <template
+                        v-for="(chip, idx) in topBrandChips"
+                        :key="'brand-' + idx"
+                      >
+                        <v-chip color="ebay-green" size="x-small" label>
+                          {{ chip }}
+                        </v-chip>
+                      </template>
+                    </div>
+                  </div>
+                  <div class="metric-item">
+                    <div class="metric-label">Queries This Session</div>
+                    <div class="metric-value">{{ messages.length }}</div>
+                  </div>
+                  <small class="metrics-timestamp">
+                    Last synced: {{ metricsLastUpdatedText }}
+                  </small>
+                </template>
+                <div v-else class="metrics-empty">
+                  <v-icon color="grey">mdi-database-off</v-icon>
+                  <p>Analytics data will appear once synced.</p>
+                </div>
+              </v-card-text>
+            </v-card>
+          </v-col>
+
+          <!-- Main Chat Area -->
+          <v-col
+            :cols="showMetricsPanel ? 12 : 12"
+            :md="showMetricsPanel ? 8 : 12"
+            :lg="showMetricsPanel ? 9 : 12"
+            class="d-flex flex-column"
+          >
             <!-- Chat Messages Area -->
             <v-card class="chat-window" elevation="2">
               <v-card-text class="chat-history">
@@ -137,12 +356,53 @@
                         <span></span>
                       </div>
                       <div v-else class="message-text">
-                        <p class="welcome-text">
-                          👋 Hello! I'm your eBay AI shopping assistant. I can
-                          help you find the perfect products with smart search
-                          and personalized recommendations.
-                        </p>
+                        <div class="ai-intro">
+                          <div class="ai-badge">
+                            <v-icon color="ebay-red" class="mr-2"
+                              >mdi-robot</v-icon
+                            >
+                            <span>Enhanced AI Assistant</span>
+                          </div>
+                          <p class="welcome-text">
+                            Hello! I'm your advanced eBay AI shopping assistant
+                            powered by
+                            <strong>BiLSTM-CRF neural networks</strong> with
+                            <strong>208 entity types</strong> and
+                            <strong>1.75M parameters</strong>. I can understand
+                            complex product queries and provide intelligent
+                            recommendations.
+                          </p>
+                        </div>
+
+                        <div class="ai-capabilities-showcase">
+                          <h4>🧠 AI Capabilities</h4>
+                          <div class="capability-tags">
+                            <v-chip
+                              color="ebay-blue"
+                              size="small"
+                              variant="flat"
+                              >Single Intent (100%)</v-chip
+                            >
+                            <v-chip
+                              color="ebay-green"
+                              size="small"
+                              variant="flat"
+                              >Enhanced NER</v-chip
+                            >
+                            <v-chip
+                              color="ebay-yellow"
+                              size="small"
+                              variant="flat"
+                              >Smart Search</v-chip
+                            >
+                            <v-chip color="ebay-red" size="small" variant="flat"
+                              >Learning System</v-chip
+                            >
+                          </div>
+                        </div>
+
                         <div class="suggestion-chips">
+                          <h4>💡 Try these examples:</h4>
                           <v-chip
                             v-for="suggestion in quickSuggestions"
                             :key="suggestion"
@@ -187,76 +447,176 @@
                           {{ message.text }}
                         </p>
                         <div v-else class="product-results">
-                          <p class="results-header">
-                            🛍️ Here are some products that match your search:
-                          </p>
+                          <div class="results-header">
+                            <v-icon color="ebay-blue" class="results-icon"
+                              >mdi-lightning-bolt</v-icon
+                            >
+                            <div class="results-text">
+                              <h4>Curated matches for your search</h4>
+                              <p>
+                                {{
+                                  message.text ||
+                                  "These listings balance price, condition, and seller reputation."
+                                }}
+                              </p>
+                            </div>
+                          </div>
+                          <div
+                            v-if="
+                              message.entitiesSummary &&
+                              message.entitiesSummary.length
+                            "
+                            class="entity-summary"
+                          >
+                            <span class="entity-summary-label"
+                              >Understood details:</span
+                            >
+                            <div class="entity-chips">
+                              <v-chip
+                                v-for="(
+                                  entity, eIndex
+                                ) in message.entitiesSummary"
+                                :key="eIndex"
+                                class="entity-chip"
+                                color="ebay-blue"
+                                text-color="white"
+                                label
+                              >
+                                {{ entity.label }}:
+                                {{ entity.values.join(", ") }}
+                              </v-chip>
+                            </div>
+                          </div>
                           <div class="products-grid">
                             <v-card
-                              v-for="(product, idx) in message.products"
+                              v-for="(product, idx) in getVisibleProducts(
+                                message
+                              )"
                               :key="idx"
                               class="product-card"
-                              elevation="2"
+                              elevation="3"
                             >
                               <div class="product-image-container">
                                 <v-img
-                                  v-if="product.image && product.image.imageUrl"
-                                  :src="product.image.imageUrl"
-                                  height="180"
+                                  v-if="getPrimaryImage(product)"
+                                  :src="getPrimaryImage(product)"
+                                  height="190"
                                   cover
                                   class="product-image"
                                 >
                                   <template v-slot:placeholder>
                                     <div class="image-placeholder">
-                                      <v-icon size="48" color="grey-lighten-2"
+                                      <v-icon size="42" color="grey-lighten-2"
                                         >mdi-image</v-icon
                                       >
                                     </div>
                                   </template>
                                 </v-img>
                                 <div v-else class="image-placeholder">
-                                  <v-icon size="48" color="grey-lighten-2"
+                                  <v-icon size="42" color="grey-lighten-2"
                                     >mdi-image</v-icon
                                   >
                                 </div>
                               </div>
-
-                              <v-card-title class="product-title">
-                                {{ product.title }}
-                              </v-card-title>
-
-                              <v-card-text class="product-details">
-                                <div class="product-price">
-                                  <span class="price-currency">{{
-                                    product.price.currency
-                                  }}</span>
-                                  <span class="price-value">{{
-                                    product.price.value
-                                  }}</span>
-                                </div>
-                                <v-chip
-                                  :color="getConditionColor(product.condition)"
-                                  size="small"
-                                  variant="flat"
-                                  class="condition-chip"
+                              <div class="product-content">
+                                <h3
+                                  class="product-title"
+                                  :title="product.title"
                                 >
-                                  {{ product.condition }}
-                                </v-chip>
-                              </v-card-text>
-
+                                  {{ truncateText(product.title, 80) }}
+                                </h3>
+                                <div class="product-meta">
+                                  <span class="product-price">{{
+                                    formatPrice(product.price)
+                                  }}</span>
+                                  <v-chip
+                                    v-if="product.condition"
+                                    :color="
+                                      getConditionColor(product.condition)
+                                    "
+                                    size="small"
+                                    variant="flat"
+                                    class="condition-chip"
+                                  >
+                                    {{ product.condition }}
+                                  </v-chip>
+                                </div>
+                                <div class="product-attributes">
+                                  <div
+                                    class="product-attribute"
+                                    v-if="getSellerSummary(product)"
+                                  >
+                                    <v-icon>mdi-storefront-outline</v-icon>
+                                    <span>{{ getSellerSummary(product) }}</span>
+                                  </div>
+                                  <div
+                                    class="product-attribute"
+                                    v-if="getShippingSummary(product)"
+                                  >
+                                    <v-icon>mdi-truck-delivery-outline</v-icon>
+                                    <span>{{
+                                      getShippingSummary(product)
+                                    }}</span>
+                                  </div>
+                                  <div
+                                    class="product-attribute"
+                                    v-if="getPrimaryCategories(product).length"
+                                  >
+                                    <v-icon>mdi-tag-multiple-outline</v-icon>
+                                    <span>{{
+                                      getPrimaryCategories(product).join(", ")
+                                    }}</span>
+                                  </div>
+                                </div>
+                              </div>
+                              <v-divider class="product-divider"></v-divider>
                               <v-card-actions class="product-actions">
+                                <div class="product-actions-left">
+                                  <v-chip
+                                    v-if="product.priorityListing"
+                                    color="ebay-yellow"
+                                    variant="flat"
+                                    size="small"
+                                  >
+                                    Promoted
+                                  </v-chip>
+                                  <v-chip
+                                    v-if="product.topRatedBuyingExperience"
+                                    color="success"
+                                    size="small"
+                                    variant="flat"
+                                  >
+                                    Top rated
+                                  </v-chip>
+                                </div>
                                 <v-btn
-                                  :href="product.publicUrl"
+                                  :href="
+                                    product.itemWebUrl || product.publicUrl
+                                  "
                                   target="_blank"
-                                  color="ebay-red"
+                                  color="ebay-blue"
                                   variant="flat"
                                   size="small"
                                   class="view-btn"
                                 >
                                   <v-icon start>mdi-open-in-new</v-icon>
-                                  View on eBay
+                                  View listing
                                 </v-btn>
                               </v-card-actions>
                             </v-card>
+                          </div>
+                          <div
+                            class="show-more"
+                            v-if="hasMoreProducts(message)"
+                          >
+                            <v-btn
+                              variant="outlined"
+                              color="ebay-blue"
+                              size="small"
+                              @click="showMoreProducts(index)"
+                            >
+                              Show more results
+                            </v-btn>
                           </div>
                         </div>
                         <small class="timestamp">{{ message.timestamp }}</small>
@@ -329,6 +689,7 @@ export default {
     return {
       userInput: "",
       messages: [],
+      resultsPageSize: 4,
       isTyping: false,
       isLoading: false,
       showWelcomeMessage: false,
@@ -353,12 +714,29 @@ export default {
       authLoading: false,
       authCheckLoading: true,
       clientId: null,
+
+      // Dark mode state
+      isDarkMode: false,
+
+      // Metrics panel state
+      showMetricsPanel: false,
+      metricsData: null,
+      metricsLoading: false,
+      metricsError: "",
+      metricsLastFetchedAt: 0,
+      metricsCacheDuration: 60000,
     };
   },
 
   async mounted() {
     this.authCheckLoading = true;
     console.log("FullApp mounted");
+
+    // Load dark mode preference
+    const savedDarkMode = localStorage.getItem("darkMode");
+    if (savedDarkMode !== null) {
+      this.isDarkMode = savedDarkMode === "true";
+    }
 
     // Check if we just returned from eBay auth
     const authReturn = await appAuth.checkForAuthReturn();
@@ -386,6 +764,106 @@ export default {
 
   beforeUnmount() {
     // Clean up any intervals if needed
+  },
+
+  computed: {
+    feedbackMetrics() {
+      return this.metricsData?.feedback_metrics || null;
+    },
+    userMetrics() {
+      return this.metricsData?.user_metrics || null;
+    },
+    datasetMetrics() {
+      return this.metricsData?.dataset_metrics || null;
+    },
+    metricsStatusLabel() {
+      const status =
+        this.feedbackMetrics?.status ||
+        this.datasetMetrics?.status ||
+        "unknown";
+      if (status === "success") {
+        return "Operational";
+      }
+      if (status === "error") {
+        return "Degraded";
+      }
+      if (status === "empty" || status === "no_data") {
+        return "Limited Data";
+      }
+      return status ? status.replace(/_/g, " ").toUpperCase() : "Unknown";
+    },
+    metricsStatusColor() {
+      const status =
+        this.feedbackMetrics?.status ||
+        this.datasetMetrics?.status ||
+        "unknown";
+      if (status === "success") {
+        return "success";
+      }
+      if (status === "error") {
+        return "error";
+      }
+      if (status === "empty" || status === "no_data") {
+        return "warning";
+      }
+      return "primary";
+    },
+    topCategoryChips() {
+      const categories = this.userMetrics?.top_categories;
+      if (!categories) {
+        return [];
+      }
+      return Object.entries(categories).map(
+        ([label, count]) => `${label} (${count})`
+      );
+    },
+    topBrandChips() {
+      const brands = this.userMetrics?.top_brands;
+      if (!brands) {
+        return [];
+      }
+      return Object.entries(brands).map(
+        ([label, count]) => `${label} (${count})`
+      );
+    },
+    intentCount() {
+      const intents = this.datasetMetrics?.metrics?.intent_distribution;
+      if (!intents) {
+        return 0;
+      }
+      return Object.keys(intents).length;
+    },
+    metricsLastUpdatedText() {
+      if (!this.metricsLastFetchedAt) {
+        return "waiting for sync";
+      }
+      try {
+        return new Date(this.metricsLastFetchedAt).toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+        });
+      } catch (error) {
+        return "recently";
+      }
+    },
+  },
+
+  watch: {
+    showMetricsPanel(newValue) {
+      if (newValue) {
+        this.fetchMetrics();
+      }
+    },
+    loggedIn(newValue) {
+      if (newValue) {
+        if (this.showMetricsPanel) {
+          this.fetchMetrics(true);
+        }
+      } else {
+        this.metricsData = null;
+        this.metricsLastFetchedAt = 0;
+      }
+    },
   },
 
   methods: {
@@ -465,8 +943,93 @@ export default {
       this.showWelcomeMessage = false;
       this.authError = "";
       this.authCheckLoading = false;
+      this.metricsData = null;
+      this.metricsLastFetchedAt = 0;
 
       console.log("User logged out");
+    },
+
+    handleSessionExpired(
+      message = "Your session has expired. Please sign in again."
+    ) {
+      console.warn("Session expired:", message);
+      appAuth.clearStoredAuthData();
+      this.loggedIn = false;
+      this.userId = null;
+      this.appSessionToken = null;
+      this.ebayUsername = null;
+      this.messages = [];
+      this.showWelcomeMessage = false;
+      this.authError = message;
+      this.metricsData = null;
+      this.metricsLastFetchedAt = 0;
+    },
+
+    async fetchMetrics(force = false) {
+      if (!this.loggedIn) {
+        return;
+      }
+      if (this.metricsLoading) {
+        return;
+      }
+      const now = Date.now();
+      if (
+        !force &&
+        this.metricsData &&
+        now - this.metricsLastFetchedAt < this.metricsCacheDuration
+      ) {
+        return;
+      }
+
+      this.metricsLoading = true;
+      this.metricsError = "";
+
+      try {
+        const headers = {
+          Accept: "application/json",
+        };
+        if (this.appSessionToken) {
+          headers["Authorization"] = `Bearer ${this.appSessionToken}`;
+        }
+
+        const response = await fetch("/metrics", {
+          method: "GET",
+          headers,
+        });
+
+        if (response.status === 401 || response.status === 403) {
+          this.handleSessionExpired(
+            "Session expired while loading analytics. Please sign in again."
+          );
+          throw new Error("Authentication required");
+        }
+
+        const text = await response.text();
+        let payload = null;
+        if (text) {
+          try {
+            payload = JSON.parse(text);
+          } catch (parseError) {
+            console.error("Failed to parse metrics payload", parseError);
+          }
+        }
+
+        if (!response.ok) {
+          throw new Error(
+            (payload && (payload.error || payload.message)) ||
+              `Metrics request failed: ${response.status}`
+          );
+        }
+
+        this.metricsData = payload || {};
+        this.metricsLastFetchedAt = Date.now();
+      } catch (error) {
+        console.error("Failed to fetch metrics:", error);
+        this.metricsError =
+          error?.message || "Unable to load metrics at this time.";
+      } finally {
+        this.metricsLoading = false;
+      }
     },
 
     async sendMessage() {
@@ -484,7 +1047,10 @@ export default {
       this.isLoading = true;
 
       try {
-        const requestBody = { query: query };
+        const requestBody = {
+          query: query,
+          user_context: this.buildUserContext(),
+        };
         const headers = {
           "Content-Type": "application/json",
         };
@@ -495,11 +1061,18 @@ export default {
           console.warn("Sending search query without authentication");
         }
 
-        const response = await fetch(`/search`, {
+        const response = await fetch(`/api/nextgen/query`, {
           method: "POST",
           headers: headers,
           body: JSON.stringify(requestBody),
         });
+
+        if (response.status === 401 || response.status === 403) {
+          this.handleSessionExpired(
+            "Your session has expired. Please sign in again to continue."
+          );
+          throw new Error("Authentication required");
+        }
 
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({
@@ -512,19 +1085,30 @@ export default {
         }
 
         const data = await response.json();
+        const products = Array.isArray(data?.retrieval) ? data.retrieval : [];
+        const answerText =
+          data?.answer ||
+          "I found a set of listings that align with what you asked for.";
+        const entitiesSummary = this.buildEntitySummary(data?.entities);
+        const citations = Array.isArray(data?.citations) ? data.citations : [];
 
-        if (data && data.length > 0) {
+        if (products.length > 0) {
           this.messages.push({
             sender: "ai",
             isProductResults: true,
-            products: data.slice(0, 5),
-            text: `I found some products matching your search.`,
+            products,
+            visibleCount: this.resultsPageSize,
+            text: answerText,
+            entitiesSummary,
+            citations,
             timestamp: this.getCurrentTimestamp(),
           });
         } else {
           this.messages.push({
             sender: "ai",
-            text: "I couldn't find any products matching your search. Could you try a different query?",
+            text:
+              answerText ||
+              "I couldn't find any products matching your search. Could you try a different query?",
             timestamp: this.getCurrentTimestamp(),
           });
         }
@@ -575,6 +1159,128 @@ export default {
     },
 
     // Get condition color for product chips
+    getPrimaryImage(product) {
+      if (!product) {
+        return null;
+      }
+      const sources = [
+        product.image?.imageUrl,
+        product.thumbnailImages?.[0]?.imageUrl,
+        product.additionalImages?.[0]?.imageUrl,
+      ];
+      return sources.find((src) => src) || null;
+    },
+
+    formatPrice(price) {
+      const formatted = this.formatMoney(price);
+      return formatted || "Price unavailable";
+    },
+
+    formatMoney(price) {
+      if (!price || price.value == null) {
+        return null;
+      }
+      const currency = price.currency || "USD";
+      const numeric = Number(price.value);
+      if (!Number.isFinite(numeric)) {
+        return price.value ? `${currency} ${price.value}` : null;
+      }
+      try {
+        return new Intl.NumberFormat(undefined, {
+          style: "currency",
+          currency,
+          maximumFractionDigits: numeric % 1 === 0 ? 0 : 2,
+        }).format(numeric);
+      } catch (error) {
+        return `${currency} ${numeric.toFixed(2)}`;
+      }
+    },
+
+    getSellerSummary(product) {
+      const seller = product?.seller;
+      if (!seller) {
+        return "";
+      }
+      const summaryParts = [];
+      if (seller.username) {
+        summaryParts.push(seller.username);
+      }
+      if (seller.feedbackScore) {
+        summaryParts.push(
+          `${Number(seller.feedbackScore).toLocaleString()} feedback`
+        );
+      }
+      if (seller.feedbackPercentage) {
+        summaryParts.push(`${seller.feedbackPercentage}% positive`);
+      }
+      return summaryParts.join(" | ");
+    },
+
+    getShippingSummary(product) {
+      const option = product?.shippingOptions?.[0];
+      if (!option) {
+        return "";
+      }
+      const value = option.shippingCost?.value;
+      let costText = "";
+      if (value === "0" || value === "0.0" || value === "0.00") {
+        costText = "Free shipping";
+      } else {
+        const formatted = this.formatMoney(option.shippingCost);
+        if (formatted) {
+          costText = `Shipping ${formatted}`;
+        }
+      }
+      const deliveryWindow = this.formatDeliveryWindow(option);
+      return [costText, deliveryWindow].filter(Boolean).join(" | ");
+    },
+
+    formatDeliveryWindow(option) {
+      if (!option) {
+        return "";
+      }
+      const formatDate = (raw) => {
+        if (!raw) {
+          return null;
+        }
+        const parsed = new Date(raw);
+        if (Number.isNaN(parsed.getTime())) {
+          return null;
+        }
+        return parsed.toLocaleDateString(undefined, {
+          month: "short",
+          day: "numeric",
+        });
+      };
+      const from = formatDate(option.minEstimatedDeliveryDate);
+      const to = formatDate(option.maxEstimatedDeliveryDate);
+      if (from && to && from !== to) {
+        return `${from} - ${to}`;
+      }
+      return to || from || "";
+    },
+
+    getPrimaryCategories(product) {
+      const categories = product?.categories;
+      if (!Array.isArray(categories)) {
+        return [];
+      }
+      return categories
+        .filter((category) => category?.categoryName)
+        .slice(0, 2)
+        .map((category) => category.categoryName);
+    },
+
+    truncateText(text, limit = 80) {
+      if (typeof text !== "string") {
+        return "";
+      }
+      if (text.length <= limit) {
+        return text;
+      }
+      return `${text.slice(0, limit).trim()}...`;
+    },
+
     getConditionColor(condition) {
       const conditionColors = {
         New: "success",
@@ -587,504 +1293,68 @@ export default {
       };
       return conditionColors[condition] || "grey";
     },
+
+    buildUserContext() {
+      return {
+        userId: this.userId || null,
+        ebayUsername: this.ebayUsername || null,
+        loggedIn: this.loggedIn,
+      };
+    },
+
+    buildEntitySummary(entityPayload) {
+      if (!entityPayload || typeof entityPayload !== "object") {
+        return [];
+      }
+      const buckets = entityPayload.entities || {};
+      return Object.entries(buckets)
+        .filter(([, values]) => Array.isArray(values) && values.length > 0)
+        .map(([label, values]) => ({
+          label,
+          values: values.map((value) => String(value)),
+        }));
+    },
+
+    getVisibleProducts(message) {
+      const products = Array.isArray(message?.products) ? message.products : [];
+      const limit = message?.visibleCount ?? this.resultsPageSize;
+      return products.slice(0, limit);
+    },
+
+    hasMoreProducts(message) {
+      return (
+        Array.isArray(message?.products) &&
+        (message.visibleCount ?? this.resultsPageSize) < message.products.length
+      );
+    },
+
+    showMoreProducts(index) {
+      const message = this.messages[index];
+      if (!message || !Array.isArray(message.products)) {
+        return;
+      }
+      const current = message.visibleCount ?? this.resultsPageSize;
+      const nextCount = Math.min(
+        current + this.resultsPageSize,
+        message.products.length
+      );
+      if (typeof this.$set === "function") {
+        this.$set(this.messages[index], "visibleCount", nextCount);
+      } else {
+        this.messages[index].visibleCount = nextCount;
+      }
+    },
+
+    // Dark mode toggle
+    toggleDarkMode() {
+      this.isDarkMode = !this.isDarkMode;
+      localStorage.setItem("darkMode", this.isDarkMode);
+    },
+
+    // Metrics panel toggle
+    toggleMetricsPanel() {
+      this.showMetricsPanel = !this.showMetricsPanel;
+    },
   },
 };
 </script>
-
-<style scoped>
-/* eBay Color Palette */
-:root {
-  --ebay-red: #e53238;
-  --ebay-blue: #0064d2;
-  --ebay-yellow: #f5af02;
-  --ebay-green: #86b817;
-  --ebay-dark: #2c2c2c;
-  --ebay-light: #f8f9fa;
-  --ebay-border: #e1e5e9;
-}
-
-/* Global App Styles */
-.ebay-chat-app {
-  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-  min-height: 100vh;
-}
-
-/* Header Styles */
-.ebay-header {
-  background: white !important;
-  border-bottom: 1px solid var(--ebay-border);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-}
-
-.header-content {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  width: 100%;
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 0 24px;
-}
-
-.ebay-logo-container {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-}
-
-.ebay-logo {
-  font-weight: bold;
-  font-size: 2rem;
-  letter-spacing: -1px;
-  display: flex;
-  gap: 2px;
-}
-
-.ebay-logo .e {
-  color: var(--ebay-red);
-}
-.ebay-logo .b {
-  color: var(--ebay-blue);
-}
-.ebay-logo .a {
-  color: var(--ebay-yellow);
-}
-.ebay-logo .y {
-  color: var(--ebay-green);
-}
-
-.logo-text {
-  display: flex;
-  flex-direction: column;
-}
-
-.app-title {
-  font-size: 1.5rem;
-  font-weight: 600;
-  color: var(--ebay-dark);
-  margin: 0;
-  line-height: 1.2;
-}
-
-.app-subtitle {
-  font-size: 0.875rem;
-  color: #6c757d;
-  margin: 0;
-  line-height: 1.2;
-}
-
-.header-actions {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.user-chip {
-  background: var(--ebay-green) !important;
-  color: white !important;
-}
-
-.logout-btn {
-  border-color: var(--ebay-red) !important;
-  color: var(--ebay-red) !important;
-}
-
-/* Login Styles */
-.login-container {
-  background: linear-gradient(135deg, var(--ebay-light) 0%, #ffffff 100%);
-  padding: 40px 20px;
-}
-
-.login-card {
-  border-radius: 16px !important;
-  overflow: hidden;
-  background: white;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-}
-
-.login-header {
-  text-align: center;
-  padding: 40px 32px 24px;
-  background: linear-gradient(135deg, var(--ebay-red) 0%, #c62828 100%);
-  color: white;
-}
-
-.login-icon {
-  margin-bottom: 16px;
-}
-
-.login-title {
-  font-size: 1.75rem;
-  font-weight: 600;
-  margin: 0 0 8px 0;
-}
-
-.login-subtitle {
-  font-size: 1rem;
-  opacity: 0.9;
-  margin: 0;
-}
-
-.login-content {
-  padding: 32px !important;
-}
-
-.features-list {
-  margin-bottom: 32px;
-}
-
-.feature-item {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 0;
-  font-size: 1rem;
-  color: var(--ebay-dark);
-}
-
-.feature-icon {
-  font-size: 1.25rem;
-}
-
-.login-btn {
-  background: var(--ebay-red) !important;
-  color: white !important;
-  font-weight: 600;
-  font-size: 1.1rem;
-  padding: 16px !important;
-  border-radius: 8px !important;
-}
-
-/* Chat Container */
-.chat-container {
-  padding: 20px;
-  max-width: 1200px;
-  margin: 0 auto;
-}
-
-.chat-window {
-  border-radius: 16px !important;
-  overflow: hidden;
-  background: white;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-  height: calc(100vh - 140px);
-  display: flex;
-  flex-direction: column;
-}
-
-.chat-history {
-  flex: 1;
-  overflow-y: auto;
-  padding: 24px;
-  background: #fafbfc;
-}
-
-/* Message Styles */
-.message-container {
-  margin-bottom: 20px;
-  display: flex;
-}
-
-.message-container.user {
-  justify-content: flex-end;
-}
-
-.message-container.ai {
-  justify-content: flex-start;
-}
-
-.message-bubble {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  max-width: 70%;
-  padding: 16px 20px;
-  border-radius: 20px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-}
-
-.message-bubble.user {
-  background: linear-gradient(135deg, var(--ebay-blue) 0%, #0056b3 100%);
-  color: white;
-  flex-direction: row-reverse;
-}
-
-.message-bubble.ai {
-  background: white;
-  border: 1px solid var(--ebay-border);
-  color: var(--ebay-dark);
-}
-
-.message-avatar {
-  flex-shrink: 0;
-}
-
-.message-content {
-  flex: 1;
-  min-width: 0;
-}
-
-.message-text p {
-  margin: 0 0 8px 0;
-  line-height: 1.5;
-  word-wrap: break-word;
-}
-
-.welcome-text {
-  font-size: 1rem;
-  margin-bottom: 16px !important;
-}
-
-.suggestion-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-bottom: 12px;
-}
-
-.suggestion-chip {
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.suggestion-chip:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(0, 100, 210, 0.3);
-}
-
-.timestamp {
-  color: #6c757d;
-  font-size: 0.75rem;
-  margin-top: 8px;
-  display: block;
-}
-
-/* Typing Indicator */
-.typing-indicator {
-  display: flex;
-  gap: 4px;
-  align-items: center;
-  padding: 8px 0;
-}
-
-.typing-indicator span {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--ebay-blue);
-  animation: typing 1.4s infinite ease-in-out;
-}
-
-.typing-indicator span:nth-child(2) {
-  animation-delay: 0.2s;
-}
-
-.typing-indicator span:nth-child(3) {
-  animation-delay: 0.4s;
-}
-
-@keyframes typing {
-  0%,
-  60%,
-  100% {
-    transform: translateY(0);
-    opacity: 0.5;
-  }
-  30% {
-    transform: translateY(-10px);
-    opacity: 1;
-  }
-}
-
-/* Product Results */
-.product-results {
-  margin-top: 8px;
-}
-
-.results-header {
-  font-weight: 600;
-  margin-bottom: 16px !important;
-  color: var(--ebay-dark);
-}
-
-.products-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 16px;
-  margin-top: 16px;
-}
-
-.product-card {
-  border-radius: 12px !important;
-  overflow: hidden;
-  transition: all 0.3s ease;
-  border: 1px solid var(--ebay-border);
-}
-
-.product-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
-}
-
-.product-image-container {
-  position: relative;
-  background: #f8f9fa;
-}
-
-.product-image {
-  transition: transform 0.3s ease;
-}
-
-.product-card:hover .product-image {
-  transform: scale(1.05);
-}
-
-.image-placeholder {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 180px;
-  background: #f8f9fa;
-}
-
-.product-title {
-  font-size: 0.95rem !important;
-  font-weight: 600 !important;
-  line-height: 1.3 !important;
-  padding: 12px 16px 8px !important;
-  color: var(--ebay-dark) !important;
-}
-
-.product-details {
-  padding: 0 16px 12px !important;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.product-price {
-  display: flex;
-  align-items: baseline;
-  gap: 2px;
-}
-
-.price-currency {
-  font-size: 0.875rem;
-  color: #6c757d;
-}
-
-.price-value {
-  font-size: 1.25rem;
-  font-weight: 700;
-  color: var(--ebay-red);
-}
-
-.condition-chip {
-  font-size: 0.75rem !important;
-}
-
-.product-actions {
-  padding: 0 16px 16px !important;
-}
-
-.view-btn {
-  width: 100%;
-  font-weight: 600;
-}
-
-/* Input Area */
-.chat-input {
-  padding: 20px 24px !important;
-  background: white;
-  border-top: 1px solid var(--ebay-border);
-}
-
-.input-container {
-  display: flex;
-  gap: 12px;
-  align-items: flex-end;
-  width: 100%;
-}
-
-.message-input {
-  flex: 1;
-}
-
-.message-input :deep(.v-field) {
-  border-radius: 24px !important;
-  border-color: var(--ebay-border) !important;
-}
-
-.message-input :deep(.v-field--focused) {
-  border-color: var(--ebay-blue) !important;
-  box-shadow: 0 0 0 2px rgba(0, 100, 210, 0.1) !important;
-}
-
-.send-btn {
-  border-radius: 50% !important;
-  min-width: 48px !important;
-  height: 48px !important;
-  background: var(--ebay-red) !important;
-  color: white !important;
-}
-
-.send-btn:disabled {
-  background: #e9ecef !important;
-  color: #6c757d !important;
-}
-
-/* Responsive Design */
-@media (max-width: 768px) {
-  .header-content {
-    padding: 0 16px;
-  }
-
-  .logo-text {
-    display: none;
-  }
-
-  .chat-container {
-    padding: 12px;
-  }
-
-  .chat-window {
-    height: calc(100vh - 100px);
-  }
-
-  .chat-history {
-    padding: 16px;
-  }
-
-  .message-bubble {
-    max-width: 85%;
-    padding: 12px 16px;
-  }
-
-  .products-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .login-content {
-    padding: 24px !important;
-  }
-}
-
-@media (max-width: 480px) {
-  .ebay-logo {
-    font-size: 1.5rem;
-  }
-
-  .app-title {
-    font-size: 1.25rem;
-  }
-
-  .message-bubble {
-    max-width: 90%;
-    padding: 10px 14px;
-  }
-
-  .chat-input {
-    padding: 16px !important;
-  }
-}
-</style>

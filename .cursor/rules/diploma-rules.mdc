@@ -1,0 +1,287 @@
+---
+description: Comprehensive rules and architecture for eBay AI Chatbot diploma thesis project
+globs:
+alwaysApply: true
+---
+# 🤖 **eBay AI Chatbot - Diploma Thesis Project**
+
+## 🎯 **Project Overview**
+The concept of this project which functions as a diploma thesis is to create a chatbot that the user can chat with in order to get recommendations about products that fit his given description, and known tastes.
+
+This is a sophisticated **eBay AI Chatbot** that demonstrates advanced AI/ML techniques for e-commerce applications. The system uses a **single intent architecture** with enhanced NER models to provide intelligent product search capabilities through natural language processing.
+
+## 🧠 **AI Agents & Components**
+
+### **1. 🎯 Primary AI Agent: Enhanced NLP Processor**
+- **Agent Name**: `EBayNLP`
+- **Location**: `backend/custom_nlp.py`
+- **Purpose**: Core natural language understanding for product search
+- **Key Capabilities**:
+  - **Single Intent Architecture**: Always returns `search_product` (100% accuracy)
+  - **Enhanced Entity Recognition**: 208 entity types for comprehensive product attributes
+  - **Advanced NER Model**: BiLSTM-CRF with attention mechanisms (1.75M parameters)
+  - **Multi-layer Processing**: 2-layer BiLSTM with dropout regularization
+  - **Character Embeddings**: Optional character-level features for better tokenization
+
+### **2. 🔍 Secondary AI Agent: eBay Search Service**
+- **Agent Name**: `EBayService`
+- **Location**: `backend/ebay_service.py`
+- **Purpose**: Intelligent product search and recommendation
+- **Key Capabilities**:
+  - **OAuth Integration**: Secure eBay API authentication
+  - **Smart Search**: Converts NLP entities to eBay search parameters
+  - **User Preferences**: Learns from user behavior and search history
+  - **Result Optimization**: Ranks results based on user preferences
+  - **Fallback Handling**: Graceful degradation when services are unavailable
+
+### **3. 🔐 Authentication Agent: OAuth Manager**
+- **Agent Name**: `OAuthManager`
+- **Location**: `backend/app.py` (auth endpoints)
+- **Purpose**: Secure user authentication and session management
+- **Key Capabilities**:
+  - **eBay OAuth 2.0**: Full OAuth flow implementation
+  - **Session Management**: Secure token storage and validation
+  - **User Profile**: eBay user information retrieval
+  - **Token Refresh**: Automatic token renewal
+  - **Security**: Encrypted token storage, secure session handling
+
+### **4. 📊 Analytics Agent: Metrics Processor**
+- **Agent Name**: `MetricsAnalyzer`
+- **Location**: `backend/metrics.py`
+- **Purpose**: System performance monitoring and user behavior analysis
+- **Key Capabilities**:
+  - **Feedback Analysis**: Query intent and entity distribution
+  - **User Preferences**: Learning from user behavior patterns
+  - **System Metrics**: Performance monitoring and optimization
+  - **Data Visualization**: Comprehensive analytics dashboard
+  - **Model Evaluation**: Training and validation metrics
+
+## 🏗️ **System Architecture**
+
+### **Frontend Architecture**
+```
+Vue.js 3 + Vuetify 3
+├── FullApp.vue (Main Application)
+├── ChatBox.vue (Chat Interface)
+├── Auth Service (OAuth Integration)
+└── eBay Theme (Brand Colors)
+```
+
+### **Backend Architecture**
+```
+Flask + MongoDB
+├── app.py (Main Application)
+├── custom_nlp.py (NLP Agent)
+├── ebay_service.py (Search Agent)
+├── enhanced_models.py (AI Models)
+├── utils/ (Utilities)
+│   ├── error_handlers.py
+│   ├── logging_config.py
+│   ├── rate_limiting.py
+│   └── validation.py
+└── models/enhanced/ (Trained Models)
+```
+
+### **Data Flow Architecture**
+```
+User Query → NLP Agent → Entity Extraction → Search Agent → eBay API → Results
+     ↓
+Analytics Agent → Metrics Collection → User Preferences → Learning
+```
+
+## 🎓 **Research Contributions**
+
+### **1. Single Intent Architecture**
+- **Innovation**: Eliminated complex intent classification
+- **Benefit**: 100% intent accuracy vs ~70% with multiple intents
+- **Impact**: Simplified architecture, better performance
+- **Thesis Value**: Novel approach to e-commerce chatbots
+
+### **2. Enhanced NER Model**
+- **Architecture**: BiLSTM-CRF with self-attention
+- **Parameters**: 1.75M (vs 500K basic model)
+- **Entities**: 208 types (vs 173 basic)
+- **Performance**: State-of-the-art entity recognition
+- **Thesis Value**: Advanced deep learning implementation
+
+### **3. Production-Ready System**
+- **Security**: OAuth 2.0, encrypted tokens, secure sessions
+- **Scalability**: Rate limiting, error handling, monitoring
+- **Reliability**: Graceful degradation, comprehensive logging
+- **Thesis Value**: Real-world deployment considerations
+
+## 🚀 **Technical Excellence**
+
+### **AI/ML Stack**
+- **Deep Learning**: PyTorch with BiLSTM-CRF
+- **NLP**: spaCy integration with custom models
+- **Entity Recognition**: 208 entity types
+- **Attention Mechanisms**: Self-attention for better focus
+- **Regularization**: Dropout, multi-layer architecture
+
+### **Backend Stack**
+- **Framework**: Flask with comprehensive error handling
+- **Database**: MongoDB with proper indexing
+- **Authentication**: OAuth 2.0 with secure token management
+- **API Design**: RESTful with proper validation
+- **Monitoring**: Comprehensive logging and metrics
+
+### **Frontend Stack**
+- **Framework**: Vue.js 3 with Composition API
+- **UI Library**: Vuetify 3 with eBay theming
+- **Styling**: Tailwind CSS for utility classes
+- **Responsive**: Mobile-first design approach
+- **Accessibility**: WCAG compliant interface
+
+## 📊 **Performance Metrics**
+
+### **Model Performance**
+- **Intent Accuracy**: 100% (single intent architecture)
+- **Entity Recognition**: 208 entity types supported
+- **Model Size**: 1.75M parameters
+- **Training Data**: 3,750 samples (vs 104 per intent)
+- **Inference Speed**: Optimized for production
+
+### **System Performance**
+- **Response Time**: < 2 seconds for search queries
+- **Concurrent Users**: Rate limited and optimized
+- **Error Handling**: Comprehensive error recovery
+- **Uptime**: Health checks and monitoring
+- **Security**: OAuth 2.0 with token encryption
+
+## 🎯 **Use Cases & Applications**
+
+### **Primary Use Case: eBay Product Search**
+- **Natural Language**: "iPhone 15 Pro under $1000"
+- **Entity Extraction**: BRAND, MODEL, PRICE_RANGE
+- **Search Translation**: eBay API parameters
+- **Results**: Ranked product listings
+
+### **Secondary Use Cases**:
+- **User Preference Learning**: From search history
+- **Analytics Dashboard**: System performance monitoring
+- **Research Platform**: AI/ML experimentation
+- **Thesis Demonstration**: Advanced AI techniques
+// Diploma Project Rules
+
+// 1. Authentication & Security
+// - All authentication tokens (access, refresh, session) must be securely stored and never logged in plaintext.
+// - Always validate and sanitize all user input, especially for endpoints that accept query parameters (e.g., client_id).
+// - Never expose sensitive error details to the frontend; log them server-side only.
+
+// 2. Error Handling
+// - All exceptions must be caught and logged with sufficient context (e.g., client_id, stack trace).
+// - When an error occurs, update the relevant MongoDB document with an appropriate error message and timestamp.
+// - Always return a clear error response to the frontend, including a user-friendly error code and optional details.
+
+// 3. MongoDB Usage
+// - Use upsert=True when updating user or session documents to ensure records are created if missing.
+// - Always update the 'updated_at' field when modifying documents.
+// - Never store access tokens or refresh tokens in collections that are not explicitly for authentication or user preferences.
+
+// 4. Session Management
+// - Session tokens must be generated using a secure helper function.
+// - Session expiry must be enforced and stored in the database (e.g., 'expires_at').
+// - When authentication fails, ensure 'authenticated' is set to False and any session tokens are invalidated.
+
+// 5. Logging
+// - Log all authentication attempts, both successful and failed, with relevant identifiers (e.g., client_id, user_id).
+// - Do not log sensitive data such as tokens or passwords.
+// - Use appropriate log levels: info for normal operations, warning for unusual but non-fatal events, error for failures.
+
+// 6. API Endpoints
+// - All endpoints must validate required parameters and return 400 if missing.
+// - For polling endpoints, always check for session existence and authentication status before returning success.
+// - Never leak internal implementation details or stack traces in API responses.
+
+// 7. Code Quality
+// - Use descriptive variable names (e.g., user_id, client_id, session_token).
+// - Keep functions small and focused; refactor repeated logic into helpers.
+// - Document all public functions and endpoints with docstrings describing their purpose and parameters.
+
+// 8. Frontend Redirects
+// - When redirecting to the frontend, always include relevant error or success parameters in the query string.
+// - Never include sensitive information (e.g., tokens) in redirect URLs.
+
+// 9. General
+// - Always check for None before using database collections or critical variables.
+// - Prefer UTC for all timestamps stored in the database.
+// - Follow PEP8 style guidelines for Python code.
+
+// 10. AI/ML Model Management
+// - Always validate model files exist before loading (enhanced_ner_model.pth, enhanced_ner_model_vocab.pkl).
+// - Use single intent architecture - always return "search_product" for intent classification.
+// - Implement graceful fallback when enhanced models are unavailable.
+// - Log model loading success/failure with appropriate context.
+// - Never expose model internals or training data in API responses.
+
+// 11. Entity Recognition & NLP
+// - Support all 208 entity types defined in the enhanced model vocabulary.
+// - Always validate entity extraction results before using them in search queries.
+// - Handle unknown entities gracefully with appropriate fallback behavior.
+// - Log entity extraction performance and accuracy metrics.
+// - Sanitize user queries before processing to prevent injection attacks.
+
+// 12. eBay API Integration
+// - Always validate eBay OAuth tokens before making API calls.
+// - Implement proper rate limiting for eBay API requests (respect eBay's limits).
+// - Handle eBay API errors gracefully with user-friendly messages.
+// - Never expose eBay API keys or tokens in logs or error messages.
+// - Use appropriate eBay environment (SANDBOX vs PRODUCTION) based on configuration.
+
+// 13. Search Query Processing
+// - Always validate search parameters before constructing eBay API calls.
+// - Implement query sanitization to prevent malicious input.
+// - Log search queries for analytics but never log sensitive user data.
+// - Handle empty or invalid search results gracefully.
+// - Provide meaningful error messages when search fails.
+
+// 14. User Preferences & Learning
+// - Store user preferences securely in MongoDB with proper indexing.
+// - Implement privacy controls for user data collection.
+// - Never store sensitive information in user preference documents.
+// - Provide users with control over their data (view, delete, export).
+// - Log preference updates with timestamps for audit trails.
+
+// 15. Frontend Integration
+// - Always validate frontend requests and sanitize input data.
+// - Implement proper CORS configuration for frontend-backend communication.
+// - Handle frontend routing gracefully (serve index.html for unknown routes).
+// - Never expose backend implementation details in frontend error messages.
+// - Use secure session management for frontend authentication.
+
+// 16. Performance & Scalability
+// - Implement proper caching for model loading and inference.
+// - Use connection pooling for database connections.
+// - Implement rate limiting per user and per endpoint.
+// - Monitor system performance and log metrics regularly.
+// - Handle concurrent requests safely with proper locking mechanisms.
+
+// 17. Enhanced Models Specific Rules
+// - Always check model_info.json for model configuration before loading.
+// - Use enhanced BiLSTM-CRF model with attention mechanisms when available.
+// - Implement proper model versioning and compatibility checks.
+// - Log model inference time and accuracy metrics.
+// - Handle model loading failures with appropriate fallback strategies.
+
+// 18. Analytics & Metrics
+// - Log all user interactions for analytics (anonymized where possible).
+// - Implement comprehensive metrics collection for system monitoring.
+// - Never log sensitive user data in analytics.
+// - Provide dashboard access for system administrators only.
+// - Implement data retention policies for analytics data.
+
+// 19. Security Best Practices
+// - Use HTTPS for all external communications.
+// - Implement proper input validation for all API endpoints.
+// - Use secure random number generation for session tokens.
+// - Implement proper CORS policies to prevent unauthorized access.
+// - Regularly audit security configurations and dependencies.
+
+// 20. Error Handling & Logging
+// - Implement comprehensive error handling for all AI/ML operations.
+// - Log all errors with sufficient context for debugging.
+// - Never expose stack traces or internal errors to frontend.
+// - Implement proper error recovery mechanisms for critical operations.
+// - Use structured logging with appropriate log levels.
+

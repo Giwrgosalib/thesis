@@ -5,6 +5,7 @@ import vuetify from "./plugins/vuetify"; // Import Vuetify
 import { loadFonts } from "./plugins/webfontloader"; // Optional: Load fonts
 import "./assets/tailwind.css"; // Import Tailwind CSS
 import "./assets/boxstyles.css";
+import "./assets/ebay-theme.css"; // Import eBay Theme
 
 loadFonts(); // Optional: Load fonts
 
