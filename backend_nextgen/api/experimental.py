@@ -35,6 +35,7 @@ def handle_query():
     base_context = payload.get("user_context", {}) or {}
     limit = int(payload.get("limit", 10))
     offset = int(payload.get("offset", 0))
+    history = payload.get("history", [])
     
     user_context = dict(base_context)
     user_id = user_context.get("userId") or user_context.get("user_id")
@@ -52,7 +53,7 @@ def handle_query():
 
     try:
         from backend_nextgen.orchestrator import orchestrator
-        result = orchestrator.handle_query(query, user_context, limit=limit, offset=offset)
+        result = orchestrator.handle_query(query, user_context, limit=limit, offset=offset, history=history)
         
         # Save history if configured
         if preference_writer and user_id:

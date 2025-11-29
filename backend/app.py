@@ -102,7 +102,9 @@ else:
 # --- Configuration Variables ---
 EBAY_CALLBACK_PATH = "/auth/ebay-callback"
 YOUR_APPLICATION_CALLBACK_URL = urljoin(config.app.app_base_url, EBAY_CALLBACK_PATH)
-FRONTEND_BUILD_DIR = os.path.join('..', 'frontend', 'dist')
+# Use absolute path to avoid CWD/root_path ambiguity
+BACKEND_DIR = os.path.dirname(os.path.abspath(__file__))
+FRONTEND_BUILD_DIR = os.path.abspath(os.path.join(BACKEND_DIR, '..', 'frontend', 'dist'))
 FRONTEND_URL = config.app.frontend_url
 EBAY_ENVIRONMENT = environment.SANDBOX if config.ebay.environment == "SANDBOX" else environment.PRODUCTION
 SESSION_EXPIRY = 3600  # 1 hour

@@ -30,6 +30,12 @@ class RAGPipeline:
             documents = [doc.metadata for doc in retrieved]
         context_docs = documents[: self.max_context_docs]
 
+        if not context_docs:
+            return RAGResponse(
+                answer="I couldn't find any specific listings matching your criteria, but I can help you refine your search.",
+                citations=[]
+            )
+
         context_lines = []
         for idx, doc in enumerate(context_docs, 1):
             title = doc.get("title", "Listing")
@@ -45,7 +51,7 @@ class RAGPipeline:
                 line += f"\n   {snippet}"
             context_lines.append(line)
 
-        context = "\n".join(context_lines) or "No matching listings are available."
+        context = "\n".join(context_lines)
         prompt = (
             "You are an AI shopping assistant helping a buyer choose on eBay.\n"
             f"User request: {query}\n\n"

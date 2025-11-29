@@ -43,6 +43,8 @@ class TransformerNERInference:
         self.confidence_threshold = confidence_threshold
 
     def predict(self, text: str) -> List[NERPrediction]:
+        # Normalize text to lowercase for robust extraction
+        text = text.lower()
         encoded = self.tokenizer(text, return_tensors="pt")
         encoded = {k: v.to(self.device) for k, v in encoded.items()}
 

@@ -11,7 +11,7 @@ from datetime import datetime
 
 # Paths
 BASE_DIR = Path(__file__).resolve().parent.parent
-METRICS_DB = BASE_DIR / "backend_nextgen" / "data" / "observability" / "metrics.db"
+METRICS_DB = BASE_DIR / "data" / "observability" / "metrics.db"
 BANDIT_MODEL = BASE_DIR / "backend_nextgen" / "personalization" / "bandit_model.npz"
 OUTPUT_REPORT = BASE_DIR / "THESIS_RESULTS.md"
 
@@ -26,11 +26,6 @@ def get_ctr():
         cursor = conn.cursor()
         
         # Count Impressions (Recommendations shown)
-        # Assuming we log 'recommendation_served' or similar. 
-        # If not, we might use 'query_latency' count as proxy for queries.
-        # Let's check what we actually log. In orchestrator we log 'query_latency'.
-        # We also log 'feedback_received' for clicks.
-        
         cursor.execute("SELECT COUNT(*) FROM metrics WHERE name = 'feedback_received'")
         clicks = cursor.fetchone()[0]
         

@@ -39,6 +39,8 @@ class GenerativeResponder:
                 max_new_tokens=self.max_tokens,
                 temperature=self.temperature,
                 do_sample=self.temperature > 0,
+                repetition_penalty=1.2,
+                pad_token_id=self.tokenizer.eos_token_id,
             )
         # Decode only the new tokens
         input_length = encoded["input_ids"].shape[1]

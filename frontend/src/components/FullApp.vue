@@ -28,23 +28,14 @@
             variant="flat"
             class="ai-status-chip"
           >
-            <v-icon start>mdi-brain</v-icon>
+            <v-img
+              :src="icons.brain"
+              width="20"
+              height="20"
+              class="mr-2"
+            ></v-img>
             AI Active
           </v-chip>
-
-          <!-- Voice Mute Toggle -->
-          <v-btn
-            v-if="loggedIn"
-            @click="toggleMute"
-            variant="text"
-            :color="isMuted ? 'grey' : 'ebay-blue'"
-            class="mute-toggle"
-            size="small"
-          >
-            <v-icon>{{
-              isMuted ? "mdi-volume-off" : "mdi-volume-high"
-            }}</v-icon>
-          </v-btn>
 
           <!-- System Metrics Toggle -->
           <v-btn
@@ -55,7 +46,7 @@
             class="metrics-toggle"
             size="small"
           >
-            <v-icon>mdi-chart-line</v-icon>
+            <v-img :src="icons.chart" width="24" height="24"></v-img>
           </v-btn>
 
           <!-- Dark Mode Toggle -->
@@ -66,9 +57,11 @@
             class="theme-toggle"
             size="small"
           >
-            <v-icon>{{
-              isDarkMode ? "mdi-weather-sunny" : "mdi-weather-night"
-            }}</v-icon>
+            <v-img
+              :src="isDarkMode ? icons.sun : icons.moon"
+              width="24"
+              height="24"
+            ></v-img>
           </v-btn>
 
           <!-- User Info -->
@@ -78,7 +71,12 @@
             variant="flat"
             class="user-chip"
           >
-            <v-icon start>mdi-account-circle</v-icon>
+            <v-img
+              :src="icons.userCircle"
+              width="20"
+              height="20"
+              class="mr-2"
+            ></v-img>
             {{ ebayUsername }}
           </v-chip>
 
@@ -90,7 +88,12 @@
             color="ebay-red"
             class="logout-btn"
           >
-            <v-icon start>mdi-logout</v-icon>
+            <v-img
+              :src="icons.logout"
+              width="20"
+              height="20"
+              class="mr-2"
+            ></v-img>
             Logout
           </v-btn>
         </div>
@@ -98,7 +101,7 @@
     </v-app-bar>
 
     <v-main>
-      <v-container fluid class="fill-height">
+      <v-container fluid class="fill-height" style="min-height: 100vh">
         <!-- Enhanced Login View with AI Showcase -->
         <v-row
           v-if="!loggedIn"
@@ -110,7 +113,12 @@
             <v-card class="login-card" elevation="8">
               <div class="login-header">
                 <div class="login-icon">
-                  <v-icon size="80" color="ebay-red">mdi-robot</v-icon>
+                  <v-img
+                    src="@/assets/icons/ai-avatar.svg"
+                    width="80"
+                    height="80"
+                    class="mx-auto"
+                  ></v-img>
                 </div>
                 <h2 class="login-title">eBay AI Shopping Assistant</h2>
                 <p class="login-subtitle">
@@ -126,26 +134,42 @@
                   </h3>
                   <div class="capabilities-grid">
                     <div class="capability-card">
-                      <v-icon color="ebay-blue" size="32">mdi-brain</v-icon>
+                      <v-img
+                        src="@/assets/icons/brain.svg"
+                        width="32"
+                        height="32"
+                        class="mx-auto mb-2"
+                      ></v-img>
                       <h4>Enhanced NLP</h4>
                       <p>BiLSTM-CRF with 208 entity types</p>
                     </div>
                     <div class="capability-card">
-                      <v-icon color="ebay-green" size="32">mdi-magnify</v-icon>
+                      <v-img
+                        src="@/assets/icons/search.svg"
+                        width="32"
+                        height="32"
+                        class="mx-auto mb-2"
+                      ></v-img>
                       <h4>Smart Search</h4>
                       <p>Intelligent product matching</p>
                     </div>
                     <div class="capability-card">
-                      <v-icon color="ebay-yellow" size="32"
-                        >mdi-lightbulb</v-icon
-                      >
+                      <v-img
+                        :src="icons.lightbulb"
+                        width="32"
+                        height="32"
+                        class="mx-auto mb-2"
+                      ></v-img>
                       <h4>Learning System</h4>
                       <p>Adaptive user preferences</p>
                     </div>
                     <div class="capability-card">
-                      <v-icon color="ebay-red" size="32"
-                        >mdi-shield-check</v-icon
-                      >
+                      <v-img
+                        :src="icons.shield"
+                        width="32"
+                        height="32"
+                        class="mx-auto mb-2"
+                      ></v-img>
                       <h4>Secure OAuth</h4>
                       <p>eBay API integration</p>
                     </div>
@@ -155,21 +179,30 @@
                 <!-- Technical Features -->
                 <div class="features-list">
                   <div class="feature-item">
-                    <v-icon color="ebay-blue" class="feature-icon"
-                      >mdi-robot</v-icon
-                    >
+                    <v-img
+                      :src="icons.robot"
+                      width="24"
+                      height="24"
+                      class="feature-icon"
+                    ></v-img>
                     <span>Single Intent Architecture (100% accuracy)</span>
                   </div>
                   <div class="feature-item">
-                    <v-icon color="ebay-yellow" class="feature-icon"
-                      >mdi-brain</v-icon
-                    >
+                    <v-img
+                      :src="icons.brain"
+                      width="24"
+                      height="24"
+                      class="feature-icon"
+                    ></v-img>
                     <span>1.75M parameter BiLSTM-CRF model</span>
                   </div>
                   <div class="feature-item">
-                    <v-icon color="ebay-green" class="feature-icon"
-                      >mdi-chart-line</v-icon
-                    >
+                    <v-img
+                      :src="icons.chart"
+                      width="24"
+                      height="24"
+                      class="feature-icon"
+                    ></v-img>
                     <span>Real-time analytics & metrics</span>
                   </div>
                 </div>
@@ -183,7 +216,12 @@
                   :disabled="authLoading"
                   block
                 >
-                  <v-icon start>mdi-ebay</v-icon>
+                  <v-img
+                    :src="icons.ebay"
+                    width="24"
+                    height="24"
+                    class="mr-2"
+                  ></v-img>
                   {{
                     authLoading ? "Connecting to eBay..." : "Sign in with eBay"
                   }}
@@ -195,7 +233,12 @@
                   class="mt-4"
                   variant="tonal"
                 >
-                  <v-icon start>mdi-alert-circle</v-icon>
+                  <v-img
+                    :src="icons.alert"
+                    width="20"
+                    height="20"
+                    class="mr-2"
+                  ></v-img>
                   {{ authError }}
                 </v-alert>
               </v-card-text>
@@ -215,7 +258,12 @@
           >
             <v-card class="metrics-card" elevation="2">
               <v-card-title class="metrics-header">
-                <v-icon color="ebay-blue" class="mr-2">mdi-chart-line</v-icon>
+                <v-img
+                  :src="icons.chart"
+                  width="24"
+                  height="24"
+                  class="mr-2"
+                ></v-img>
                 System Metrics
                 <v-spacer></v-spacer>
                 <v-btn
@@ -225,7 +273,7 @@
                   :disabled="metricsLoading"
                   @click="fetchMetrics(true)"
                 >
-                  <v-icon size="18">mdi-refresh</v-icon>
+                  <v-img :src="icons.refresh" width="18" height="18"></v-img>
                 </v-btn>
               </v-card-title>
               <v-card-text class="metrics-content">
@@ -242,7 +290,12 @@
                   density="comfortable"
                   variant="tonal"
                 >
-                  <v-icon start>mdi-alert</v-icon>
+                  <v-img
+                    :src="icons.alert"
+                    width="20"
+                    height="20"
+                    class="mr-2"
+                  ></v-img>
                   {{ metricsError }}
                 </v-alert>
                 <template v-else-if="metricsData">
@@ -337,7 +390,12 @@
                   </small>
                 </template>
                 <div v-else class="metrics-empty">
-                  <v-icon color="grey">mdi-database-off</v-icon>
+                  <v-img
+                    :src="icons.databaseOff"
+                    width="48"
+                    height="48"
+                    class="mb-2"
+                  ></v-img>
                   <p>Analytics data will appear once synced.</p>
                 </div>
               </v-card-text>
@@ -359,7 +417,7 @@
                   <div class="message-bubble ai">
                     <div class="message-avatar">
                       <v-avatar size="32" color="ebay-red">
-                        <v-icon color="white">mdi-robot</v-icon>
+                        <v-img :src="icons.aiAvatar"></v-img>
                       </v-avatar>
                     </div>
                     <div class="message-content">
@@ -374,9 +432,12 @@
                       <div v-else class="message-text">
                         <div class="ai-intro">
                           <div class="ai-badge">
-                            <v-icon color="ebay-red" class="mr-2"
-                              >mdi-robot</v-icon
-                            >
+                            <v-img
+                              :src="icons.robot"
+                              width="24"
+                              height="24"
+                              class="mr-2"
+                            ></v-img>
                             <span>Enhanced AI Assistant</span>
                           </div>
                           <p class="welcome-text">
@@ -451,10 +512,10 @@
                         size="32"
                         color="ebay-red"
                       >
-                        <v-icon color="white">mdi-robot</v-icon>
+                        <v-img :src="icons.aiAvatar"></v-img>
                       </v-avatar>
                       <v-avatar v-else size="32" color="ebay-blue">
-                        <v-icon color="white">mdi-account</v-icon>
+                        <v-img :src="icons.userAvatar"></v-img>
                       </v-avatar>
                     </div>
                     <div class="message-content">
@@ -529,30 +590,81 @@
                                 >
                                   <template v-slot:placeholder>
                                     <div class="image-placeholder">
-                                      <v-icon size="42" color="grey-lighten-2"
-                                        >mdi-image</v-icon
-                                      >
+                                      <v-img
+                                        :src="icons.image"
+                                        width="42"
+                                        height="42"
+                                      ></v-img>
                                     </div>
                                   </template>
                                 </v-img>
                                 <div v-else class="image-placeholder">
-                                  <v-icon size="42" color="grey-lighten-2"
-                                    >mdi-image</v-icon
-                                  >
+                                  <v-img
+                                    :src="icons.image"
+                                    width="42"
+                                    height="42"
+                                  ></v-img>
                                 </div>
                               </div>
                               <div class="product-content">
+                                <v-tooltip
+                                  v-if="product.explanation"
+                                  location="top"
+                                  max-width="300"
+                                >
+                                  <template v-slot:activator="{ props }">
+                                    <v-chip
+                                      v-bind="props"
+                                      v-if="product.reasoning"
+                                      color="purple-lighten-4"
+                                      text-color="purple-darken-2"
+                                      size="small"
+                                      class="mb-2 font-weight-bold"
+                                      label
+                                    >
+                                      <v-img
+                                        :src="icons.sparkles"
+                                        width="16"
+                                        height="16"
+                                        class="mr-1"
+                                      ></v-img>
+                                      {{ product.reasoning }}
+                                    </v-chip>
+                                  </template>
+                                  <div class="text-caption">
+                                    <strong>AI Reasoning:</strong><br />
+                                    Predicted Reward:
+                                    {{
+                                      product.explanation.predicted_reward.toFixed(
+                                        2
+                                      )
+                                    }}<br />
+                                    Uncertainty Bonus:
+                                    {{
+                                      product.explanation.uncertainty_bonus.toFixed(
+                                        2
+                                      )
+                                    }}<br />
+                                    Final Score:
+                                    {{
+                                      product.explanation.final_score.toFixed(2)
+                                    }}
+                                  </div>
+                                </v-tooltip>
                                 <v-chip
-                                  v-if="product.reasoning"
+                                  v-else-if="product.reasoning"
                                   color="purple-lighten-4"
                                   text-color="purple-darken-2"
                                   size="small"
                                   class="mb-2 font-weight-bold"
                                   label
                                 >
-                                  <v-icon start size="small"
-                                    >mdi-creation</v-icon
-                                  >
+                                  <v-img
+                                    :src="icons.sparkles"
+                                    width="16"
+                                    height="16"
+                                    class="mr-1"
+                                  ></v-img>
                                   {{ product.reasoning }}
                                 </v-chip>
                                 <h3
@@ -582,14 +694,24 @@
                                     class="product-attribute"
                                     v-if="getSellerSummary(product)"
                                   >
-                                    <v-icon>mdi-storefront-outline</v-icon>
+                                    <v-img
+                                      :src="icons.store"
+                                      width="16"
+                                      height="16"
+                                      class="mr-1"
+                                    ></v-img>
                                     <span>{{ getSellerSummary(product) }}</span>
                                   </div>
                                   <div
                                     class="product-attribute"
                                     v-if="getShippingSummary(product)"
                                   >
-                                    <v-icon>mdi-truck-delivery-outline</v-icon>
+                                    <v-img
+                                      :src="icons.truck"
+                                      width="16"
+                                      height="16"
+                                      class="mr-1"
+                                    ></v-img>
                                     <span>{{
                                       getShippingSummary(product)
                                     }}</span>
@@ -598,7 +720,12 @@
                                     class="product-attribute"
                                     v-if="getPrimaryCategories(product).length"
                                   >
-                                    <v-icon>mdi-tag-multiple-outline</v-icon>
+                                    <v-img
+                                      :src="icons.tag"
+                                      width="16"
+                                      height="16"
+                                      class="mr-1"
+                                    ></v-img>
                                     <span>{{
                                       getPrimaryCategories(product).join(", ")
                                     }}</span>
@@ -636,7 +763,12 @@
                                   class="view-btn"
                                   @click="sendFeedback(product.itemId, 1.0)"
                                 >
-                                  <v-icon>mdi-open-in-new</v-icon>
+                                  <v-img
+                                    :src="icons.externalLink"
+                                    width="16"
+                                    height="16"
+                                    class="mr-1"
+                                  ></v-img>
                                   View
                                 </v-btn>
                               </v-card-actions>
@@ -655,8 +787,14 @@
                               color="ebay-blue"
                               :loading="isLoadingMore"
                               @click="loadMore(index)"
-                              prepend-icon="mdi-plus"
                             >
+                              <template v-slot:prepend>
+                                <v-img
+                                  :src="icons.plus"
+                                  width="16"
+                                  height="16"
+                                ></v-img>
+                              </template>
                               Show More Results
                             </v-btn>
                           </div>
@@ -683,7 +821,12 @@
                                 link
                                 @click="handleSuggestionClick(suggestion)"
                               >
-                                <v-icon start size="small">mdi-history</v-icon>
+                                <v-img
+                                  :src="icons.history"
+                                  width="16"
+                                  height="16"
+                                  class="mr-1"
+                                ></v-img>
                                 {{ suggestion }}
                               </v-chip>
                             </div>
@@ -729,17 +872,7 @@
                     :disabled="isLoading"
                     class="message-input"
                   ></v-textarea>
-                  <v-btn
-                    @click="toggleListening"
-                    :color="isListening ? 'red' : 'grey'"
-                    class="mic-btn mr-2"
-                    icon
-                    variant="text"
-                  >
-                    <v-icon>{{
-                      isListening ? "mdi-microphone" : "mdi-microphone-off"
-                    }}</v-icon>
-                  </v-btn>
+
                   <v-btn
                     color="ebay-red"
                     @click="sendMessage"
@@ -748,7 +881,7 @@
                     class="send-btn"
                     size="large"
                   >
-                    <v-icon>mdi-send</v-icon>
+                    <v-img :src="icons.send" width="24" height="24"></v-img>
                   </v-btn>
                 </div>
               </v-card-actions>
@@ -763,6 +896,39 @@
 <script>
 import { appAuth } from "../services/auth.js";
 import OnboardingModal from "./OnboardingModal.vue";
+// import io from "socket.io-client";
+// import { marked } from "marked";
+// import DOMPurify from "dompurify";
+// import { performAuthCheck, logoutUser } from "../services/auth";
+
+// Import Icons
+import aiAvatarIcon from "@/assets/icons/ai-avatar.svg";
+import userAvatarIcon from "@/assets/icons/user-avatar.svg";
+import brainIcon from "@/assets/icons/brain.svg";
+import searchIcon from "@/assets/icons/search.svg";
+import sendIcon from "@/assets/icons/send.svg";
+
+import chartIcon from "@/assets/icons/chart.svg";
+import sunIcon from "@/assets/icons/sun.svg";
+import moonIcon from "@/assets/icons/moon.svg";
+import userCircleIcon from "@/assets/icons/user-circle.svg";
+import logoutIcon from "@/assets/icons/logout.svg";
+import lightbulbIcon from "@/assets/icons/lightbulb.svg";
+import shieldIcon from "@/assets/icons/shield.svg";
+import robotIcon from "@/assets/icons/robot.svg";
+import ebayIcon from "@/assets/icons/ebay.svg";
+import alertIcon from "@/assets/icons/alert.svg";
+import refreshIcon from "@/assets/icons/refresh.svg";
+import databaseOffIcon from "@/assets/icons/database-off.svg";
+import historyIcon from "@/assets/icons/history.svg";
+
+import imageIcon from "@/assets/icons/image.svg";
+import sparklesIcon from "@/assets/icons/sparkles.svg";
+import storeIcon from "@/assets/icons/store.svg";
+import truckIcon from "@/assets/icons/truck.svg";
+import tagIcon from "@/assets/icons/tag.svg";
+import externalLinkIcon from "@/assets/icons/external-link.svg";
+import plusIcon from "@/assets/icons/plus.svg";
 
 export default {
   name: "FullApp",
@@ -771,6 +937,36 @@ export default {
   },
   data() {
     return {
+      // Icons
+      icons: {
+        aiAvatar: aiAvatarIcon,
+        userAvatar: userAvatarIcon,
+        brain: brainIcon,
+        search: searchIcon,
+        send: sendIcon,
+
+        chart: chartIcon,
+        sun: sunIcon,
+        moon: moonIcon,
+        userCircle: userCircleIcon,
+        logout: logoutIcon,
+        lightbulb: lightbulbIcon,
+        shield: shieldIcon,
+        robot: robotIcon,
+        ebay: ebayIcon,
+        alert: alertIcon,
+        refresh: refreshIcon,
+        databaseOff: databaseOffIcon,
+        history: historyIcon,
+
+        image: imageIcon,
+        sparkles: sparklesIcon,
+        store: storeIcon,
+        truck: truckIcon,
+        tag: tagIcon,
+        externalLink: externalLinkIcon,
+        plus: plusIcon,
+      },
       userInput: "",
       messages: [],
       resultsPageSize: 4,
@@ -1506,8 +1702,17 @@ export default {
       }
 
       try {
+        // Extract recent user history (last 3 messages)
+        const history = this.messages
+          .filter(
+            (msg) => msg.sender === "user" && msg.text && msg.text !== query
+          )
+          .slice(-3)
+          .map((msg) => msg.text);
+
         const requestBody = {
           query: query,
+          history: history,
           user_context: this.buildUserContext(),
           limit: 10,
           offset: offset,
@@ -1602,136 +1807,7 @@ export default {
 };
 </script>
 
-<style scoped>
-.show-more-container {
-  display: flex;
-  justify-content: center;
-  margin-top: 16px;
-  margin-bottom: 8px;
-}
-
-/* Chat Layout Fixes */
-.chat-container {
-  height: 100%;
-}
-
-.chat-window {
-  display: flex;
-  flex-direction: column;
-  height: calc(100vh - 80px); /* Adjust based on header height */
-  border-radius: 12px;
-  overflow: hidden;
-}
-
-.chat-history {
-  flex-grow: 1;
-  overflow-y: auto;
-  padding: 20px;
-}
-
-.chat-input {
-  flex-shrink: 0;
-  background: white;
-  border-top: 1px solid rgba(0, 0, 0, 0.05);
-  padding: 16px;
-  z-index: 10;
-}
-
-.theme--dark .chat-input {
-  background: #1e1e1e;
-  border-top: 1px solid rgba(255, 255, 255, 0.05);
-}
-
-/* Glassmorphism and Hover Effects */
-.product-card {
-  transition: transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1),
-    box-shadow 0.3s cubic-bezier(0.25, 0.8, 0.25, 1) !important;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(10px);
-}
-
-.product-card:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.15) !important;
-  z-index: 2;
-}
-
-.theme--dark .product-card {
-  background: rgba(30, 30, 30, 0.8) !important;
-  border: 1px solid rgba(255, 255, 255, 0.05);
-}
-
-.product-image-container {
-  overflow: hidden;
-  border-top-left-radius: 4px;
-  border-top-right-radius: 4px;
-}
-
-.product-image {
-  transition: transform 0.5s ease;
-}
-
-.product-card:hover .product-image {
-  transform: scale(1.05);
-}
-
-.streaming-status {
-  display: flex;
-  align-items: center;
-  margin-top: 12px;
-  font-size: 0.9rem;
-  color: #666;
-  font-style: italic;
-}
-.reasoning-step {
-  display: flex;
-  align-items: center;
-  margin-bottom: 4px;
-  animation: fadeInSlideDown 0.3s ease-out forwards;
-}
-
-@keyframes fadeInSlideDown {
-  from {
-    opacity: 0;
-    transform: translateY(-5px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.typing-indicator-bubble {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 8px 0;
-}
-
-.typing-indicator-bubble span {
-  width: 6px;
-  height: 6px;
-  background-color: #888;
-  border-radius: 50%;
-  animation: bounce 1.4s infinite ease-in-out both;
-}
-
-.typing-indicator-bubble span:nth-child(1) {
-  animation-delay: -0.32s;
-}
-
-.typing-indicator-bubble span:nth-child(2) {
-  animation-delay: -0.16s;
-}
-
-@keyframes bounce {
-  0%,
-  80%,
-  100% {
-    transform: scale(0);
-  }
-  40% {
-    transform: scale(1);
-  }
-}
+<style>
+/* Import global chat styles */
+@import "../assets/chat-layout.css";
 </style>

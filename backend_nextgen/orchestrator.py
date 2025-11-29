@@ -123,10 +123,22 @@ class NextGenAIOrchestrator:
         )
 
         self.knowledge_graph = KnowledgeGraph()
+        self.knowledge_graph = KnowledgeGraph()
         self.ebay_service = EBayService()
 
+        # Load fallback dictionaries
+        try:
+            with open("backend_nextgen/config/categories.json", "r") as f:
+                self.fallback_categories = json.load(f)
+            with open("backend_nextgen/config/brands.json", "r") as f:
+                self.fallback_brands = json.load(f)
+        except Exception as e:
+            logger.warning(f"Failed to load fallback dictionaries: {e}")
+            self.fallback_categories = []
+            self.fallback_brands = []
+
     def handle_query(
-        self, query: str, user_context: Dict[str, Any], limit: int = 10, offset: int = 0
+        self, query: str, user_context: Dict[str, Any], limit: int = 10, offset: int = 0, history: List[str] = None
     ) -> Dict[str, Any]:
         """
         Synchronous query handler that returns the full response.
@@ -136,6 +148,11 @@ class NextGenAIOrchestrator:
             entity_payload = self.ner_inference.extract_entities(query)
         
         intent_payload = self._build_intent_payload(query, entity_payload)
+        
+        # Enrich with conversational context (history)
+        if history:
+            intent_payload = self._enrich_with_context(intent_payload, history)
+
         intent_payload = self._merge_user_preferences(intent_payload, user_context)
         
         # Pass pagination params
@@ -197,13 +214,15 @@ class NextGenAIOrchestrator:
             "items": normalized_items,
             "entities": entity_payload,
             "citations": self._build_citations(reranked),
-            "recommendation": recommendation.metadata,
+            "recommendation": {
+                **recommendation.metadata,
+                "explanation": recommendation.explanation
+            },
             "answer": answer_text,
             "reasoning_steps": [
-                "Analyzed request...",
-                "Searched for products...",
-                "Ranked best matches...",
-                "Generated answer..."
+                f"Analyzed {len(normalized_items)} items.",
+                f"Selected top recommendation with score {recommendation.score:.2f}.",
+                f"Context: {intent_payload.get('categories', [])} {intent_payload.get('brands', [])}"
             ],
             "suggestions": self._generate_history_suggestions(user_context)
         }
@@ -444,6 +463,69 @@ class NextGenAIOrchestrator:
             "models": entities.get("MODEL", []),
             "price_range": price_range,
         }
+        return intent_payload
+
+    def _enrich_with_context(self, intent_payload: Dict[str, Any], history: List[str]) -> Dict[str, Any]:
+        """
+        Enrich the current intent with entities from previous turns if missing.
+        Simple heuristic: If current query has no Category/Product Type, inherit from history.
+        """
+        # If we already have strong signals, don't override
+        if intent_payload.get("categories") or intent_payload.get("brands"):
+            return intent_payload
+
+        logger.info(f"Enriching query '{intent_payload['raw_query']}' with history: {history}")
+        
+        # Analyze history for entities (most recent first)
+        for past_query in reversed(history):
+            if not past_query:
+                continue
+            
+            # We need to extract entities from history on the fly
+            # In a real system, we'd cache these, but here we'll re-run NER
+            try:
+                past_entities = self.ner_inference.extract_entities(past_query) if self.ner_inference else {}
+                past_buckets = past_entities.get("entities", {})
+                
+                # Inherit Category/Product Type if missing
+                if not intent_payload.get("categories"):
+                    cats = past_buckets.get("CATEGORY", []) or past_buckets.get("PRODUCT_TYPE", [])
+                    
+                    # Fallback: Dictionary matching if NER failed
+                    if not cats:
+                        lower_past = past_query.lower()
+                        for c in self.fallback_categories:
+                            if c.lower() in lower_past:
+                                cats.append(c)
+                    
+                    if cats:
+                        intent_payload["categories"] = cats
+                        intent_payload["entities"].setdefault("CATEGORY", []).extend(cats)
+                        logger.info(f"Inherited categories from context: {cats}")
+
+                # Inherit Brand if missing
+                if not intent_payload.get("brands"):
+                    brands = past_buckets.get("BRAND", [])
+                    
+                    # Fallback: Dictionary matching if NER failed
+                    if not brands:
+                        lower_past = past_query.lower()
+                        for b in self.fallback_brands:
+                            if b.lower() in lower_past:
+                                brands.append(b)
+
+                    if brands:
+                        intent_payload["brands"] = brands
+                        intent_payload["entities"].setdefault("BRAND", []).extend(brands)
+                        logger.info(f"Inherited brands from context: {brands}")
+                
+                # If we found something, stop looking back (simple 1-turn memory for now)
+                if intent_payload.get("categories") or intent_payload.get("brands"):
+                    break
+            except Exception as e:
+                logger.warning(f"Failed to extract context from history: {e}")
+                continue
+
         return intent_payload
 
     def _merge_user_preferences(

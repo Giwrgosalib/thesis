@@ -15,6 +15,7 @@ class Recommendation:
     item_id: str
     score: float
     metadata: Dict[str, str]
+    explanation: Dict[str, float] = None
 
 
 class ContextualThompsonSampling:
@@ -35,6 +36,7 @@ class ContextualThompsonSampling:
         best_id = ""
         best_score = float("-inf")
         best_meta: Dict[str, str] = {}
+        best_explanation: Dict[str, float] = {} # Initialize best_explanation
 
         for item_id, features, metadata in candidates:
             mean = theta @ features
@@ -44,8 +46,18 @@ class ContextualThompsonSampling:
                 best_score = sampled_reward
                 best_id = item_id
                 best_meta = metadata
+                best_explanation = {
+                    "predicted_reward": float(mean),
+                    "uncertainty_bonus": float(self.alpha * variance),
+                    "final_score": float(sampled_reward)
+                }
 
-        return Recommendation(item_id=best_id, score=best_score, metadata=best_meta)
+        return Recommendation(
+            item_id=best_id, 
+            score=best_score, 
+            metadata=best_meta,
+            explanation=best_explanation
+        )
 
     def update(self, features: np.ndarray, reward: float) -> None:
         self.A += np.outer(features, features)
