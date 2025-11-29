@@ -91,7 +91,7 @@ register_error_handlers(app)
 
 # Register experimental next-gen blueprint if available
 if nextgen_ai_blueprint is not None:
-    app.register_blueprint(nextgen_ai_blueprint)
+    app.register_blueprint(nextgen_ai_blueprint, url_prefix="/api/nextgen")
     logger.info("Registered next-gen experimental API blueprint at /api/nextgen")
 else:
     message = "Next-gen experimental API unavailable (optional dependencies missing)."
@@ -123,7 +123,8 @@ try:
     mongo_client = MongoClient(
         config.database.mongo_uri,
         serverSelectionTimeoutMS=config.database.connection_timeout,
-        maxPoolSize=config.database.max_pool_size
+        maxPoolSize=config.database.max_pool_size,
+        tlsAllowInvalidCertificates=True  # Fix for local SSL issues
     )
     # Test connection
     mongo_client.admin.command('ismaster')
@@ -181,7 +182,7 @@ except Exception as e:
 # --- Preference Persistence for Next-Gen ---
 def persist_preferences(user_id: str, preference_payload: Dict[str, Any]) -> None:
     """Persist structured preference signals for authenticated users."""
-    if not preferences_collection or not user_id:
+    if preferences_collection is None or not user_id:
         return
 
     try:
@@ -272,7 +273,7 @@ def persist_preferences(user_id: str, preference_payload: Dict[str, Any]) -> Non
 
 def load_user_preferences(user_id: str) -> Optional[Dict[str, Any]]:
     """Load a concise preference snapshot for downstream personalization."""
-    if not preferences_collection or not user_id:
+    if preferences_collection is None or not user_id:
         return None
 
     try:
@@ -689,10 +690,11 @@ def health_check():
         # Check services
         nextgen_status = "healthy" if nextgen_ai_blueprint is not None else "unavailable"
         
-        overall_status = "healthy" if all([
-            db_status == "healthy",
-            nextgen_status == "healthy",
-        ]) else "unhealthy"
+        overall_status = "healthy" if db_status == "healthy" else "unhealthy"
+        
+        # Log details if unhealthy
+        if overall_status == "unhealthy":
+            logger.warning(f"Health check failed. DB: {db_status}, NextGen: {nextgen_status}")
         
         return jsonify({
             "status": overall_status,

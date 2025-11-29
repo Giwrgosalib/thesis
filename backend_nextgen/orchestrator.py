@@ -84,6 +84,26 @@ class NextGenAIOrchestrator:
         personalization_cfg = self.config.section("personalization")
         feature_dim = 32
         self.bandit = ContextualThompsonSampling(feature_dim=feature_dim, alpha=personalization_cfg["exploration_rate"])
+        
+        # Persistence
+        self.bandit_path = str(Path(__file__).resolve().parent / "personalization" / "bandit_model.npz")
+        if Path(self.bandit_path).exists():
+            self.bandit.load_state(self.bandit_path)
+            logger.info(f"Loaded bandit model from {self.bandit_path}")
+        else:
+            logger.info("Initialized new bandit model")
+
+        # User Embeddings Persistence
+        self.user_vectors: Dict[str, np.ndarray] = {}
+        self.user_vectors_path = str(Path(__file__).resolve().parent / "personalization" / "user_vectors.npz")
+        if Path(self.user_vectors_path).exists():
+            try:
+                loaded = np.load(self.user_vectors_path, allow_pickle=True)
+                # Convert loaded arrays back to dictionary
+                self.user_vectors = {k: v for k, v in loaded.items()}
+                logger.info(f"Loaded {len(self.user_vectors)} user vectors from {self.user_vectors_path}")
+            except Exception as e:
+                logger.error(f"Failed to load user vectors: {e}")
 
         rag_cfg = self.config.section("rag")
         self.generator = GenerativeResponder(
@@ -104,6 +124,89 @@ class NextGenAIOrchestrator:
 
         self.knowledge_graph = KnowledgeGraph()
         self.ebay_service = EBayService()
+
+    def handle_query(
+        self, query: str, user_context: Dict[str, Any], limit: int = 10, offset: int = 0
+    ) -> Dict[str, Any]:
+        """
+        Synchronous query handler that returns the full response.
+        """
+        entity_payload = {}
+        if self.ner_inference:
+            entity_payload = self.ner_inference.extract_entities(query)
+        
+        intent_payload = self._build_intent_payload(query, entity_payload)
+        intent_payload = self._merge_user_preferences(intent_payload, user_context)
+        
+        # Pass pagination params
+        ebay_items = self._search_ebay(intent_payload, user_context, limit=limit, offset=offset)
+        normalized_items = [self._normalize_item(item) for item in ebay_items]
+
+        reranked = self._rerank_items(query, normalized_items, user_context)
+
+        features = self._build_personalization_features(
+            intent_payload, normalized_items, user_context
+        )
+        recommendation = self.bandit.select(
+            [
+                (
+                    item.item_id,
+                    features,
+                    item.payload,
+                )
+                for item in reranked
+            ]
+        )
+
+        # If this is a "Show More" request (offset > 0), we might skip RAG or keep it brief.
+        if offset > 0:
+            return {
+                "items": normalized_items,
+                "entities": entity_payload,
+                "citations": [],
+                "recommendation": recommendation.metadata,
+                "answer": "Here are some more results matching your criteria.",
+                "reasoning_steps": ["Fetched additional results."]
+            }
+
+        rag_response = None
+        if self.rag:
+            try:
+                rag_response = self.rag.answer(query, normalized_items)
+            except Exception as exc:
+                self.metric_sink.log(
+                    MetricRecord(
+                        name="nextgen_rag_error",
+                        value=1.0,
+                        metadata={"error": str(exc)[:120]},
+                    )
+                )
+                rag_response = None
+
+        answer_text = self._select_answer(rag_response, reranked, normalized_items, entity_payload)
+
+        self.metric_sink.log(
+            MetricRecord(
+                name="nextgen_response_latency_ms",
+                value=42.0, # Placeholder
+                metadata={"query": query[:50]},
+            )
+        )
+        
+        return {
+            "items": normalized_items,
+            "entities": entity_payload,
+            "citations": self._build_citations(reranked),
+            "recommendation": recommendation.metadata,
+            "answer": answer_text,
+            "reasoning_steps": [
+                "Analyzed request...",
+                "Searched for products...",
+                "Ranked best matches...",
+                "Generated answer..."
+            ],
+            "suggestions": self._generate_history_suggestions(user_context)
+        }
 
     def handle_query_stream(
         self, query: str, user_context: Dict[str, Any], limit: int = 10, offset: int = 0
@@ -411,9 +514,64 @@ class NextGenAIOrchestrator:
         if not items:
             return []
         try:
+            # Personalization: Blend User Vector
+            user_id = user_context.get("userId") or user_context.get("user_id")
+            if user_id and user_id in self.user_vectors:
+                # We can't easily blend vectors in the re-ranker (which takes text).
+                # However, we can append "personalized keywords" to the query string
+                # based on the user vector.
+                # Since we don't have a decoder (Vector -> Text), we will use a simpler approach:
+                # We will boost items that are close to the user vector in the vector space.
+                
+                # For this implementation, we will stick to the text-based reranker
+                # but we could add a "Vector Similarity Boost" stage here.
+                pass
+
             reranked = self.reranker.rerank(
                 query, items, top_k=min(len(items), self.config.section("ranking")["rerank_top_k"])
             )
+            
+            # Vector Similarity Boost (Post-Reranking)
+            if user_id and user_id in self.user_vectors and self.retriever:
+                user_vec = self.user_vectors[user_id]
+                # Encode items to get their vectors (if not already available)
+                # This is expensive, so we only do it for the top K
+                item_texts = [
+                    f"{item.item.get('title', '')} {item.item.get('description', '')}" 
+                    for item in reranked
+                ]
+                item_vecs = self.retriever.encode_queries(item_texts)
+                
+                # Calculate cosine similarity
+                sims = np.dot(item_vecs, user_vec) / (
+                    np.linalg.norm(item_vecs, axis=1) * np.linalg.norm(user_vec)
+                )
+                
+                # Boost score and add reasoning
+                preferences = user_context.get("preferences", {})
+                preferred_brands = set(b.lower() for b in preferences.get("brands", []))
+                
+                for i, item in enumerate(reranked):
+                    sim_score = float(sims[i])
+                    # Boost up to 0.5 based on similarity
+                    item.score += sim_score * 0.5
+                    
+                    # Determine Reasoning
+                    reasoning = "Best match 🔍"
+                    title_lower = item.payload.get("title", "").lower()
+                    
+                    # Check for explicit brand match
+                    if any(brand in title_lower for brand in preferred_brands):
+                        reasoning = "Matches your preferences 📝"
+                    # Check for implicit vector match (high similarity)
+                    elif sim_score > 0.3: # Threshold for "style match"
+                        reasoning = "Matches your style 🧬"
+                        
+                    item.payload["reasoning"] = reasoning
+                    
+                # Re-sort
+                reranked.sort(key=lambda x: x.score, reverse=True)
+                
         except Exception as exc:
             self.metric_sink.log(
                 MetricRecord(
@@ -436,29 +594,56 @@ class NextGenAIOrchestrator:
     ) -> List[RankedItem]:
         brand_prefs = {str(value).lower() for value in preferences.get("brands", []) if value}
         category_prefs = {str(value).lower() for value in preferences.get("categories", []) if value}
-
-        if not brand_prefs and not category_prefs:
-            return ranked_items
-
-        boosted: List[RankedItem] = []
+        
         for item in ranked_items:
-            bonus = 0.0
-            brand = self._extract_brand_value(item.payload)
-            if brand and brand in brand_prefs:
-                bonus += 0.3
-            item_categories = {value.lower() for value in self._extract_categories(item.payload)}
-            if category_prefs and item_categories & category_prefs:
-                bonus += 0.2
-            boosted.append(
-                RankedItem(
-                    item_id=item.item_id,
-                    score=item.score + bonus,
-                    payload=item.payload,
-                )
-            )
+            score_boost = 0.0
+            # Brand boost
+            item_brand = str(item.payload.get("brand", "")).lower()
+            if item_brand in brand_prefs:
+                score_boost += 0.15
+            
+            # Category boost
+            item_cats = item.payload.get("categories", [])
+            for cat in item_cats:
+                if str(cat).lower() in category_prefs:
+                    score_boost += 0.10
+                    break
+            
+            item.score += score_boost
+            
+        return ranked_items
 
-        boosted.sort(key=lambda ranked: ranked.score, reverse=True)
-        return boosted
+    def _generate_history_suggestions(self, user_context: Dict[str, Any]) -> List[str]:
+        """Generate follow-up suggestions based on user history."""
+        preferences = user_context.get("preferences") if isinstance(user_context, dict) else {}
+        if not preferences:
+            return []
+            
+        recent_queries = preferences.get("recent_queries", [])
+        if not recent_queries:
+            return []
+            
+        # Simple logic: suggest variations of the last query or related categories
+        suggestions = []
+        seen = set()
+        
+        for entry in reversed(recent_queries):
+            query_text = entry.get("query", "").strip()
+            if query_text and query_text not in seen:
+                # Generate a simple variation
+                if " " in query_text:
+                    suggestions.append(f"Best {query_text}")
+                    suggestions.append(f"{query_text} under $50")
+                else:
+                    suggestions.append(f"{query_text} accessories")
+                
+                seen.add(query_text)
+                if len(suggestions) >= 3:
+                    break
+                    
+        return suggestions[:3]
+
+
 
     def _extract_brand_value(self, payload: Dict[str, Any]) -> Optional[str]:
         for key in ("brand", "brandName", "BRAND", "manufacturer"):
@@ -484,6 +669,79 @@ class NextGenAIOrchestrator:
                     names.append(str(name))
             return names
         return []
+
+    def _update_user_vector(self, user_id: str, text: str) -> None:
+        """
+        Update the user's profile vector based on new interaction text.
+        Uses a moving average to blend the new vector into the existing profile.
+        """
+        if not text or not self.retriever:
+            return
+
+        try:
+            # Encode the text to get a vector
+            # We use the retriever's encoder for consistency
+            new_vector = self.retriever.encode_queries([text])[0]
+            
+            if user_id in self.user_vectors:
+                # Moving average: 90% old profile, 10% new interaction
+                # This keeps the profile stable but adaptable
+                alpha = 0.1
+                self.user_vectors[user_id] = (1 - alpha) * self.user_vectors[user_id] + alpha * new_vector
+            else:
+                # Initialize new profile
+                self.user_vectors[user_id] = new_vector
+                
+            # Persist changes
+            try:
+                np.savez(self.user_vectors_path, **self.user_vectors)
+            except Exception as e:
+                logger.error(f"Failed to save user vectors: {e}")
+                
+            logger.info(f"Updated user vector for {user_id} based on '{text}'")
+            
+        except Exception as e:
+            logger.error(f"Error updating user vector: {e}")
+
+    def handle_feedback(self, user_id: str, item_id: str, reward: float, context: Dict[str, Any]) -> None:
+        """
+        Process user feedback to update the online learning model.
+        """
+        # Log the feedback event
+        self.metric_sink.log(
+            MetricRecord(
+                name="nextgen_feedback_event",
+                value=reward,
+                metadata={"user_id": user_id, "item_id": item_id}
+            )
+        )
+        
+        feature_dim = self.bandit.feature_dim
+        vector = np.zeros(feature_dim, dtype=np.float32)
+        
+        # Use item_id hash to activate some features
+        hashed = hashlib.sha256(item_id.encode("utf-8")).digest()
+        hashed_values = np.frombuffer(hashed, dtype=np.uint8) / 255.0
+        
+        # Fill the vector
+        for i in range(feature_dim):
+            vector[i] = hashed_values[i % hashed_values.size]
+            
+        # Update the bandit
+        self.bandit.update(vector, reward)
+        
+        # Update User Vector (Deep Profiling)
+        # If we have the query context, use it to refine the user's interest
+        query_text = context.get("query")
+        if query_text and reward > 0:
+            self._update_user_vector(user_id, query_text)
+        
+        # Save the updated state
+        try:
+            self.bandit.save_state(self.bandit_path)
+            logger.info(f"Updated and saved bandit model for item {item_id} with reward {reward}")
+        except Exception as e:
+            logger.error(f"Failed to save bandit state: {e}")
 
     def _build_citations(self, ranked_items: List[RankedItem]) -> List[Dict[str, Any]]:
         citations = []
@@ -686,3 +944,6 @@ class NextGenAIOrchestrator:
             if parts:
                 return " | ".join(parts)
         return None
+
+# Global singleton instance
+orchestrator = NextGenAIOrchestrator()

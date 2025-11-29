@@ -50,3 +50,16 @@ class ContextualThompsonSampling:
     def update(self, features: np.ndarray, reward: float) -> None:
         self.A += np.outer(features, features)
         self.b += reward * features
+
+    def save_state(self, filepath: str) -> None:
+        """Save the bandit state (A and b matrices) to disk."""
+        np.savez(filepath, A=self.A, b=self.b)
+
+    def load_state(self, filepath: str) -> None:
+        """Load the bandit state from disk."""
+        try:
+            data = np.load(filepath)
+            self.A = data["A"]
+            self.b = data["b"]
+        except Exception as e:
+            print(f"Failed to load bandit state: {e}")

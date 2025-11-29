@@ -40,6 +40,14 @@ class GenerativeResponder:
                 temperature=self.temperature,
                 do_sample=self.temperature > 0,
             )
-        response = self.tokenizer.decode(output_ids[0], skip_special_tokens=True)
-        generated = response[len(prompt) :].strip()
-        return generated or "I'm still gathering more detailed recommendations for you."
+        # Decode only the new tokens
+        input_length = encoded["input_ids"].shape[1]
+        new_tokens = output_ids[0][input_length:]
+        generated = self.tokenizer.decode(new_tokens, skip_special_tokens=True).strip()
+        
+        # Aggressively strip the sentinel if the model repeated the prompt
+        sentinel = "Respond with a short recommendation (1-2 sentences) highlighting the best option(s)."
+        if sentinel in generated:
+            generated = generated.split(sentinel)[-1].strip()
+            
+        return generated or "I found these options for you."
