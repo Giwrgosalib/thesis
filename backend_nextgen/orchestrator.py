@@ -155,6 +155,15 @@ class NextGenAIOrchestrator:
 
         intent_payload = self._merge_user_preferences(intent_payload, user_context)
         
+        # Intelligent Query Reconstruction
+        # If the query implies refinement (inherited context provided missing core entities),
+        # we reconstruct the raw_query to ensure the search engine gets the full product context
+        # plus the new refinement criteria.
+        reconstructed_query = self._reconstruct_search_query(intent_payload, entity_payload)
+        if reconstructed_query != intent_payload["raw_query"]:
+            logger.info(f"Rewriting query for search: '{intent_payload['raw_query']}' -> '{reconstructed_query}'")
+            intent_payload["raw_query"] = reconstructed_query
+
         # Pass pagination params
         ebay_items = self._search_ebay(intent_payload, user_context, limit=limit, offset=offset)
         normalized_items = [self._normalize_item(item) for item in ebay_items]
@@ -226,6 +235,81 @@ class NextGenAIOrchestrator:
             ],
             "suggestions": self._generate_history_suggestions(user_context)
         }
+
+    def _reconstruct_search_query(self, intent_payload: Dict[str, Any], entity_payload: Dict[str, Any]) -> str:
+        """
+        Reconstruct a complete search query string from context and current input.
+        Useful when the user provides a refinement (e.g. "make them black") that relies on 
+        inherited context (Brand, Model) to make sense to the search engine.
+        """
+        original_query = intent_payload.get("raw_query", "")
+        
+        # 1. Gather Context Components (Brand, Model, Category) from intent_payload
+        # These reflect the STATE after enrichment (history + current)
+        context_components = []
+        
+        # Helper to avoid duplicates
+        seen_tokens = set()
+        def add_component(value):
+            if value and str(value).lower() not in seen_tokens:
+                context_components.append(str(value))
+                seen_tokens.add(str(value).lower())
+
+        # Priority: Brand -> Model -> Category
+        for brand in intent_payload.get("brands", []):
+            add_component(brand)
+            break # Only primary brand
+            
+        for model in intent_payload.get("models", []):
+            add_component(model)
+            break
+            
+        # Only add category if we don't have a model (Adidas Gazelle vs Adidas Shoes)
+        if not intent_payload.get("models"):
+            for cat in intent_payload.get("categories", []):
+                add_component(cat)
+                break
+                
+        # If we have no context to add, don't rewrite (unless we want to clean stopwords)
+        if not context_components:
+            return original_query
+
+        # 2. Gather Refinement Components from current query
+        # We want to extract "new" information: Color, Size, Price, etc.
+        # or fall back to a cleaned version of the raw query.
+        refinement_components = []
+        
+        # Check extracted entities from the CURRENT query (entity_payload)
+        current_entities = entity_payload.get("entities", {})
+        has_new_entities = False
+        
+        for label, values in current_entities.items():
+            if label not in ["BRAND", "CATEGORY", "PRODUCT_TYPE", "MODEL"]: 
+                for v in values:
+                    if str(v).lower() not in seen_tokens:
+                        refinement_components.append(str(v))
+                        has_new_entities = True
+        
+        if not has_new_entities:
+            # Fallback: Clean stopwords from original query
+            # This handles cases where valid keywords weren't picked up by NER
+            stopwords = {
+                "i", "want", "them", "to", "be", "make", "show", "me", "find", 
+                "looking", "for", "are", "is", "of", "with", "in", "a", "an", "the",
+                "and", "or", "search", "get",
+                "can", "could", "would", "should", "will", "they", "it", "please"
+            }
+            words = original_query.split()
+            cleaned_words = [w for w in words if w.lower() not in stopwords]
+            
+            # Add remaining words if they aren't duplicates
+            for w in cleaned_words:
+                if w.lower() not in seen_tokens:
+                    refinement_components.append(w)
+                    
+        # 3. Combine
+        final_query = " ".join(context_components + refinement_components)
+        return final_query.strip()
 
     def handle_query_stream(
         self, query: str, user_context: Dict[str, Any], limit: int = 10, offset: int = 0
@@ -470,9 +554,10 @@ class NextGenAIOrchestrator:
         Enrich the current intent with entities from previous turns if missing.
         Simple heuristic: If current query has no Category/Product Type, inherit from history.
         """
-        # If we already have strong signals, don't override
-        if intent_payload.get("categories") or intent_payload.get("brands"):
-            return intent_payload
+        # If we already have strong signals which cover Brand/Model/Category, don't override.
+        # But for refinement ("make it black"), we often have NONE of these.
+        if intent_payload.get("categories") and intent_payload.get("brands") and intent_payload.get("models"):
+             return intent_payload
 
         logger.info(f"Enriching query '{intent_payload['raw_query']}' with history: {history}")
         
@@ -518,9 +603,17 @@ class NextGenAIOrchestrator:
                         intent_payload["brands"] = brands
                         intent_payload["entities"].setdefault("BRAND", []).extend(brands)
                         logger.info(f"Inherited brands from context: {brands}")
+
+                # Inherit Model if missing (for "Air Force", "Gazelle", etc.)
+                if not intent_payload.get("models"):
+                    models = past_buckets.get("MODEL", [])
+                    if models:
+                        intent_payload["models"] = models
+                        intent_payload["entities"].setdefault("MODEL", []).extend(models)
+                        logger.info(f"Inherited models from context: {models}")
                 
-                # If we found something, stop looking back (simple 1-turn memory for now)
-                if intent_payload.get("categories") or intent_payload.get("brands"):
+                # If we found (Brand OR Model OR Category), stop looking back.
+                if intent_payload.get("categories") or intent_payload.get("brands") or intent_payload.get("models"):
                     break
             except Exception as e:
                 logger.warning(f"Failed to extract context from history: {e}")

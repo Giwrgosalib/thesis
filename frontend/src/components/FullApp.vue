@@ -64,6 +64,31 @@
             ></v-img>
           </v-btn>
 
+          <!-- Reset Chat -->
+          <v-btn
+            v-if="loggedIn"
+            @click="confirmResetChat"
+            variant="text"
+            color="ebay-blue"
+            class="reset-chat-btn"
+            size="small"
+            title="Reset Chat"
+          >
+            <v-img :src="icons.refresh" width="24" height="24"></v-img>
+          </v-btn>
+
+          <!-- Help Button -->
+          <v-btn
+            @click="openHelp"
+            variant="text"
+            color="ebay-blue"
+            class="help-btn"
+            size="small"
+            title="Help"
+          >
+            <v-img :src="icons.help" width="24" height="24"></v-img>
+          </v-btn>
+
           <!-- User Info -->
           <v-chip
             v-if="loggedIn"
@@ -83,7 +108,7 @@
           <!-- Logout -->
           <v-btn
             v-if="loggedIn"
-            @click="logout"
+            @click="confirmLogout"
             variant="outlined"
             color="ebay-red"
             class="logout-btn"
@@ -100,154 +125,270 @@
       </div>
     </v-app-bar>
 
+    <!-- Help Dialog -->
+    <v-dialog v-model="showHelpDialog" max-width="600">
+      <v-card>
+        <v-card-title class="headline">
+          <v-icon color="ebay-blue" class="mr-2">mdi-help-circle</v-icon>
+          How to use eBay AI Assistant
+        </v-card-title>
+        <v-card-text>
+          <p class="mb-3">
+            Welcome to the advanced eBay AI Shopping Assistant! Here's how you
+            can get the most out of it:
+          </p>
+          <v-list density="compact">
+            <v-list-item prepend-icon="mdi-magnify" title="Search for Products">
+              <v-list-item-subtitle>
+                Ask for products naturally, e.g., "Find me a vintage Gibson Les
+                Paul under $3000".
+              </v-list-item-subtitle>
+            </v-list-item>
+            <v-list-item prepend-icon="mdi-brain" title="AI Capabilities">
+              <v-list-item-subtitle>
+                The "AI Active" indicator means our advanced NLP model is
+                processing your queries to understand context and entities.
+              </v-list-item-subtitle>
+            </v-list-item>
+            <v-list-item prepend-icon="mdi-chart-bar" title="System Metrics">
+              <v-list-item-subtitle>
+                Toggle the metrics panel to see real-time performance data of
+                the AI model.
+              </v-list-item-subtitle>
+            </v-list-item>
+          </v-list>
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer></v-spacer>
+          <v-btn
+            color="ebay-blue"
+            variant="text"
+            @click="showHelpDialog = false"
+            >Got it</v-btn
+          >
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
+    <!-- Confirmation Dialog -->
+    <v-dialog v-model="confirmationDialog.show" max-width="400">
+      <v-card>
+        <v-card-title class="headline">{{
+          confirmationDialog.title
+        }}</v-card-title>
+        <v-card-text>{{ confirmationDialog.message }}</v-card-text>
+        <v-card-actions>
+          <v-spacer></v-spacer>
+          <v-btn
+            color="grey-darken-1"
+            variant="text"
+            @click="confirmationDialog.show = false"
+            >Cancel</v-btn
+          >
+          <v-btn color="ebay-red" variant="text" @click="handleConfirmation"
+            >Confirm</v-btn
+          >
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
+    <!-- Global System Notification Snackbar -->
+    <v-snackbar
+      v-model="snackbar.show"
+      :color="snackbar.color"
+      :timeout="snackbar.timeout"
+      location="top"
+      elevation="4"
+    >
+      <div class="d-flex align-center">
+        <v-icon
+          v-if="snackbar.icon"
+          :icon="snackbar.icon"
+          class="mr-2"
+          size="small"
+        ></v-icon>
+        {{ snackbar.text }}
+      </div>
+      <template v-slot:actions>
+        <v-btn
+          variant="text"
+          @click="snackbar.show = false"
+          icon="mdi-close"
+          size="small"
+        ></v-btn>
+      </template>
+    </v-snackbar>
+
     <v-main>
       <v-container fluid class="fill-height" style="min-height: 100vh">
-        <!-- Enhanced Login View with AI Showcase -->
-        <v-row
-          v-if="!loggedIn"
-          justify="center"
-          align="center"
-          class="fill-height login-container"
-        >
-          <v-col cols="12" md="8" lg="6" xl="5">
-            <v-card class="login-card" elevation="8">
-              <div class="login-header">
-                <div class="login-icon">
-                  <v-img
-                    src="@/assets/icons/ai-avatar.svg"
-                    width="80"
-                    height="80"
-                    class="mx-auto"
-                  ></v-img>
-                </div>
-                <h2 class="login-title">eBay AI Shopping Assistant</h2>
-                <p class="login-subtitle">
-                  Advanced AI-powered product discovery with enhanced NLP
-                </p>
-              </div>
+        <!-- Modern Hero Landing Section -->
+        <div v-if="!loggedIn" class="hero-section">
+          <div class="hero-content-left">
+            <div class="hero-badge">
+              <v-img
+                :src="icons.sparkles"
+                width="16"
+                height="16"
+                class="mr-2"
+              ></v-img>
+              <span>Next-Gen AI Shopping</span>
+            </div>
+            <h1 class="hero-title">
+              Discover Products <br />
+              <span class="text-gradient">Intelligently</span>
+            </h1>
+            <p class="hero-subtitle">
+              Experience the future of eBay shopping with our advanced AI
+              assistant. Powered by BiLSTM-CRF neural networks for precise
+              understanding.
+            </p>
 
-              <v-card-text class="login-content">
-                <!-- AI Capabilities Showcase -->
-                <div class="ai-capabilities">
-                  <h3 class="capabilities-title">
-                    🤖 AI Agents & Capabilities
-                  </h3>
-                  <div class="capabilities-grid">
-                    <div class="capability-card">
+            <div class="hero-actions">
+              <v-btn
+                @click="initiateEbaySignIn"
+                color="ebay-blue"
+                size="x-large"
+                class="hero-btn glow-button"
+                :loading="authLoading"
+                :disabled="authLoading"
+                elevation="8"
+              >
+                <v-img
+                  :src="icons.ebay"
+                  width="28"
+                  height="28"
+                  class="mr-3 bg-white rounded-circle pa-1"
+                ></v-img>
+                {{ authLoading ? "Connecting..." : "Sign in with eBay" }}
+                <v-img
+                  :src="icons.arrowRight"
+                  width="24"
+                  height="24"
+                  class="ml-3"
+                ></v-img>
+              </v-btn>
+
+              <div v-if="authError" class="hero-error mt-4">
+                <v-img
+                  :src="icons.alert"
+                  width="20"
+                  height="20"
+                  class="mr-2"
+                ></v-img>
+                {{ authError }}
+              </div>
+            </div>
+
+            <div class="hero-stats">
+              <div class="stat-item">
+                <span class="stat-value">1.75M</span>
+                <span class="stat-label">Parameters</span>
+              </div>
+              <div class="stat-divider"></div>
+              <div class="stat-item">
+                <span class="stat-value">208</span>
+                <span class="stat-label">Entity Types</span>
+              </div>
+              <div class="stat-divider"></div>
+              <div class="stat-item">
+                <span class="stat-value">100%</span>
+                <span class="stat-label">Intent Accuracy</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="hero-content-right">
+            <div class="glass-stack floating-animation">
+              <!-- Back Card (Decorative) -->
+              <div class="glass-card back-card"></div>
+
+              <!-- Main Showcase Card -->
+              <div class="glass-card main-card">
+                <div class="card-header">
+                  <div class="header-dots">
+                    <span class="dot red"></span>
+                    <span class="dot yellow"></span>
+                    <span class="dot green"></span>
+                  </div>
+                  <div class="header-badge">AI Active</div>
+                </div>
+
+                <div class="showcase-content">
+                  <div class="ai-message-preview">
+                    <v-avatar size="40" color="ebay-red" class="mb-3">
+                      <v-img :src="icons.aiAvatar"></v-img>
+                    </v-avatar>
+                    <div class="typing-lines">
+                      <div class="line long"></div>
+                      <div class="line medium"></div>
+                      <div class="line short"></div>
+                    </div>
+                  </div>
+
+                  <div class="feature-grid">
+                    <div class="feature-box">
                       <v-img
-                        src="@/assets/icons/brain.svg"
+                        :src="icons.brain"
                         width="32"
                         height="32"
-                        class="mx-auto mb-2"
+                        class="mb-2"
                       ></v-img>
-                      <h4>Enhanced NLP</h4>
-                      <p>BiLSTM-CRF with 208 entity types</p>
+                      <span>NLP</span>
                     </div>
-                    <div class="capability-card">
+                    <div class="feature-box">
                       <v-img
-                        src="@/assets/icons/search.svg"
+                        :src="icons.search"
                         width="32"
                         height="32"
-                        class="mx-auto mb-2"
+                        class="mb-2"
                       ></v-img>
-                      <h4>Smart Search</h4>
-                      <p>Intelligent product matching</p>
+                      <span>Search</span>
                     </div>
-                    <div class="capability-card">
-                      <v-img
-                        :src="icons.lightbulb"
-                        width="32"
-                        height="32"
-                        class="mx-auto mb-2"
-                      ></v-img>
-                      <h4>Learning System</h4>
-                      <p>Adaptive user preferences</p>
-                    </div>
-                    <div class="capability-card">
+                    <div class="feature-box">
                       <v-img
                         :src="icons.shield"
                         width="32"
                         height="32"
-                        class="mx-auto mb-2"
+                        class="mb-2"
                       ></v-img>
-                      <h4>Secure OAuth</h4>
-                      <p>eBay API integration</p>
+                      <span>Secure</span>
+                    </div>
+                    <div class="feature-box">
+                      <v-img
+                        :src="icons.flash"
+                        width="32"
+                        height="32"
+                        class="mb-2"
+                      ></v-img>
+                      <span>Fast</span>
                     </div>
                   </div>
                 </div>
+              </div>
 
-                <!-- Technical Features -->
-                <div class="features-list">
-                  <div class="feature-item">
-                    <v-img
-                      :src="icons.robot"
-                      width="24"
-                      height="24"
-                      class="feature-icon"
-                    ></v-img>
-                    <span>Single Intent Architecture (100% accuracy)</span>
-                  </div>
-                  <div class="feature-item">
-                    <v-img
-                      :src="icons.brain"
-                      width="24"
-                      height="24"
-                      class="feature-icon"
-                    ></v-img>
-                    <span>1.75M parameter BiLSTM-CRF model</span>
-                  </div>
-                  <div class="feature-item">
-                    <v-img
-                      :src="icons.chart"
-                      width="24"
-                      height="24"
-                      class="feature-icon"
-                    ></v-img>
-                    <span>Real-time analytics & metrics</span>
-                  </div>
-                </div>
-
-                <v-btn
-                  @click="initiateEbaySignIn"
-                  color="ebay-red"
-                  size="x-large"
-                  class="login-btn"
-                  :loading="authLoading"
-                  :disabled="authLoading"
-                  block
-                >
-                  <v-img
-                    :src="icons.ebay"
-                    width="24"
-                    height="24"
-                    class="mr-2"
-                  ></v-img>
-                  {{
-                    authLoading ? "Connecting to eBay..." : "Sign in with eBay"
-                  }}
-                </v-btn>
-
-                <v-alert
-                  v-if="authError"
-                  type="error"
-                  class="mt-4"
-                  variant="tonal"
-                >
-                  <v-img
-                    :src="icons.alert"
-                    width="20"
-                    height="20"
-                    class="mr-2"
-                  ></v-img>
-                  {{ authError }}
-                </v-alert>
-              </v-card-text>
-            </v-card>
-          </v-col>
-        </v-row>
+              <!-- Floating Elements -->
+              <div class="floating-bubble bubble-1">
+                <v-img
+                  :src="icons.shopping"
+                  width="20"
+                  height="20"
+                  class="white-icon"
+                ></v-img>
+              </div>
+              <div class="floating-bubble bubble-2">
+                <v-img
+                  :src="icons.tag"
+                  width="20"
+                  height="20"
+                  class="white-icon"
+                ></v-img>
+              </div>
+            </div>
+          </div>
+        </div>
 
         <!-- Enhanced Chat Interface with Metrics Panel -->
-        <v-row v-else class="fill-height chat-container">
+        <v-row v-if="loggedIn" class="fill-height chat-container">
           <!-- Metrics Panel (Sidebar) -->
           <v-col
             v-if="showMetricsPanel"
@@ -859,6 +1000,21 @@
               <!-- Modern Input Area -->
               <v-card-actions class="chat-input">
                 <div class="input-container">
+                  <v-btn
+                    icon
+                    variant="text"
+                    color="ebay-yellow"
+                    class="mr-2"
+                    @click="showSuggestions"
+                    title="Show Suggestions"
+                    :disabled="isLoading"
+                  >
+                    <v-img
+                      :src="icons.lightbulb"
+                      width="24"
+                      height="24"
+                    ></v-img>
+                  </v-btn>
                   <v-textarea
                     v-model="userInput"
                     placeholder="Ask me anything about products on eBay..."
@@ -921,6 +1077,7 @@ import alertIcon from "@/assets/icons/alert.svg";
 import refreshIcon from "@/assets/icons/refresh.svg";
 import databaseOffIcon from "@/assets/icons/database-off.svg";
 import historyIcon from "@/assets/icons/history.svg";
+import helpIcon from "@/assets/icons/help.svg";
 
 import imageIcon from "@/assets/icons/image.svg";
 import sparklesIcon from "@/assets/icons/sparkles.svg";
@@ -929,6 +1086,9 @@ import truckIcon from "@/assets/icons/truck.svg";
 import tagIcon from "@/assets/icons/tag.svg";
 import externalLinkIcon from "@/assets/icons/external-link.svg";
 import plusIcon from "@/assets/icons/plus.svg";
+import arrowRightIcon from "@/assets/icons/arrow-right.svg";
+import flashIcon from "@/assets/icons/flash.svg";
+import shoppingIcon from "@/assets/icons/shopping.svg";
 
 export default {
   name: "FullApp",
@@ -958,6 +1118,7 @@ export default {
         refresh: refreshIcon,
         databaseOff: databaseOffIcon,
         history: historyIcon,
+        help: helpIcon,
 
         image: imageIcon,
         sparkles: sparklesIcon,
@@ -966,6 +1127,9 @@ export default {
         tag: tagIcon,
         externalLink: externalLinkIcon,
         plus: plusIcon,
+        arrowRight: arrowRightIcon,
+        flash: flashIcon,
+        shopping: shoppingIcon,
       },
       userInput: "",
       messages: [],
@@ -1016,6 +1180,24 @@ export default {
       recognition: null,
       speechSynthesis: window.speechSynthesis,
       selectedVoice: null,
+
+      // Global Notification State
+      snackbar: {
+        show: false,
+        text: "",
+        color: "info",
+        timeout: 4000,
+        icon: null,
+      },
+
+      // Dialog States
+      showHelpDialog: false,
+      confirmationDialog: {
+        show: false,
+        title: "",
+        message: "",
+        action: null,
+      },
     };
   },
 
@@ -1037,7 +1219,9 @@ export default {
         console.log("Successfully returned from eBay auth");
         this.setAuthData(authReturn.authData);
       } else if (authReturn.error) {
-        this.authError = `Authentication failed: ${authReturn.error}`;
+        const msg = `We couldn't log you in. ${authReturn.error}`;
+        this.authError = msg;
+        this.showNotification(msg, "error");
         this.authLoading = false;
       }
     } else {
@@ -1158,6 +1342,24 @@ export default {
   },
 
   methods: {
+    // Helper for showing notifications
+    showNotification(text, type = "info") {
+      const config = {
+        success: { color: "success", icon: "mdi-check-circle" },
+        error: { color: "error", icon: "mdi-alert-circle" },
+        warning: { color: "warning", icon: "mdi-alert" },
+        info: { color: "info", icon: "mdi-information" },
+      };
+      const style = config[type] || config.info;
+      this.snackbar = {
+        show: true,
+        text,
+        color: style.color,
+        icon: style.icon,
+        timeout: 4000,
+      };
+    },
+
     // Set authentication data in component and localStorage
     setAuthData(authData) {
       this.loggedIn = true;
@@ -1171,6 +1373,8 @@ export default {
         userId: this.userId,
         ebayUsername: this.ebayUsername,
       });
+
+      this.showNotification(`Welcome back, ${this.ebayUsername}!`, "success");
     },
 
     // Check localStorage for stored authentication
@@ -1218,7 +1422,11 @@ export default {
 
     async logout() {
       if (this.appSessionToken) {
-        await appAuth.logout(this.appSessionToken);
+        try {
+          await appAuth.logout(this.appSessionToken);
+        } catch (e) {
+          console.warn("Logout failed on server, clearing local state anyway");
+        }
       }
 
       // Clear component state
@@ -1233,7 +1441,51 @@ export default {
       this.metricsData = null;
       this.metricsLastFetchedAt = 0;
 
+      this.showNotification("You have been logged out.", "info");
       console.log("User logged out");
+    },
+
+    confirmLogout() {
+      this.confirmationDialog = {
+        show: true,
+        title: "Confirm Logout",
+        message:
+          "Are you sure you want to log out? Your current session will be ended.",
+        action: this.logout,
+      };
+    },
+
+    confirmResetChat() {
+      this.confirmationDialog = {
+        show: true,
+        title: "Reset Chat",
+        message:
+          "Are you sure you want to clear the chat history? This cannot be undone.",
+        action: this.resetChat,
+      };
+    },
+
+    resetChat() {
+      this.messages = [];
+      this.currentQuery = "";
+      this.currentOffset = 0;
+      this.showNotification("Chat history has been cleared.", "success");
+      // Re-add welcome message if needed, or just leave empty
+      if (this.loggedIn) {
+        this.showWelcomeMessage = true;
+        this.simulateFirstMessageLoading();
+      }
+    },
+
+    handleConfirmation() {
+      if (this.confirmationDialog.action) {
+        this.confirmationDialog.action();
+      }
+      this.confirmationDialog.show = false;
+    },
+
+    openHelp() {
+      this.showHelpDialog = true;
     },
 
     handleSessionExpired(
@@ -1250,6 +1502,10 @@ export default {
       this.authError = message;
       this.metricsData = null;
       this.metricsLastFetchedAt = 0;
+
+      if (message) {
+        this.showNotification(message, "warning");
+      }
     },
 
     async fetchMetrics(force = false) {
@@ -1314,6 +1570,7 @@ export default {
         console.error("Failed to fetch metrics:", error);
         this.metricsError =
           error?.message || "Unable to load metrics at this time.";
+        this.showNotification(this.metricsError, "error");
       } finally {
         this.metricsLoading = false;
       }
@@ -1397,6 +1654,22 @@ export default {
     sendSuggestion(suggestion) {
       this.userInput = suggestion;
       this.sendMessage();
+    },
+
+    showSuggestions() {
+      this.messages.push({
+        sender: "ai",
+        text: "Here are some examples of what you can ask me:",
+        suggestions: this.quickSuggestions,
+        timestamp: this.getCurrentTimestamp(),
+      });
+      // Scroll to bottom
+      this.$nextTick(() => {
+        const container = this.$el.querySelector(".chat-history");
+        if (container) {
+          container.scrollTop = container.scrollHeight;
+        }
+      });
     },
 
     // Get condition color for product chips
