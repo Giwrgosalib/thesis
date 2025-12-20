@@ -53,7 +53,7 @@ class TransformerCRFNER(nn.Module):
             )
 
         self.config = AutoConfig.from_pretrained(model_name)
-        self.encoder = AutoModel.from_pretrained(model_name, config=self.config)
+        self.encoder = AutoModel.from_pretrained(model_name, config=self.config, weights_only=False)
         hidden_size = self.encoder.config.hidden_size
 
         self.dropout = nn.Dropout(dropout)

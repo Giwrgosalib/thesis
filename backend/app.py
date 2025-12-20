@@ -65,6 +65,8 @@ from ebay_oauth_python_client.oauthclient.oauth2api import oauth2api  # Import f
 from ebay_oauth_python_client.oauthclient.model.model import environment, oAuth_token
 from ebay_oauth_python_client.oauthclient.credentialutil import credentialutil
 from ebay_oauth_python_client.oauthclient.model.model import credentials as EbayOauthCredentials
+from custom_nlp import EBayNLP
+from ebay_service import EBayService
 
 # Initialize configuration
 config = get_config()
@@ -72,6 +74,8 @@ config = get_config()
 # Initialize Flask app
 app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = config.app.max_request_size
+nlp_processor = EBayNLP()
+classic_ebay_service = EBayService()
 
 # Setup CORS
 CORS(app, origins=[config.app.frontend_url], supports_credentials=True)
@@ -735,6 +739,45 @@ def get_all_metrics():
         "feedback_metrics": feedback_metrics,
         "user_metrics": user_metrics,
         "dataset_metrics": dataset_metrics
+    })
+
+@app.route('/api/classic/search', methods=['POST'])
+def classic_search():
+    """
+    Lightweight search endpoint exercising the classic NLP + eBay service stack.
+    This is primarily for benchmarking and regression comparisons.
+    """
+    payload = request.get_json(force=True, silent=True) or {}
+    raw_query = payload.get("query") or ""
+    limit = int(payload.get("limit", 10))
+    offset = int(payload.get("offset", 0))
+
+    if not raw_query.strip():
+        raise ValidationError("Query is required for search")
+
+    sanitized_query = sanitize_string(raw_query)
+    # Entity extraction via classic enhanced NER
+    entity_payload = nlp_processor.extract_entities(sanitized_query)
+    intent_payload = {
+        "raw_query": sanitized_query,
+        "intent": entity_payload.get("intent", "search_product"),
+        "entities": entity_payload.get("entities", {}),
+        "raw_entities": entity_payload.get("raw_entities", []),
+    }
+
+    user_id = None
+    try:
+        results = classic_ebay_service.search(intent_payload, user_id=user_id, limit=limit, offset=offset)
+    except Exception as exc:
+        logger.error(f"Classic search error: {exc}", exc_info=True)
+        raise ExternalServiceError("eBay", "Classic search failed")
+
+    return jsonify({
+        "items": results,
+        "entities": intent_payload.get("entities", {}),
+        "intent": intent_payload.get("intent", "search_product"),
+        "raw_query": intent_payload.get("raw_query", sanitized_query),
+        "pagination": {"limit": limit, "offset": offset}
     })
 
 @app.route('/dashboard', methods=['GET'])

@@ -38,7 +38,7 @@ class DualEncoderRetriever:
         normalize: bool = True,
     ) -> None:
         self.tokenizer = AutoTokenizer.from_pretrained(model_name)
-        self.encoder = AutoModel.from_pretrained(model_name)
+        self.encoder = AutoModel.from_pretrained(model_name, weights_only=False)
         self.device = torch.device(device)
         self.encoder.to(self.device)
         self.normalize = normalize

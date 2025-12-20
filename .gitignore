@@ -42,3 +42,15 @@ backend/__pycache__/
 
 # Thesis documents
 thesis/
+docs_notes/
+
+
+
+
+# Scripts (Ignore all by default, keep essentials)
+scripts/
+!scripts/start_dev.py
+!scripts/start_demo.py
+!scripts/verify_nextgen.py
+
+tmp/

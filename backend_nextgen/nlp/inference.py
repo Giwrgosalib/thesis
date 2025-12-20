@@ -36,7 +36,7 @@ class TransformerNERInference:
 
         self.device = torch.device(device)
         self.tokenizer = AutoTokenizer.from_pretrained(resolved_path)
-        self.model = AutoModelForTokenClassification.from_pretrained(resolved_path)
+        self.model = AutoModelForTokenClassification.from_pretrained(resolved_path, weights_only=False)
         self.model.to(self.device)
         self.model.eval()
         self.id2label = self.model.config.id2label

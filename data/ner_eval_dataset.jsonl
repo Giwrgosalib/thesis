@@ -1,0 +1,70 @@
+{"tokens": ["nike", "pegasus", "running", "shoes", "size", "10", "black"], "labels": ["B-BRAND", "O", "O", "O", "O", "O", "O"]}
+{"tokens": ["apple", "iphone", "15", "pro", "max", "128gb", "pink"], "labels": ["B-BRAND", "O", "O", "O", "O", "O", "O"]}
+{"tokens": ["samsung", "galaxy", "s23", "ultra", "under", "$1000"], "labels": ["B-BRAND", "O", "O", "O", "O", "O"]}
+{"tokens": ["dell", "xps", "13", "intel", "i7", "32gb", "ram"], "labels": ["B-BRAND", "O", "O", "O", "O", "O", "O"]}
+{"tokens": ["sony", "wh-1000xm5", "wireless", "noise", "cancelling", "headphones"], "labels": ["B-BRAND", "O", "O", "O", "O", "O"]}
+{"tokens": ["adidas", "ultraboost", "running", "shoes", "size", "9", "white"], "labels": ["B-BRAND", "O", "O", "O", "O", "O", "O"]}
+{"tokens": ["lego", "star", "wars", "millennium", "falcon", "set"], "labels": ["B-BRAND", "O", "O", "O", "O", "O"]}
+{"tokens": ["brooks", "ghost", "15", "women", "size", "8.5", "blue"], "labels": ["B-BRAND", "O", "O", "O", "O", "O", "O"]}
+{"tokens": ["canon", "eos", "r5", "mirrorless", "camera"], "labels": ["B-BRAND", "O", "O", "O", "O"]}
+{"tokens": ["coffee", "maker", "keurig", "k-elite", "silver"], "labels": ["O", "O", "B-BRAND", "O", "O"]}
+{"tokens": ["hp", "spectre", "x360", "2-in-1", "laptop"], "labels": ["B-BRAND", "O", "O", "O", "O"]}
+{"tokens": ["asus", "rog", "zephyrus", "g14", "gaming", "laptop"], "labels": ["B-BRAND", "O", "O", "O", "O", "O"]}
+{"tokens": ["lenovo", "thinkpad", "x1", "carbon"], "labels": ["B-BRAND", "O", "O", "O"]}
+{"tokens": ["huawei", "matebook", "x", "pro"], "labels": ["B-BRAND", "O", "O", "O"]}
+{"tokens": ["xiaomi", "redmi", "note", "13", "pro"], "labels": ["B-BRAND", "O", "O", "O", "O"]}
+{"tokens": ["oneplus", "12", "5g", "smartphone"], "labels": ["B-BRAND", "O", "O", "O"]}
+{"tokens": ["google", "pixel", "8", "pro"], "labels": ["B-BRAND", "O", "O", "O"]}
+{"tokens": ["motorola", "razr", "plus"], "labels": ["B-BRAND", "O", "O"]}
+{"tokens": ["bose", "quietcomfort", "ultra", "headphones"], "labels": ["B-BRAND", "O", "O", "O"]}
+{"tokens": ["jbl", "flip", "6", "bluetooth", "speaker"], "labels": ["B-BRAND", "O", "O", "O", "O"]}
+{"tokens": ["anker", "soundcore", "liberty", "buds"], "labels": ["B-BRAND", "O", "O", "O"]}
+{"tokens": ["logitech", "mx", "master", "3s", "mouse"], "labels": ["B-BRAND", "O", "O", "O", "O"]}
+{"tokens": ["razer", "deathadder", "v3", "pro"], "labels": ["B-BRAND", "O", "O", "O"]}
+{"tokens": ["corsair", "k70", "rgb", "keyboard"], "labels": ["B-BRAND", "O", "O", "O"]}
+{"tokens": ["steelseries", "arctis", "nova", "pro"], "labels": ["B-BRAND", "O", "O", "O"]}
+{"tokens": ["msi", "ge76", "raider"], "labels": ["B-BRAND", "O", "O"]}
+{"tokens": ["alienware", "m16", "gaming", "laptop"], "labels": ["B-BRAND", "O", "O", "O"]}
+{"tokens": ["evga", "geforce", "rtx", "4090"], "labels": ["B-BRAND", "O", "O", "O"]}
+{"tokens": ["gigabyte", "aorus", "master", "z790"], "labels": ["B-BRAND", "O", "O", "O"]}
+{"tokens": ["palit", "geforce", "rtx", "4070"], "labels": ["B-BRAND", "O", "O", "O"]}
+{"tokens": ["seagate", "firecuda", "530", "ssd"], "labels": ["B-BRAND", "O", "O", "O"]}
+{"tokens": ["sabrent", "rocket", "4", "nvme", "ssd"], "labels": ["B-BRAND", "O", "O", "O", "O"]}
+{"tokens": ["kingston", "fury", "renegade", "ddr5"], "labels": ["B-BRAND", "O", "O", "O"]}
+{"tokens": ["g.skill", "trident", "z", "neo"], "labels": ["B-BRAND", "O", "O", "O"]}
+{"tokens": ["sandisk", "extreme", "portable", "ssd"], "labels": ["B-BRAND", "O", "O", "O"]}
+{"tokens": ["western", "digital", "black", "sn850"], "labels": ["B-BRAND", "O", "O", "O"]}
+{"tokens": ["dyson", "v15", "detect", "vacuum"], "labels": ["B-BRAND", "O", "O", "O"]}
+{"tokens": ["shark", "vertex", "cordless", "vacuum"], "labels": ["B-BRAND", "O", "O", "O"]}
+{"tokens": ["kitchenaid", "artisan", "stand", "mixer"], "labels": ["B-BRAND", "O", "O", "O"]}
+{"tokens": ["instant", "pot", "duo", "evo"], "labels": ["B-BRAND", "O", "O", "O"]}
+{"tokens": ["ninja", "air", "fryer", "max"], "labels": ["B-BRAND", "O", "O", "O"]}
+{"tokens": ["philips", "airfryer", "xxl"], "labels": ["B-BRAND", "O", "O"]}
+{"tokens": ["breville", "barista", "express", "espresso", "machine"], "labels": ["B-BRAND", "O", "O", "O", "O"]}
+{"tokens": ["delonghi", "magnifica", "espresso", "machine"], "labels": ["B-BRAND", "O", "O", "O"]}
+{"tokens": ["miele", "classic", "c1", "canister", "vacuum"], "labels": ["B-BRAND", "O", "O", "O", "O"]}
+{"tokens": ["roborock", "s8", "robot", "vacuum"], "labels": ["B-BRAND", "O", "O", "O"]}
+{"tokens": ["ecovacs", "deebot", "t20", "omni"], "labels": ["B-BRAND", "O", "O", "O"]}
+{"tokens": ["puma", "future", "soccer", "cleats"], "labels": ["B-BRAND", "O", "O", "O"]}
+{"tokens": ["reebok", "nano", "training", "shoes"], "labels": ["B-BRAND", "O", "O", "O"]}
+{"tokens": ["new", "balance", "990", "v5"], "labels": ["B-BRAND", "B-BRAND", "O", "O"]}
+{"tokens": ["under", "armour", "curry", "flow"], "labels": ["B-BRAND", "B-BRAND", "O", "O"]}
+{"tokens": ["columbia", "north", "face", "jacket"], "labels": ["B-BRAND", "O", "B-BRAND", "O"]}
+{"tokens": ["patagonia", "nano", "puff", "vest"], "labels": ["B-BRAND", "O", "O", "O"]}
+{"tokens": ["arcteryx", "beta", "lt", "shell"], "labels": ["B-BRAND", "O", "O", "O"]}
+{"tokens": ["uniqlo", "ultra", "light", "down"], "labels": ["B-BRAND", "O", "O", "O"]}
+{"tokens": ["gap", "hoodie", "cotton", "men"], "labels": ["B-BRAND", "O", "O", "O"]}
+{"tokens": ["h&m", "hoodie", "oversized"], "labels": ["B-BRAND", "O", "O"]}
+{"tokens": ["zara", "blazer", "womens"], "labels": ["B-BRAND", "O", "O"]}
+{"tokens": ["uniqlo", "jeans", "stretch"], "labels": ["B-BRAND", "O", "O"]}
+{"tokens": ["ralph", "lauren", "polo", "shirt"], "labels": ["B-BRAND", "B-BRAND", "O", "O"]}
+{"tokens": ["tommy", "hilfiger", "puffer", "jacket"], "labels": ["B-BRAND", "B-BRAND", "O", "O"]}
+{"tokens": ["coach", "tabby", "bag"], "labels": ["B-BRAND", "O", "O"]}
+{"tokens": ["kate", "spade", "crossbody", "bag"], "labels": ["B-BRAND", "B-BRAND", "O", "O"]}
+{"tokens": ["michael", "kors", "wallet"], "labels": ["B-BRAND", "B-BRAND", "O"]}
+{"tokens": ["fossil", "leather", "watch"], "labels": ["B-BRAND", "O", "O"]}
+{"tokens": ["garmin", "fenix", "7", "solar"], "labels": ["B-BRAND", "O", "O", "O"]}
+{"tokens": ["fitbit", "charge", "6"], "labels": ["B-BRAND", "O", "O"]}
+{"tokens": ["suunto", "9", "peak"], "labels": ["B-BRAND", "O", "O"]}
+{"tokens": ["tag", "heuer", "carrera"], "labels": ["B-BRAND", "B-BRAND", "O"]}
+{"tokens": ["casio", "g-shock", "dw5600"], "labels": ["B-BRAND", "O", "O"]}

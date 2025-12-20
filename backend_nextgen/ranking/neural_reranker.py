@@ -30,7 +30,7 @@ class NeuralReRanker:
     def __init__(self, model_name: str, device: str | torch.device = "cpu") -> None:
         self.device = torch.device(device)
         self.tokenizer = AutoTokenizer.from_pretrained(model_name)
-        self.model = AutoModelForSequenceClassification.from_pretrained(model_name)
+        self.model = AutoModelForSequenceClassification.from_pretrained(model_name, weights_only=False)
         self.model.to(self.device)
         self.model.eval()
 

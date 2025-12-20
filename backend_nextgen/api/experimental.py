@@ -11,7 +11,8 @@ from flask import Blueprint, current_app, jsonify, request, Response, stream_wit
 import json
 
 # ... (imports remain same)
-# from backend_nextgen.orchestrator import orchestrator
+# ... (imports remain same)
+from backend_nextgen.orchestrator import orchestrator
 
 # Globals for dependency injection
 preference_loader: Optional[Callable[[str], Dict[str, Any]]] = None
@@ -52,7 +53,7 @@ def handle_query():
             user_context["preferences"] = snapshot
 
     try:
-        from backend_nextgen.orchestrator import orchestrator
+        # orchestrator is already imported at module level
         result = orchestrator.handle_query(query, user_context, limit=limit, offset=offset, history=history)
         
         # Save history if configured
@@ -83,9 +84,8 @@ def metrics_summary():
         window = int(request.args.get("window", 3600))
     except ValueError:
         window = 3600
-    from backend_nextgen.orchestrator import orchestrator
+    # orchestrator is already imported at module level
     summary = orchestrator.summarize_metrics(window_seconds=window)
-    return jsonify(summary)
     return jsonify(summary)
 
 
@@ -112,7 +112,7 @@ def handle_feedback():
         if not user_id or not item_id:
             return jsonify({"error": "Missing user_id or item_id"}), 400
 
-        from backend_nextgen.orchestrator import orchestrator
+        # orchestrator is already imported at module level
         orchestrator.handle_feedback(user_id, item_id, reward, context)
         
         return jsonify({"status": "success", "message": "Feedback received and model updated"})

@@ -5,6 +5,7 @@ High-level orchestrator composing the next-gen AI agents.
 from __future__ import annotations
 
 from pathlib import Path
+import os
 from typing import Dict, Any, List, Optional
 
 import hashlib
@@ -27,6 +28,7 @@ from backend_nextgen.observability.metrics import MetricSink, MetricRecord
 from backend_nextgen.active_learning.loop import UncertaintySampler
 from backend_nextgen.knowledge.graph_builder import KnowledgeGraph
 from backend.ebay_service import EBayService
+from transformers import AutoModelForSequenceClassification, AutoTokenizer
 
 logger = logging.getLogger(__name__)
 
@@ -39,7 +41,13 @@ class NextGenAIOrchestrator:
     def __init__(self, config_path: Path | None = None) -> None:
         self.config = load_config(config_path)
 
+        observability_cfg = self.config.section("observability")
+        metrics_path = Path(observability_cfg.get("metrics_path", "data/observability/metrics.db"))
+        self.metric_sink = MetricSink(metrics_path)
+
         nlp_cfg = self.config.section("nlp")
+        # Centralized device selection so all heavy models can share the same accelerator
+        self.device = self._resolve_device(nlp_cfg.get("device", "cpu"))
         self.tag_to_idx = self._load_tag_mapping()
         self.ner_model = TransformerCRFNER(
             model_name=nlp_cfg["model_name"],
@@ -58,13 +66,14 @@ class NextGenAIOrchestrator:
                 )
             self.ner_inference = TransformerNERInference(
                 model_path=model_path,
-                device=self._resolve_device(nlp_cfg.get("device", "cpu")),
+                device=self.device,
                 confidence_threshold=nlp_cfg.get("confidence_threshold", 0.5),
             )
         else:
             self.ner_inference = None
 
         retrieval_cfg = self.config.section("retrieval")
+        retrieval_device = self._resolve_device(retrieval_cfg.get("device", self.device))
         index_matrix, metadata, self.vector_index_ready = self._load_vector_store(
             retrieval_cfg
         )
@@ -76,10 +85,15 @@ class NextGenAIOrchestrator:
             model_name=retrieval_cfg["encoder_name"],
             index=index_matrix,
             metadata=metadata,
+            device=retrieval_device,
         )
 
         ranking_cfg = self.config.section("ranking")
-        self.reranker = NeuralReRanker(model_name=ranking_cfg["model_name"])
+        ranking_device = self._resolve_device(ranking_cfg.get("device", self.device))
+        self.reranker = NeuralReRanker(
+            model_name=ranking_cfg["model_name"],
+            device=ranking_device,
+        )
 
         personalization_cfg = self.config.section("personalization")
         feature_dim = 32
@@ -106,15 +120,14 @@ class NextGenAIOrchestrator:
                 logger.error(f"Failed to load user vectors: {e}")
 
         rag_cfg = self.config.section("rag")
+        rag_device = self._resolve_device(rag_cfg.get("device", self.device))
         self.generator = GenerativeResponder(
             model_name=rag_cfg["generator_name"],
             max_tokens=rag_cfg["response_max_tokens"],
             temperature=rag_cfg["temperature"],
+            device=rag_device,
         )
         self.rag = RAGPipeline(retriever=self.retriever, generator=self.generator, max_context_docs=rag_cfg["max_context_docs"])
-
-        observability_cfg = self.config.section("observability")
-        self.metric_sink = MetricSink(Path(observability_cfg["metrics_path"]))
 
         active_cfg = self.config.section("active_learning")
         self.uncertainty_sampler = UncertaintySampler(
@@ -137,6 +150,21 @@ class NextGenAIOrchestrator:
             self.fallback_categories = []
             self.fallback_brands = []
 
+        # Optional rewrite validator (classifier to reject hallucinations)
+        self.rewrite_validator = None
+        self.rewrite_tokenizer = None
+        validator_dir = Path(__file__).resolve().parent / "models" / "query_rewriter_validator"
+        try:
+            if validator_dir.exists():
+                self.rewrite_tokenizer = AutoTokenizer.from_pretrained(str(validator_dir))
+                self.rewrite_validator = AutoModelForSequenceClassification.from_pretrained(str(validator_dir), weights_only=False)
+                self.rewrite_validator.eval()
+                logger.info("Loaded rewrite validator.")
+        except Exception as exc:
+            logger.warning(f"Failed to load rewrite validator: {exc}")
+            self.rewrite_validator = None
+            self.rewrite_tokenizer = None
+
     def handle_query(
         self, query: str, user_context: Dict[str, Any], limit: int = 10, offset: int = 0, history: List[str] = None
     ) -> Dict[str, Any]:
@@ -151,7 +179,23 @@ class NextGenAIOrchestrator:
         
         # Enrich with conversational context (history)
         if history:
-            intent_payload = self._enrich_with_context(intent_payload, history)
+            # Try LLM first
+            if self.generator:
+                try:
+                    rewritten = self._rewrite_query_with_llm(query, history)
+                    if rewritten and rewritten != query:
+                         logger.info(f"LLM rewritten query: '{query}' -> '{rewritten}'")
+                         intent_payload["raw_query"] = rewritten
+                         # Re-extract entities from rewritten query
+                         if self.ner_inference:
+                             new_entities = self.ner_inference.extract_entities(rewritten)
+                             entity_payload = new_entities 
+                             intent_payload = self._build_intent_payload(rewritten, entity_payload)
+                except Exception as e:
+                     logger.error(f"LLM rewriting failed: {e}")
+                     intent_payload = self._enrich_with_context(intent_payload, history)
+            else:
+                 intent_payload = self._enrich_with_context(intent_payload, history)
 
         intent_payload = self._merge_user_preferences(intent_payload, user_context)
         
@@ -221,7 +265,7 @@ class NextGenAIOrchestrator:
         
         return {
             "items": normalized_items,
-            "entities": entity_payload,
+            "entities": intent_payload.get("entities", {}), # Return the final enriched entities
             "citations": self._build_citations(reranked),
             "recommendation": {
                 **recommendation.metadata,
@@ -235,6 +279,102 @@ class NextGenAIOrchestrator:
             ],
             "suggestions": self._generate_history_suggestions(user_context)
         }
+
+    def _rewrite_query_with_llm(self, current_query: str, history: List[str]) -> str:
+        """
+        Use the custom LLM to rewrite the current query based on conversation history.
+        Adds overlap and optional validator guard: the rewrite must retain anchor tokens
+        and pass the classifier (when available), else fallback to anchor + refinement.
+        """
+        if not history:
+            return current_query
+
+        anchor = self._extract_anchor_from_history(history)
+        history_str = " | ".join(history[-3:]) if history else ""
+        prompt = (
+            f"Anchor: {anchor}\n"
+            f"Refinement: {current_query}\n"
+            f"History: {history_str}\n"
+            "Rules: Keep anchor entities; only add refinements; do not invent brands/models/people. "
+            "Return one search query."
+        )
+
+        try:
+            rewritten = self.generator.generate(prompt)
+            if rewritten.startswith(prompt):
+                rewritten = rewritten[len(prompt):]
+            cleaned = rewritten.strip().split("\n")[0].strip()
+            if not cleaned:
+                return current_query
+
+            # Overlap + validator guard
+            if not self._is_rewrite_valid(cleaned, anchor, current_query, history_str):
+                logger.info("Rewrite rejected; falling back to anchor + refinement.")
+                fallback = f"{anchor} {current_query}".strip()
+                return fallback
+
+            return cleaned
+        except Exception as e:
+            logger.error(f"Error in LLM query rewriting: {e}")
+            return current_query
+
+    @staticmethod
+    def _extract_anchor_from_history(history: List[str]) -> str:
+        """
+        Scan history for the 'root' anchor (usually the first substantial user query).
+        Heuristic: The first user message is often the main topic (e.g. 'gaming laptops').
+        """
+        if not history:
+            return ""
+        
+        # Try to find the FIRST user message
+        for seg in history:
+            if seg.lower().startswith("user:"):
+                return seg.split(":", 1)[1].strip()
+                
+        # Fallback to last message
+        return history[-1]
+
+    @staticmethod
+    def _has_anchor_overlap(candidate: str, anchor: str) -> bool:
+        """
+        Require at least one non-trivial token overlap with anchor to reduce hallucinations.
+        """
+        cand_tokens = {tok.lower() for tok in candidate.split() if len(tok) > 2}
+        anchor_tokens = {tok.lower() for tok in anchor.split() if len(tok) > 2}
+        return bool(cand_tokens & anchor_tokens)
+
+    def _is_rewrite_valid(self, candidate: str, anchor: str, refinement: str, history_str: str) -> bool:
+        """
+        Cheap first-pass overlap guard; optional classifier for finer validation.
+        """
+        if anchor and not self._has_anchor_overlap(candidate, anchor):
+            return False
+
+        if self.rewrite_validator and self.rewrite_tokenizer:
+            text = (
+                f"Anchor+History: {history_str}\n"
+                f"Refinement: {refinement}\n"
+                f"Candidate: {candidate}"
+            )
+            try:
+                encoded = self.rewrite_tokenizer(
+                    text,
+                    return_tensors="pt",
+                    truncation=True,
+                    padding="max_length",
+                    max_length=128,
+                )
+                with torch.no_grad():
+                    outputs = self.rewrite_validator(**encoded)
+                    scores = torch.softmax(outputs.logits, dim=-1)
+                    valid_score = float(scores[0][1])
+                    return valid_score >= 0.5
+            except Exception as exc:
+                logger.warning(f"Validator failed, allowing rewrite: {exc}")
+                return True
+
+        return True
 
     def _reconstruct_search_query(self, intent_payload: Dict[str, Any], entity_payload: Dict[str, Any]) -> str:
         """
@@ -415,7 +555,7 @@ class NextGenAIOrchestrator:
     def _load_tag_mapping(self) -> Dict[str, int]:
         """Load the enhanced entity schema to keep transformer NER tags aligned."""
         try:
-            repo_root = Path(__file__).resolve().parents[2]
+            repo_root = Path(__file__).resolve().parents[1]
             info_path = (
                 repo_root / "backend" / "models" / "enhanced" / "model_info.json"
             )
@@ -443,6 +583,8 @@ class NextGenAIOrchestrator:
 
         entity_buckets = intent_payload.get("entities") or {}
         preferences = user_context.get("preferences") if isinstance(user_context, dict) else {}
+        if preferences is None:
+            preferences = {}
 
         if hasattr(entity_buckets, "keys"):
             entity_diversity = min(len(list(entity_buckets.keys())) / 50.0, 1.0)
@@ -664,7 +806,7 @@ class NextGenAIOrchestrator:
                     metadata={"error": str(exc)[:120]},
                 )
             )
-            return [res.metadata for res in self.retriever.retrieve(intent_payload["raw_query"])]
+            return [res.metadata for res in self.retriever.retrieve(intent_payload["raw_query"], top_k=limit)]
 
     def _normalize_item(self, item: Dict[str, Any]) -> Dict[str, Any]:
         normalized = dict(item)
@@ -1120,5 +1262,8 @@ class NextGenAIOrchestrator:
                 return " | ".join(parts)
         return None
 
-# Global singleton instance
-orchestrator = NextGenAIOrchestrator()
+# Global singleton instance (skipped when explicitly disabled for tests/benchmarks)
+if os.environ.get("NEXTGEN_SKIP_AUTOINIT") == "1":
+    orchestrator = None
+else:
+    orchestrator = NextGenAIOrchestrator()

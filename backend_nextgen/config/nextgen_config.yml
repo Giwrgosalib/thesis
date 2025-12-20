@@ -6,9 +6,9 @@ app:
 nlp:
   model_name: microsoft/deberta-v3-base
   max_sequence_length: 256
-  use_crf_head: true  # requires torchcrf to be installed
+  use_crf_head: true # requires torchcrf to be installed
   enable_char_encoder: false
-  device: auto
+  device: cuda
   confidence_threshold: 0.55
   trained_model_path: models/ner
 
@@ -20,7 +20,7 @@ retrieval:
   top_k: 20
 
 rag:
-  generator_name: gpt2
+  generator_name: C:/Users/giwrg/Desktop/unified-repo/backend_nextgen/models/query_rewriter
   max_context_docs: 5
   response_max_tokens: 384
   temperature: 0.4
