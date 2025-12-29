@@ -157,7 +157,7 @@ class NextGenAIOrchestrator:
         try:
             if validator_dir.exists():
                 self.rewrite_tokenizer = AutoTokenizer.from_pretrained(str(validator_dir))
-                self.rewrite_validator = AutoModelForSequenceClassification.from_pretrained(str(validator_dir), weights_only=False)
+                self.rewrite_validator = AutoModelForSequenceClassification.from_pretrained(str(validator_dir))
                 self.rewrite_validator.eval()
                 logger.info("Loaded rewrite validator.")
         except Exception as exc:
@@ -283,35 +283,37 @@ class NextGenAIOrchestrator:
     def _rewrite_query_with_llm(self, current_query: str, history: List[str]) -> str:
         """
         Use the custom LLM to rewrite the current query based on conversation history.
-        Adds overlap and optional validator guard: the rewrite must retain anchor tokens
-        and pass the classifier (when available), else fallback to anchor + refinement.
+        Smartly detects if the new query is a refinement or a topic switch.
         """
         if not history:
             return current_query
 
-        anchor = self._extract_anchor_from_history(history)
         history_str = " | ".join(history[-3:]) if history else ""
         prompt = (
-            f"Anchor: {anchor}\n"
-            f"Refinement: {current_query}\n"
-            f"History: {history_str}\n"
-            "Rules: Keep anchor entities; only add refinements; do not invent brands/models/people. "
-            "Return one search query."
+            f"Conversation History: {history_str}\n"
+            f"Current Input: {current_query}\n"
+            "Task: Rewrite 'Current Input' to be a standalone search query. "
+            "Rules:\n"
+            "1. If 'Current Input' is a refinement (e.g. 'under $100', 'black', 'men s'), combine it with the main product from History.\n"
+            "2. If 'Current Input' is a NEW product search (e.g. 'iphone 15', 'nike shoes'), IGNORE History and return 'Current Input' exactly as is.\n"
+            "3. Do not add conversational text.\n"
+            "Output:"
         )
 
         try:
             rewritten = self.generator.generate(prompt)
             if rewritten.startswith(prompt):
                 rewritten = rewritten[len(prompt):]
+            
+            # Clean up response
             cleaned = rewritten.strip().split("\n")[0].strip()
+            
+            # Remove potential prefixes like "Output:", "Query:", etc.
+            if ":" in cleaned:
+                cleaned = cleaned.split(":", 1)[1].strip()
+                
             if not cleaned:
                 return current_query
-
-            # Overlap + validator guard
-            if not self._is_rewrite_valid(cleaned, anchor, current_query, history_str):
-                logger.info("Rewrite rejected; falling back to anchor + refinement.")
-                fallback = f"{anchor} {current_query}".strip()
-                return fallback
 
             return cleaned
         except Exception as e:
@@ -379,75 +381,89 @@ class NextGenAIOrchestrator:
     def _reconstruct_search_query(self, intent_payload: Dict[str, Any], entity_payload: Dict[str, Any]) -> str:
         """
         Reconstruct a complete search query string from context and current input.
-        Useful when the user provides a refinement (e.g. "make them black") that relies on 
-        inherited context (Brand, Model) to make sense to the search engine.
+        Only applies when the user provides a short REFINEMENT (e.g. "make them black",
+        "under $100", "size 10") that relies on inherited context to make sense.
+        
+        If the current query looks like a NEW product search (3+ meaningful words,
+        or contains brand/model-like tokens), return it unchanged.
         """
-        original_query = intent_payload.get("raw_query", "")
+        original_query = intent_payload.get("raw_query", "").strip()
         
-        # 1. Gather Context Components (Brand, Model, Category) from intent_payload
-        # These reflect the STATE after enrichment (history + current)
+        # --- Heuristic 1: Check NER entities first ---
+        current_entities = entity_payload.get("entities", {})
+        has_own_product_context = bool(
+            current_entities.get("BRAND") or 
+            current_entities.get("MODEL") or 
+            current_entities.get("CATEGORY") or
+            current_entities.get("PRODUCT_TYPE")
+        )
+        
+        if has_own_product_context:
+            logger.debug(f"Query '{original_query}' has NER-detected product context; skipping reconstruction")
+            return original_query
+        
+        # --- Heuristic 2: Query length check ---
+        # Refinements are typically short ("under $100", "black ones", "size 10")
+        # Product searches are typically longer ("MacBook Air 2023", "Sony WH-1000XM5")
+        stopwords = {
+            "i", "want", "them", "to", "be", "make", "show", "me", "find", 
+            "looking", "for", "are", "is", "of", "with", "in", "a", "an", "the",
+            "and", "or", "search", "get", "can", "could", "would", "should", 
+            "will", "they", "it", "please", "some", "any", "more"
+        }
+        meaningful_words = [w for w in original_query.split() if w.lower() not in stopwords and len(w) > 1]
+        
+        if len(meaningful_words) >= 3:
+            # 3+ meaningful words = likely a new product search, not a refinement
+            logger.debug(f"Query '{original_query}' has {len(meaningful_words)} meaningful words; treating as new search")
+            return original_query
+        
+        # --- Heuristic 3: Check for product-like patterns ---
+        # Alphanumeric model numbers, brand-like capitalized words, etc.
+        query_lower = original_query.lower()
+        product_indicators = [
+            "iphone", "macbook", "samsung", "galaxy", "pixel", "sony", "lg", "dell",
+            "hp", "lenovo", "asus", "acer", "nike", "adidas", "puma", "reebok",
+            "playstation", "xbox", "nintendo", "airpods", "watch", "ipad", "surface"
+        ]
+        if any(indicator in query_lower for indicator in product_indicators):
+            logger.debug(f"Query '{original_query}' contains product indicator; treating as new search")
+            return original_query
+        
+        # --- Refinement Mode: This is likely a short refinement query ---
+        # Only now do we prepend context from history
+        
         context_components = []
-        
-        # Helper to avoid duplicates
         seen_tokens = set()
+        
         def add_component(value):
             if value and str(value).lower() not in seen_tokens:
                 context_components.append(str(value))
                 seen_tokens.add(str(value).lower())
 
-        # Priority: Brand -> Model -> Category
-        for brand in intent_payload.get("brands", []):
-            add_component(brand)
-            break # Only primary brand
+        # Only take the FIRST brand/model/category (not all user preferences!)
+        brands = intent_payload.get("brands", [])
+        if brands:
+            add_component(brands[0])
             
-        for model in intent_payload.get("models", []):
-            add_component(model)
-            break
+        models = intent_payload.get("models", [])
+        if models:
+            add_component(models[0])
             
-        # Only add category if we don't have a model (Adidas Gazelle vs Adidas Shoes)
-        if not intent_payload.get("models"):
-            for cat in intent_payload.get("categories", []):
-                add_component(cat)
-                break
+        if not models:
+            categories = intent_payload.get("categories", [])
+            if categories:
+                add_component(categories[0])
                 
-        # If we have no context to add, don't rewrite (unless we want to clean stopwords)
         if not context_components:
             return original_query
 
-        # 2. Gather Refinement Components from current query
-        # We want to extract "new" information: Color, Size, Price, etc.
-        # or fall back to a cleaned version of the raw query.
+        # Add refinement tokens
         refinement_components = []
-        
-        # Check extracted entities from the CURRENT query (entity_payload)
-        current_entities = entity_payload.get("entities", {})
-        has_new_entities = False
-        
-        for label, values in current_entities.items():
-            if label not in ["BRAND", "CATEGORY", "PRODUCT_TYPE", "MODEL"]: 
-                for v in values:
-                    if str(v).lower() not in seen_tokens:
-                        refinement_components.append(str(v))
-                        has_new_entities = True
-        
-        if not has_new_entities:
-            # Fallback: Clean stopwords from original query
-            # This handles cases where valid keywords weren't picked up by NER
-            stopwords = {
-                "i", "want", "them", "to", "be", "make", "show", "me", "find", 
-                "looking", "for", "are", "is", "of", "with", "in", "a", "an", "the",
-                "and", "or", "search", "get",
-                "can", "could", "would", "should", "will", "they", "it", "please"
-            }
-            words = original_query.split()
-            cleaned_words = [w for w in words if w.lower() not in stopwords]
-            
-            # Add remaining words if they aren't duplicates
-            for w in cleaned_words:
-                if w.lower() not in seen_tokens:
-                    refinement_components.append(w)
+        for w in meaningful_words:
+            if w.lower() not in seen_tokens:
+                refinement_components.append(w)
                     
-        # 3. Combine
         final_query = " ".join(context_components + refinement_components)
         return final_query.strip()
 

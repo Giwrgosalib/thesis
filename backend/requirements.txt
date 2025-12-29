@@ -1,6 +1,6 @@
 flask==2.3.3
 flask_cors==5.0.1
-Werkzeug<2.1
+
 
 requests==2.32.3
 python-dotenv==1.1.0
@@ -20,8 +20,8 @@ cryptography>=3.4.7
 selenium==3.141.0
 
 torch>=2.0.0
-torchcrf==1.1.0
-transformers==4.39.3
+pytorch-crf==0.7.2
+transformers==4.44.2
 sentencepiece==0.2.0
 tiktoken==0.7.0
 protobuf>=3.19.0

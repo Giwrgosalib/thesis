@@ -1,0 +1,52 @@
+
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.gpu
+    ports:
+      - "5000:5000"
+    environment:
+      - FLASK_ENV=development
+      - FLASK_APP=backend/app.py
+      # Ensure CUDA is visible
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+    volumes:
+      # Mount code for hot-reloading (optional, but good for dev)
+      - .:/app
+      # Avoid overwriting container deps with local venv
+      - /app/venv
+      - /app/__pycache__
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    command: python -u backend/app.py
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    environment:
+      - CHOKIDAR_USEPOLLING=true # Better file watching on Windows/Docker
+
+  ngrok:
+    image: ngrok/ngrok:latest
+    restart: unless-stopped
+    command: http --domain=secure-openly-moth.ngrok-free.app backend:5000
+    env_file:
+      - backend/.env
+    ports:
+      - "4040:4040"
+    depends_on:
+      - backend

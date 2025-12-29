@@ -1,0 +1,39 @@
+# Version Control
+.git/
+.gitignore
+
+# Python Environments (CRITICAL: Prevents 2GB+ copy)
+venv/
+env/
+.venv/
+__pycache__/
+*.pyc
+
+# Node Modules (If dependent on local install)
+node_modules/
+frontend/node_modules/
+
+# IDE settings
+.vscode/
+.idea/
+
+# Backend Artifacts
+*.db
+*.sqlite
+server.log
+debug_out.txt
+conversation_log.txt
+
+# Temp files
+tmp/
+*.log
+
+# Large binaries not needed for build (optional)
+ngrok.exe
+backend_nextgen.zip
+
+# Heavy data directories
+data/
+backend_nextgen/models/ # If these are downloaded at runtime or mapped via volume
+backend_nextgen/knowledge/
+docs_notes/

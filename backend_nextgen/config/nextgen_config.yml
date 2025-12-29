@@ -20,7 +20,7 @@ retrieval:
   top_k: 20
 
 rag:
-  generator_name: C:/Users/giwrg/Desktop/unified-repo/backend_nextgen/models/query_rewriter
+  generator_name: backend_nextgen/models/query_rewriter
   max_context_docs: 5
   response_max_tokens: 384
   temperature: 0.4

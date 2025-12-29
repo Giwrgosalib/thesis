@@ -249,7 +249,7 @@ class EBayNLP:
                     use_attention=self.model_config.get('use_attention', True),
                     use_char_embeddings=self.model_config.get('use_char_embeddings', False)
                 )
-                self.ner_model.load_state_dict(torch.load(self.ner_model_path, map_location=self.device))
+                self.ner_model.load_state_dict(torch.load(self.ner_model_path, map_location=self.device, weights_only=False))
                 self.ner_model.to(self.device)
                 print("Loaded trained from-scratch NER model.")
             except Exception as e:

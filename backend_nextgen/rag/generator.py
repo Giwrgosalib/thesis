@@ -37,9 +37,9 @@ class GenerativeResponder:
         self.is_encoder_decoder = config.is_encoder_decoder
 
         if self.is_encoder_decoder:
-            self.model = AutoModelForSeq2SeqLM.from_pretrained(load_target, weights_only=False)
+            self.model = AutoModelForSeq2SeqLM.from_pretrained(load_target)
         else:
-            self.model = AutoModelForCausalLM.from_pretrained(load_target, weights_only=False)
+            self.model = AutoModelForCausalLM.from_pretrained(load_target)
             
         self.model.to(self.device)
         self.max_tokens = max_tokens

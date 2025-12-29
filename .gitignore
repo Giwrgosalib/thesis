@@ -44,13 +44,9 @@ backend/__pycache__/
 thesis/
 docs_notes/
 
-
-
-
-# Scripts (Ignore all by default, keep essentials)
-scripts/
-!scripts/start_dev.py
-!scripts/start_demo.py
-!scripts/verify_nextgen.py
-
+# Temp files
 tmp/
+
+# Utility scripts (benchmarks, training, testing - not needed for production)
+scripts/
+backend_nextgen/scripts/
