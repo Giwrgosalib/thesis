@@ -40,6 +40,18 @@ def handle_query():
     
     user_context = dict(base_context)
     user_id = user_context.get("userId") or user_context.get("user_id")
+    # Also check top-level user_id if not in context
+    if not user_id:
+        user_id = payload.get("user_id")
+
+    session_token = payload.get("session_token")
+
+    # Security Check: Enforce login
+    if not user_id or not session_token:
+        return jsonify({
+            "error": "Authentication required. You are not logged in.",
+            "message": "Please sign in to use the AI assistant."
+        }), 401
 
     if preference_loader and user_id:
         try:
@@ -53,8 +65,16 @@ def handle_query():
             user_context["preferences"] = snapshot
 
     try:
-        # orchestrator is already imported at module level
-        result = orchestrator.handle_query(query, user_context, limit=limit, offset=offset, history=history)
+        # Pass exclude_ids from payload to orchestrator
+        exclude_ids = payload.get("exclude_ids", [])
+        result = orchestrator.handle_query(
+            query, 
+            user_context, 
+            limit=limit, 
+            offset=offset, 
+            history=history,
+            exclude_ids=exclude_ids
+        )
         
         # Save history if configured
         if preference_writer and user_id:
@@ -72,10 +92,20 @@ def handle_query():
                     "Preference writer failed for user %s: %s", user_id, exc, exc_info=True
                 )
 
+        # Adapter for frontend which expects 'response'
+        if "answer" in result:
+            result["response"] = result["answer"]
+
         return jsonify(result)
     except Exception as e:
         current_app.logger.error(f"Query error: {e}", exc_info=True)
         return jsonify({'error': str(e)}), 500
+
+
+@blueprint.route("/chat", methods=["POST"])
+def handle_chat():
+    """Alias for /query to match frontend expectations"""
+    return handle_query()
 
 
 @blueprint.route("/metrics", methods=["GET"])

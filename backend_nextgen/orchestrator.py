@@ -166,7 +166,7 @@ class NextGenAIOrchestrator:
             self.rewrite_tokenizer = None
 
     def handle_query(
-        self, query: str, user_context: Dict[str, Any], limit: int = 10, offset: int = 0, history: List[str] = None
+        self, query: str, user_context: Dict[str, Any], limit: int = 10, offset: int = 0, history: List[str] = None, exclude_ids: List[str] = None
     ) -> Dict[str, Any]:
         """
         Synchronous query handler that returns the full response.
@@ -210,7 +210,21 @@ class NextGenAIOrchestrator:
 
         # Pass pagination params
         ebay_items = self._search_ebay(intent_payload, user_context, limit=limit, offset=offset)
-        normalized_items = [self._normalize_item(item) for item in ebay_items]
+        
+        # Deduplicate results by ID AND filter out already seen IDs
+        all_excluded = set(exclude_ids or [])
+        seen_now = set()
+        unique_ebay_items = []
+        
+        for item in ebay_items:
+            norm = self._normalize_item(item)
+            iid = norm.get("item_id")
+            if iid not in all_excluded and iid not in seen_now:
+                unique_ebay_items.append(norm)
+                seen_now.add(iid)
+        
+        # Take up to the requested limit
+        normalized_items = unique_ebay_items[:limit]
 
         reranked = self._rerank_items(query, normalized_items, user_context)
 
@@ -283,36 +297,39 @@ class NextGenAIOrchestrator:
     def _rewrite_query_with_llm(self, current_query: str, history: List[str]) -> str:
         """
         Use the custom LLM to rewrite the current query based on conversation history.
-        Smartly detects if the new query is a refinement or a topic switch.
+        Simplified prompt to prevent instruction echoing.
         """
         if not history:
             return current_query
 
-        history_str = " | ".join(history[-3:]) if history else ""
+        history_str = " | ".join(history[-2:]) # Only last 2 for focus
         prompt = (
-            f"Conversation History: {history_str}\n"
-            f"Current Input: {current_query}\n"
-            "Task: Rewrite 'Current Input' to be a standalone search query. "
-            "Rules:\n"
-            "1. If 'Current Input' is a refinement (e.g. 'under $100', 'black', 'men s'), combine it with the main product from History.\n"
-            "2. If 'Current Input' is a NEW product search (e.g. 'iphone 15', 'nike shoes'), IGNORE History and return 'Current Input' exactly as is.\n"
-            "3. Do not add conversational text.\n"
-            "Output:"
+            f"History: {history_str}\n"
+            f"Current: {current_query}\n"
+            "Query:"
         )
 
         try:
             rewritten = self.generator.generate(prompt)
-            if rewritten.startswith(prompt):
-                rewritten = rewritten[len(prompt):]
             
-            # Clean up response
+            # Basic cleanup
             cleaned = rewritten.strip().split("\n")[0].strip()
             
-            # Remove potential prefixes like "Output:", "Query:", etc.
-            if ":" in cleaned:
-                cleaned = cleaned.split(":", 1)[1].strip()
-                
-            if not cleaned:
+            # Remove any leading "Query:" or "Output:" if the model added it
+            for prefix in ["Query:", "Output:", "Search Query:", "Rewritten query:"]:
+                if cleaned.lower().startswith(prefix.lower()):
+                    cleaned = cleaned[len(prefix):].strip()
+
+            # Guard against echoing the prompt components or instructions
+            hallucination_triggers = [
+                "return the optimal", "search query for", "current input",
+                "history:", "current:", "task:", "rules:"
+            ]
+            if any(trigger in cleaned.lower() for trigger in hallucination_triggers):
+                logger.warning(f"LLM echoed prompt guidelines; falling back: '{cleaned}'")
+                return current_query
+
+            if not cleaned or len(cleaned) < 2:
                 return current_query
 
             return cleaned
@@ -468,7 +485,7 @@ class NextGenAIOrchestrator:
         return final_query.strip()
 
     def handle_query_stream(
-        self, query: str, user_context: Dict[str, Any], limit: int = 10, offset: int = 0
+        self, query: str, user_context: Dict[str, Any], limit: int = 10, offset: int = 0, exclude_ids: List[str] = None
     ):
         """
         Generator that yields events for the conversational pipeline.
@@ -491,7 +508,21 @@ class NextGenAIOrchestrator:
         
         # Pass pagination params
         ebay_items = self._search_ebay(intent_payload, user_context, limit=limit, offset=offset)
-        normalized_items = [self._normalize_item(item) for item in ebay_items]
+        
+        # Deduplicate results by ID AND filter out already seen IDs
+        all_excluded = set(exclude_ids or [])
+        seen_now = set()
+        unique_ebay_items = []
+        
+        for item in ebay_items:
+            norm = self._normalize_item(item)
+            iid = norm.get("item_id")
+            if iid not in all_excluded and iid not in seen_now:
+                unique_ebay_items.append(norm)
+                seen_now.add(iid)
+        
+        # Take up to the requested limit
+        normalized_items = unique_ebay_items[:limit]
 
         yield {"type": "status", "content": "Ranking best matches..."}
 
@@ -786,16 +817,11 @@ class NextGenAIOrchestrator:
         if not preferences:
             return intent_payload
 
-        def _merge_list(target_key: str, preference_key: str) -> None:
-            additions = preferences.get(preference_key) or []
-            if not additions:
-                return
-            existing = intent_payload.get(target_key) or []
-            merged = list(dict.fromkeys(list(existing) + [str(item) for item in additions if item]))
-            intent_payload[target_key] = merged
-
-        _merge_list("brands", "brands")
-        _merge_list("categories", "categories")
+        # We no longer merge brands/categories into hard search filters here. 
+        # Instead, these preferences are used during the re-ranking phase as soft boosts.
+        # This prevents over-personalization from breaking broad searches (e.g. searching MacBook 
+        # while having a 'Nike' brand preference).
+        
         if not intent_payload.get("price_range") and preferences.get("price_ranges"):
             intent_payload["price_range"] = preferences["price_ranges"][0]
         if preferences.get("shipping"):
@@ -811,8 +837,22 @@ class NextGenAIOrchestrator:
         user_id = None
         if isinstance(user_context, dict):
             user_id = user_context.get("userId") or user_context.get("user_id")
+        
+        # Buffer the fetch limit significantly to allow room for filtering
+        # eBay max is usually 100 or 50 depending on endpoint
+        # eBay Browse API strict requirement: offset must be a multiple of limit.
+        # We align the offset downwards to the nearest multiple and use the requested limit.
+        search_limit = limit if limit > 0 else 10
+        aligned_offset = (offset // search_limit) * search_limit
+        
         try:
-            return self.ebay_service.search(intent_payload, user_id=user_id, limit=limit, offset=offset)
+            results = self.ebay_service.search(
+                intent_payload, 
+                user_id=user_id, 
+                limit=search_limit, 
+                offset=aligned_offset
+            )
+            return results
         except Exception as exc:
             # Log metric and fall back to vector index
             self.metric_sink.log(
@@ -1209,8 +1249,14 @@ class NextGenAIOrchestrator:
         items: List[Dict[str, Any]],
         entity_payload: Dict[str, Any],
     ) -> str:
+        import random
         if not items:
-            return "I couldn't find any active listings that match your request."
+            options = [
+                "I couldn't find any active listings for that right now.",
+                "It looks like there are no matches on eBay at the moment.",
+                "I searched everywhere, but came up empty for that specific request."
+            ]
+            return random.choice(options)
 
         top = items[0]
         runner_up = items[1] if len(items) > 1 else None
@@ -1224,17 +1270,41 @@ class NextGenAIOrchestrator:
         def describe(item: Dict[str, Any]) -> str:
             title = item.get("title", "Listing")
             price = self._format_price(item.get("price"))
-            seller = self._format_seller(item.get("seller"))
             condition = item.get("condition")
+            
             parts = []
-            if price:
-                parts.append(f"{price}")
             if condition:
                 parts.append(condition)
-            if seller:
-                parts.append(f"seller {seller}")
-            core = ", ".join(parts) if parts else "available now"
+            if price:
+                parts.append(f"for {price}")
+            
+            core = " ".join(parts) if parts else "available now"
             return f"{title} ({core})"
+
+        intro_templates = [
+            "Here's the best match I found",
+            "I found this great option",
+            "Check out this top pick",
+            "This looks like a solid match"
+        ]
+        intro = random.choice(intro_templates)
+        
+        if brand:
+            intro += f" for {brand}"
+        intro += ": "
+
+        message = intro + describe(top)
+
+        if runner_up:
+            transitions = [
+                "Another good option is",
+                "You might also like",
+                "I also found"
+            ]
+            message += f". {random.choice(transitions)} {describe(runner_up)}"
+
+        message += "."
+        return message
 
         summary = describe(top)
         intro = "Here's the best match I found"

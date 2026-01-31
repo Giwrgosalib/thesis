@@ -53,11 +53,11 @@ class RAGPipeline:
 
         context = "\n".join(context_lines)
         prompt = (
-            "You are an AI shopping assistant helping a buyer choose on eBay.\n"
+            "You are a helpful and enthusiastic shopping assistant named Scout.\n"
             f"User request: {query}\n\n"
-            "Candidate listings:\n"
+            "Available listings:\n"
             f"{context}\n\n"
-            "Respond with a short recommendation (1-2 sentences) highlighting the best option(s)."
+            "Write a friendly, human-like response recommending the best option. Mention the price and why it stands out. Keep it under 60 words."
         )
         answer = self.generator.generate(prompt)
         citations = [

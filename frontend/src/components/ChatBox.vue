@@ -1,17 +1,16 @@
-<!-- eslint-disable prettier/prettier -->
 <template>
   <!-- Only the button is visible - opens app in new tab -->
-  <v-btn
-    class="chat-fab hover:scale-105 transition-transform duration-200"
+  <button
+    class="chat-fab hover:scale-110 active:scale-95 transition-all duration-300 flex items-center justify-center cursor-pointer group"
     @click="openAppInNewTab"
   >
-    <div class="ebay-logo">
-      <span class="e">e</span>
-      <span class="b">b</span>
-      <span class="a">a</span>
-      <span class="y">y</span>
+    <div class="flex items-center font-black text-lg tracking-tighter">
+      <span class="text-[#e53238]">e</span>
+      <span class="text-[#0064d2]">b</span>
+      <span class="text-[#f5af02]">a</span>
+      <span class="text-[#86b817]">y</span>
     </div>
-  </v-btn>
+  </button>
 </template>
 
 <script>
@@ -20,7 +19,7 @@ export default {
   methods: {
     openAppInNewTab() {
       // Open the full app in a new tab
-      const appUrl = window.location.origin; // This will be your app's base URL
+      const appUrl = window.location.origin;
       window.open(appUrl, "_blank");
     },
   },
@@ -28,39 +27,24 @@ export default {
 </script>
 
 <style scoped>
-/* Keep only the FAB button styling */
 .chat-fab {
   position: fixed;
-  bottom: 20px;
-  right: 20px;
-  z-index: 100;
-  width: 60px;
-  height: 60px;
+  bottom: 24px;
+  left: 24px;
+  z-index: 9999;
+  width: 56px;
+  height: 56px;
   border-radius: 50%;
   background-color: white;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12), 0 2px 4px rgba(0, 0, 0, 0.05);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  outline: none;
 }
 
-/* eBay logo styling */
-.ebay-logo {
-  font-weight: bold;
-  font-size: 1.2rem;
-  letter-spacing: -0.5px;
-}
-
-.ebay-logo .e {
-  color: #e53238;
-}
-
-.ebay-logo .b {
-  color: #0064d2;
-}
-
-.ebay-logo .a {
-  color: #f5af02;
-}
-
-.ebay-logo .y {
-  color: #86b817;
+.chat-fab:hover {
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
 }
 </style>

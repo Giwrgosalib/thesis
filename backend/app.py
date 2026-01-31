@@ -5,7 +5,10 @@ import logging
 import os
 from pymongo import MongoClient
 from pymongo.errors import ConnectionFailure
+from pathlib import Path
+dotenv_path = Path(__file__).parent / ".env"
 from dotenv import load_dotenv
+load_dotenv(dotenv_path=dotenv_path)
 import time
 from metrics import analyze_feedback_data, analyze_user_preferences, analyze_training_dataset
 from urllib.parse import quote_plus, urljoin

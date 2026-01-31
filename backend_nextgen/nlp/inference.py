@@ -108,9 +108,17 @@ class TransformerNERInference:
         }
 
     def _tokens_to_text(self, tokens: List[str]) -> str:
-        # Merge WordPiece-style tokens into readable text
+        # Improved decoding for both WordPiece (##) and SentencePiece ( )
+        # Using the tokenizer's method is safest if available, but manual fallback below:
+        if hasattr(self.tokenizer, "convert_tokens_to_string"):
+            return self.tokenizer.convert_tokens_to_string(tokens).strip()
+            
+        # Fallback manual reconstruction
         clean_tokens: List[str] = []
         for token in tokens:
+            # Handle SentencePiece underscore
+            token = token.replace(" ", " ")
+            
             if token.startswith("##"):
                 if clean_tokens:
                     clean_tokens[-1] += token[2:]
@@ -118,4 +126,4 @@ class TransformerNERInference:
                     clean_tokens.append(token[2:])
             else:
                 clean_tokens.append(token)
-        return " ".join(clean_tokens)
+        return " ".join(clean_tokens).strip()

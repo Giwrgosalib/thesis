@@ -1,5 +1,3 @@
-
-
 services:
   backend:
     build:
@@ -43,7 +41,7 @@ services:
   ngrok:
     image: ngrok/ngrok:latest
     restart: unless-stopped
-    command: http --domain=secure-openly-moth.ngrok-free.app backend:5000
+    command: http --domain=secure-openly-moth.ngrok-free.app frontend:8080
     env_file:
       - backend/.env
     ports:

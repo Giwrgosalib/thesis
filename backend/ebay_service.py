@@ -10,7 +10,10 @@ from pymongo.collection import Collection  # Import Collection type hint
 # Set up logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
-load_dotenv()
+from pathlib import Path
+dotenv_path = Path(__file__).parent / ".env"
+from dotenv import load_dotenv
+load_dotenv(dotenv_path=dotenv_path)
 
 class EBayService:
     """Service for interacting with eBay API"""
@@ -102,9 +105,15 @@ class EBayService:
             "offset": str(offset)
         }
 
+        category = self._get_category(intent)
+        categoryId = self._get_category_id(category)
         filters = self._build_filters(intent)
         if filters:
             params["filter"] = ";".join(filters)
+
+        aspect_filters = self._build_aspect_filters(intent, categoryId)
+        if aspect_filters:
+            params["aspect_filter"] = aspect_filters
 
         # Add ML-powered sorting (can be overridden by personalization later)
         if intent.get('intent') == "buy_phone":
@@ -112,11 +121,8 @@ class EBayService:
         elif intent.get('intent') == "bargain":
             params["sort"] = "price"
 
-        category = self._get_category(intent)
-        if category:
-            category_id = self._get_category_id(category)
-            if category_id != "0":
-                params["category_ids"] = category_id
+        if categoryId and categoryId != "0":
+            params["category_ids"] = categoryId
 
         if self.use_mock:
             logger.info("Using mock data for eBay search")
@@ -140,7 +146,9 @@ class EBayService:
                 "X-EBAY-C-MARKETPLACE-ID": "EBAY_US"
             }
 
+            logger.info(f"Searching eBay API with URL: {self.search_url} and params: {params}")
             response = requests.get(self.search_url, params=params, headers=headers)
+            logger.info(f"eBay API response status: {response.status_code}")
             response.raise_for_status()
             items = response.json().get("itemSummaries", [])
 
@@ -148,7 +156,11 @@ class EBayService:
             return self._rerank_results(items, intent, user_prefs)
 
         except Exception as e:
+            import traceback
             logger.error(f"Error searching eBay API: {str(e)}")
+            if hasattr(e, 'response') and e.response is not None:
+                logger.error(f"eBay Error Body: {e.response.text}")
+            logger.error(traceback.format_exc())
             mock_results = self._get_mock_results(
                 intent.get('raw_query', ''),
                 self._get_price_range(intent),
@@ -180,16 +192,47 @@ class EBayService:
             if conditions:
                 filters.append(f"conditionIds:{','.join(conditions)}")
 
-        # Add brand filters
-        if 'brands' in intent and intent['brands']:
-            brand_filters = []
-            for brand in intent['brands']:
-                # Use exact brand match in eBay API format
-                brand_filters.append(f"itemFilter.brand:{quote_plus(brand)}")
-            if brand_filters:
-                filters.extend(brand_filters)
-
+        # BRAND is moved to aspect_filter in _build_aspect_filters
         return filters
+
+    def _build_aspect_filters(self, intent: Dict, category_id: str) -> Optional[str]:
+        """Build eBay API aspect_filter parameter from intent"""
+        # aspect_filter requires a non-zero category_id
+        if not category_id or category_id == "0":
+            return None
+
+        parts = [f"categoryId:{category_id}"]
+
+        # Add Brand
+        if 'brands' in intent and intent['brands']:
+            clean_brands = [
+                str(b) for b in intent['brands']
+                if b and not str(b).startswith('▁') and len(str(b)) > 1
+            ]
+            if clean_brands:
+                parts.append(f"Brand:{{{ '|'.join(clean_brands) }}}")
+
+        # Add other aspects if they exist in intent (often from NLP)
+        aspect_map = {
+            'COLOR': 'Color',
+            'SIZE': 'Size',
+            'WIDTH': 'Width',
+            'MATERIAL': 'Material'
+        }
+
+        for intent_key, ebay_aspect in aspect_map.items():
+            vals = intent.get(intent_key)
+            if vals:
+                if isinstance(vals, list):
+                    clean_vals = [str(v) for v in vals if v]
+                    if clean_vals:
+                        parts.append(f"{ebay_aspect}:{{{ '|'.join(clean_vals) }}}")
+                else:
+                    parts.append(f"{ebay_aspect}:{{{vals}}}")
+
+        if len(parts) > 1:
+            return ",".join(parts)
+        return None
 
     def _get_price_range(self, intent: Dict) -> Optional[str]:
         """Extract price range from intent if available"""
@@ -260,9 +303,12 @@ class EBayService:
             "industrial": "12576",
         }
 
+        if not category_name:
+            return "0"
+
         # Try to find a matching category
         for key, value in category_map.items():
-            if key.lower() in category_name.lower():
+            if key.lower() in str(category_name).lower():
                 return value
 
         # Default to a general category if no match

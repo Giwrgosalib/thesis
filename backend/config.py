@@ -9,8 +9,10 @@ from typing import Optional, Dict, Any
 from dataclasses import dataclass
 from dotenv import load_dotenv
 
-# Load environment variables
-load_dotenv()
+# Load environment variables from absolute path
+from pathlib import Path
+dotenv_path = Path(__file__).parent / ".env"
+load_dotenv(dotenv_path=dotenv_path)
 
 @dataclass
 class DatabaseConfig:

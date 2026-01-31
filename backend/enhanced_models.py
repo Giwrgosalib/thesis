@@ -207,11 +207,94 @@ class EnhancedBiLSTM_CRF(nn.Module):
         return score
     
     def neg_log_likelihood(self, sentence: torch.Tensor, tags: torch.Tensor, words: Optional[List[str]] = None):
-        """Negative log likelihood loss."""
+        """Negative log likelihood loss for single sample."""
         feats = self._get_lstm_features(sentence, words)
         forward_score = self._forward_alg(feats)
         gold_score = self._score_sentence(feats, tags)
         return forward_score - gold_score
+    
+    # =========================================================================
+    # BATCH TRAINING METHODS (for efficient GPU utilization)
+    # =========================================================================
+    
+    def _get_lstm_features_batch(self, sentences: torch.Tensor, lengths: List[int]):
+        """
+        Get LSTM features for a batch of sentences.
+        
+        Args:
+            sentences: (batch_size, max_seq_len) - padded word indices
+            lengths: List of actual sequence lengths
+            
+        Returns:
+            tag_space: (batch_size, max_seq_len, tagset_size)
+        """
+        from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
+        
+        batch_size = sentences.size(0)
+        max_len = sentences.size(1)
+        
+        # Word embeddings: (batch_size, max_seq_len, embedding_dim)
+        word_embeds = self.word_embeds(sentences)
+        word_embeds = self.embed_dropout(word_embeds)
+        
+        # Transpose for LSTM: (max_seq_len, batch_size, embedding_dim)
+        word_embeds = word_embeds.transpose(0, 1)
+        
+        # Pack sequences for efficient LSTM processing
+        packed = pack_padded_sequence(word_embeds, lengths, enforce_sorted=True)
+        
+        # LSTM forward pass
+        packed_out, _ = self.lstm(packed)
+        
+        # Unpack: (max_seq_len, batch_size, hidden_dim)
+        lstm_out, _ = pad_packed_sequence(packed_out)
+        
+        # Apply attention if enabled (simplified for batch)
+        if self.use_attention:
+            # For batch training, use simpler attention weighting
+            attention_input = lstm_out
+            attended_out, attention_weights = self.attention(attention_input)
+            attention_weights = attention_weights.unsqueeze(-1)
+            lstm_out = attention_input * attention_weights
+        
+        # Transpose back: (batch_size, max_seq_len, hidden_dim)
+        lstm_out = lstm_out.transpose(0, 1)
+        
+        # Project to tag space: (batch_size, max_seq_len, tagset_size)
+        tag_space = self.hidden2tag(lstm_out)
+        
+        return tag_space
+    
+    def neg_log_likelihood_batch(self, sentences: torch.Tensor, tags: torch.Tensor, lengths: List[int]):
+        """
+        Compute batch negative log likelihood loss.
+        
+        Args:
+            sentences: (batch_size, max_seq_len) - padded word indices
+            tags: (batch_size, max_seq_len) - padded tag indices
+            lengths: List of actual sequence lengths
+            
+        Returns:
+            loss: Scalar tensor (mean loss over batch)
+        """
+        device = sentences.device
+        batch_size = sentences.size(0)
+        
+        # Get features for entire batch at once
+        feats_batch = self._get_lstm_features_batch(sentences, lengths)
+        
+        # Compute loss for each sample (CRF doesn't easily parallelize)
+        total_loss = torch.zeros(1, device=device)
+        for i in range(batch_size):
+            seq_len = lengths[i]
+            feats = feats_batch[i, :seq_len]  # (seq_len, tagset_size)
+            sample_tags = tags[i, :seq_len]   # (seq_len,)
+            
+            forward_score = self._forward_alg(feats)
+            gold_score = self._score_sentence(feats, sample_tags)
+            total_loss = total_loss + (forward_score - gold_score)
+        
+        return total_loss / batch_size
     
     def _viterbi_decode(self, feats: torch.Tensor):
         """Viterbi decoding for inference."""
