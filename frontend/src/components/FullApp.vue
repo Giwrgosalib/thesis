@@ -26,10 +26,36 @@
         </div>
 
         <div class="flex items-center gap-2">
+          <!-- Backend Toggle -->
+          <button
+            @click="toggleBackendMode"
+            class="flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-full border transition-colors mr-2"
+            :class="
+              useLegacyBackend
+                ? 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100'
+                : 'bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-100'
+            "
+            :title="
+              useLegacyBackend
+                ? 'Using Classic Search (Legacy)'
+                : 'Using NextGen AI (Active)'
+            "
+          >
+            <v-img
+              :src="useLegacyBackend ? icons.databaseOff : icons.sparkles"
+              width="14"
+              height="14"
+              class="opacity-80"
+            ></v-img>
+            <span class="hidden sm:inline">{{
+              useLegacyBackend ? "Classic" : "NextGen AI"
+            }}</span>
+          </button>
+
           <!-- AI Status -->
           <div
-            v-if="loggedIn"
-            class="flex items-center gap-1.5 px-3 py-1 bg-green-50 text-green-700 text-xs font-semibold rounded-full border border-green-100"
+            v-if="loggedIn && !useLegacyBackend"
+            class="hidden sm:flex items-center gap-1.5 px-3 py-1 bg-green-50 text-green-700 text-xs font-semibold rounded-full border border-green-100"
           >
             <span class="relative flex h-2 w-2">
               <span
@@ -42,7 +68,6 @@
             Active
           </div>
 
-          <!-- Header Actions (Reset, Logout, etc - simplified) -->
           <!-- Header Actions (Reset, Logout) -->
           <div class="flex items-center gap-2">
             <!-- Reset Chat (Always Visible) -->
@@ -600,6 +625,9 @@ export default {
       // Dark mode state
       isDarkMode: false,
 
+      // Backend Mode State
+      useLegacyBackend: false,
+
       // Metrics panel state
       showMetricsPanel: false, // In new layout this might be hidden or modal
       metricsData: null,
@@ -712,6 +740,12 @@ export default {
     const savedDarkMode = localStorage.getItem("darkMode");
     if (savedDarkMode !== null) {
       this.isDarkMode = savedDarkMode === "true";
+    }
+
+    // Restore backend mode preference
+    const savedBackendMode = localStorage.getItem("useLegacyBackend");
+    if (savedBackendMode !== null) {
+      this.useLegacyBackend = savedBackendMode === "true";
     }
 
     const authReturn = await appAuth.checkForAuthReturn();
@@ -883,6 +917,19 @@ export default {
       this.isDarkMode = !this.isDarkMode;
       localStorage.setItem("darkMode", this.isDarkMode);
     },
+    toggleBackendMode() {
+      this.useLegacyBackend = !this.useLegacyBackend;
+      localStorage.setItem("useLegacyBackend", this.useLegacyBackend);
+      this.showSnackbar(
+        this.useLegacyBackend
+          ? "Switched to Classic Search"
+          : "Switched to NextGen AI",
+        "info",
+        this.useLegacyBackend ? this.icons.databaseOff : this.icons.sparkles
+      );
+      // Optional: Reset chat on switch to avoid context confusion?
+      // this.resetChat();
+    },
     handleEnterKey(e) {
       if (!e.shiftKey) {
         this.sendMessage();
@@ -923,41 +970,79 @@ export default {
       });
 
       try {
-        const payload = {
-          query: text,
-          user_id: this.userId,
-          session_token: this.appSessionToken,
-          history: this.messages
-            .filter((msg) => msg.text && msg.sender === "user")
-            .slice(-3)
-            .map((msg) => msg.text),
-        };
+        if (this.useLegacyBackend) {
+          // --- LEGACY BACKEND PATH ---
+          const payload = {
+            query: text,
+            limit: 12,
+            offset: 0,
+          };
 
-        const response = await fetch("/api/nextgen/chat", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
+          // Use the classic search endpoint
+          const response = await fetch("/api/classic/search", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
 
-        if (response.status === 401 || response.status === 403) {
-          this.handleSessionExpired();
-          throw new Error("Session expired");
-        }
+          if (!response.ok) {
+            throw new Error(`Classic search failed: ${response.statusText}`);
+          }
 
-        const data = await response.json();
+          const data = await response.json();
 
-        // Update the placeholder message
-        const aiMessage = this.messages[aiMessageIndex];
-        aiMessage.text = data.response;
+          // Update the placeholder message
+          const aiMessage = this.messages[aiMessageIndex];
 
-        if (data.items && data.items.length > 0) {
-          aiMessage.isProductResults = true;
-          aiMessage.products = data.items;
-          aiMessage.entitiesSummary = this.buildEntitySummary(data.entities);
-          // Automatically update showcase
-          this.activeShowcaseProducts = data.items;
+          if (data.items && data.items.length > 0) {
+            aiMessage.text = `Found ${data.items.length} items for "${text}" using Classic Search.`;
+            aiMessage.isProductResults = true;
+            aiMessage.products = data.items;
+            aiMessage.entitiesSummary = this.buildEntitySummary(data.entities);
+            // Automatically update showcase
+            this.activeShowcaseProducts = data.items;
+          } else {
+            aiMessage.text = `No items found for "${text}" using Classic Search.`;
+            aiMessage.isProductResults = false;
+          }
         } else {
-          aiMessage.isProductResults = false; // Just text
+          // --- NEXTGEN AI PATH (Existing) ---
+          const payload = {
+            query: text,
+            user_id: this.userId,
+            session_token: this.appSessionToken,
+            history: this.messages
+              .filter((msg) => msg.text && msg.sender === "user")
+              .slice(-3)
+              .map((msg) => msg.text),
+          };
+
+          const response = await fetch("/api/nextgen/chat", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+
+          if (response.status === 401 || response.status === 403) {
+            this.handleSessionExpired();
+            throw new Error("Session expired");
+          }
+
+          const data = await response.json();
+
+          // Update the placeholder message
+          const aiMessage = this.messages[aiMessageIndex];
+          aiMessage.text = data.response;
+
+          if (data.items && data.items.length > 0) {
+            aiMessage.isProductResults = true;
+            aiMessage.products = data.items;
+            aiMessage.entitiesSummary = this.buildEntitySummary(data.entities);
+            // Automatically update showcase
+            this.activeShowcaseProducts = data.items;
+          } else {
+            aiMessage.isProductResults = false; // Just text
+          }
         }
       } catch (error) {
         console.error("Chat error:", error);
@@ -1098,15 +1183,31 @@ export default {
       const fetchOffset = this.activeShowcaseProducts.length;
 
       try {
-        const payload = {
-          query: this.lastQuery,
-          user_id: this.userId,
-          session_token: this.appSessionToken,
-          offset: fetchOffset,
-          limit: this.resultsPageSize,
-        };
+        let apiEndpoint = "/api/nextgen/query";
+        let payload = {};
 
-        const response = await fetch("/api/nextgen/query", {
+        if (this.useLegacyBackend) {
+          // Classic usually doesn't support deep pagination or "Show More" in the same way,
+          // but if it does, we map it here.
+          // NOTE: Classic endpoint is /api/classic/search, assuming it supports limit/offset
+          apiEndpoint = "/api/classic/search";
+          payload = {
+            query: this.lastQuery,
+            limit: this.resultsPageSize,
+            offset: fetchOffset,
+          };
+        } else {
+          // NextGen
+          payload = {
+            query: this.lastQuery,
+            user_id: this.userId,
+            session_token: this.appSessionToken,
+            offset: fetchOffset,
+            limit: this.resultsPageSize,
+          };
+        }
+
+        const response = await fetch(apiEndpoint, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),

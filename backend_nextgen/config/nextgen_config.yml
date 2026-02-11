@@ -15,8 +15,8 @@ nlp:
 retrieval:
   encoder_name: intfloat/e5-base-v2
   embedding_dim: 768
-  index_path: data/vector_store/faiss_index.npy
-  metadata_store: data/vector_store/metadata.npy
+  index_path: backend_nextgen/data/vector_store/faiss_index.npy
+  metadata_store: backend_nextgen/data/vector_store/metadata.npy
   top_k: 20
 
 rag:
@@ -32,7 +32,7 @@ ranking:
 
 personalization:
   bandit_algorithm: contextual_thompson_sampling
-  feature_store: data/personalization/features.parquet
+  feature_store: backend_nextgen/data/personalization/features.parquet
   exploration_rate: 0.1
 
 active_learning:
@@ -41,11 +41,11 @@ active_learning:
   batch_size: 128
 
 knowledge_graph:
-  graph_store: data/knowledge_graph/kg.parquet
+  graph_store: backend_nextgen/data/knowledge_graph/kg.parquet
   embedding_model: distmult
   embedding_dim: 256
 
 observability:
-  metrics_path: data/observability/metrics.db
+  metrics_path: backend_nextgen/data/observability/metrics.db
   drift_threshold: 0.15
   alerting_webhook: https://example.com/alerts

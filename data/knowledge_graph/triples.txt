@@ -1,6 +1,0 @@
-SKU-001	has_brand	Apple
-SKU-001	has_category	Smartphones
-SKU-002	has_brand	Samsung
-SKU-002	has_category	Smartphones
-SKU-003	has_brand	Sony
-SKU-003	has_category	Audio

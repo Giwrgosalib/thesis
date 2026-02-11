@@ -42,7 +42,7 @@ class NextGenAIOrchestrator:
         self.config = load_config(config_path)
 
         observability_cfg = self.config.section("observability")
-        metrics_path = Path(observability_cfg.get("metrics_path", "data/observability/metrics.db"))
+        metrics_path = Path(observability_cfg.get("metrics_path", "backend_nextgen/data/observability/metrics.db"))
         self.metric_sink = MetricSink(metrics_path)
 
         nlp_cfg = self.config.section("nlp")

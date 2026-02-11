@@ -13,7 +13,7 @@ from backend_nextgen.observability.metrics import MetricSink, MetricRecord
 
 def log_batch_metrics(metrics: Iterable[MetricRecord], db_path: Path | None = None) -> None:
     if db_path is None:
-        db_path = Path("data/observability/metrics.db")
+        db_path = Path("backend_nextgen/data/observability/metrics.db")
     sink = MetricSink(db_path)
     for record in metrics:
         sink.log(record)

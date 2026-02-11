@@ -71,7 +71,7 @@ def run_embedding_pipeline(dataset_path: Path | None = None) -> None:
     retrieval_cfg = config.section("retrieval")
 
     if dataset_path is None:
-        dataset_path = Path("data/products.jsonl")
+        dataset_path = Path("backend_nextgen/data/products.jsonl")
 
     artifacts = build_embeddings(dataset_path, retrieval_cfg["encoder_name"])
     index_path = Path(retrieval_cfg["index_path"])

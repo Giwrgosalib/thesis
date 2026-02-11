@@ -470,8 +470,8 @@ def main():
     }
     
     # Load improved datasets
-    train_df = pd.read_csv('data/improved_dataset.csv')
-    val_df = pd.read_csv('data/improved_validation.csv')
+    train_df = pd.read_csv('backend/data/train.csv')
+    val_df = pd.read_csv('backend/data/val.csv')
     
     print(f"Training samples: {len(train_df)}")
     print(f"Validation samples: {len(val_df)}")

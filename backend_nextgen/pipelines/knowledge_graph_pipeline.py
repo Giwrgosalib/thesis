@@ -31,9 +31,9 @@ def build_triples(rows: Iterable[dict]) -> Iterable[Tuple[str, str, str]]:
 
 def run_knowledge_graph_pipeline(csv_path: Path | None = None, output_path: Path | None = None) -> None:
     if csv_path is None:
-        csv_path = Path("data/products.csv")
+        csv_path = Path("backend_nextgen/data/products.csv")
     if output_path is None:
-        output_path = Path("data/knowledge_graph/triples.txt")
+        output_path = Path("backend_nextgen/data/knowledge_graph/triples.txt")
     kg = KnowledgeGraph()
     rows = list(load_product_rows(csv_path))
     triples = list(build_triples(rows))
