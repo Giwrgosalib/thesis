@@ -24,7 +24,7 @@ class RAGPipeline:
         self.generator = generator
         self.max_context_docs = max_context_docs
 
-    def answer(self, query: str, documents: Optional[List[Dict[str, Any]]] = None) -> RAGResponse:
+    def answer(self, query: str, documents: Optional[List[Dict[str, Any]]] = None, mode: str = "search") -> RAGResponse:
         if documents is None:
             retrieved = self.retriever.retrieve(query, top_k=self.max_context_docs)
             documents = [doc.metadata for doc in retrieved]
@@ -52,13 +52,25 @@ class RAGPipeline:
             context_lines.append(line)
 
         context = "\n".join(context_lines)
-        prompt = (
-            "You are a helpful and enthusiastic shopping assistant named Scout.\n"
-            f"User request: {query}\n\n"
-            "Available listings:\n"
-            f"{context}\n\n"
-            "Write a friendly, human-like response recommending the best option. Mention the price and why it stands out. Keep it under 60 words."
-        )
+
+        if mode == "explain":
+            prompt = (
+                "You are Scout, an enthusiastic and knowledgeable shopping assistant.\n"
+                f"The user asked: {query}\n\n"
+                "Here are the products they're looking at:\n"
+                f"{context}\n\n"
+                "Explain specifically why the relevant product(s) match the user's needs. "
+                "Reference specific features, specs, or value propositions. Be conversational and helpful. Keep it under 80 words."
+            )
+        else:
+            prompt = (
+                "You are a helpful and enthusiastic shopping assistant named Scout.\n"
+                f"User request: {query}\n\n"
+                "Available listings:\n"
+                f"{context}\n\n"
+                "Write a friendly, human-like response recommending the best option. Mention the price and why it stands out. Keep it under 60 words."
+            )
+
         answer = self.generator.generate(prompt)
         citations = [
             {"item_id": doc.get("item_id"), "title": doc.get("title", ""), "score": 0.0}

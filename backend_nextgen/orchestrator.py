@@ -165,6 +165,10 @@ class NextGenAIOrchestrator:
             self.rewrite_validator = None
             self.rewrite_tokenizer = None
 
+        # Simple in-memory cache for "Why" questions (Demo purposes)
+        # Key: user_id (or "global"), Value: List[items]
+        self.last_search_cache: Dict[str, List[Dict[str, Any]]] = {}
+
     def handle_query(
         self, query: str, user_context: Dict[str, Any], limit: int = 10, offset: int = 0, history: List[str] = None, exclude_ids: List[str] = None
     ) -> Dict[str, Any]:
@@ -176,7 +180,46 @@ class NextGenAIOrchestrator:
             entity_payload = self.ner_inference.extract_entities(query)
         
         intent_payload = self._build_intent_payload(query, entity_payload)
-        
+        user_id = user_context.get("userId") or user_context.get("user_id") or "global"
+
+        # --- FIX 1: Non-search intent detection (greetings, thanks, chitchat) ---
+        non_search = self._detect_non_search_intent(query)
+        if non_search:
+            logger.info(f"Non-search intent detected for '{query}': {non_search['type']}")
+            cached = self.last_search_cache.get(user_id, [])
+            return {
+                "items": cached,
+                "entities": {},
+                "citations": [],
+                "recommendation": {},
+                "answer": non_search["response"],
+                "response": non_search["response"],
+                "reasoning_steps": [f"Detected {non_search['type']} intent."],
+                "suggestions": self._generate_history_suggestions(user_context)
+            }
+
+        # --- FIX: Informational follow-up ("Why?", "Tell me more") ---
+        is_informational = self._is_informational_query(query)
+        if is_informational and user_id in self.last_search_cache:
+            logger.info(f"Detected informational query '{query}'. Skipping search, using cached results.")
+            cached_items = self.last_search_cache[user_id]
+            rag_response = None
+            if self.rag:
+                try:
+                    rag_response = self.rag.answer(query, cached_items, mode="explain")
+                except Exception as exc:
+                    logger.error(f"RAG error on info query: {exc}")
+            answer_text = rag_response.answer if rag_response else "I couldn't generate an explanation."
+            return {
+                "items": cached_items,
+                "entities": intent_payload.get("entities", {}),
+                "citations": [],
+                "recommendation": {},
+                "answer": answer_text,
+                "reasoning_steps": ["Detected follow-up question.", "Used previous search results as context."],
+                "suggestions": self._generate_history_suggestions(user_context)
+            }
+
         # Enrich with conversational context (history)
         if history:
             # Try LLM first
@@ -204,6 +247,23 @@ class NextGenAIOrchestrator:
         # we reconstruct the raw_query to ensure the search engine gets the full product context
         # plus the new refinement criteria.
         reconstructed_query = self._reconstruct_search_query(intent_payload, entity_payload)
+        
+        # apply exclusions to query string (Negation Handling)
+        excluded_brands = intent_payload.get("excluded_brands", [])
+        if excluded_brands:
+             # Add "-Brand" to the query string for eBay/Search
+             for brand in excluded_brands:
+                 # Remove the "not Brand" phrase from the query to clean it up
+                 # Only replace the first occurrence to avoid over-cleaning
+                 reconstructed_query = reconstructed_query.replace(f"not {brand}".lower(), "").replace(f"no {brand}".lower(), "")
+                 reconstructed_query = reconstructed_query.replace(f"not {brand}", "").replace(f"no {brand}", "") # Case sensitive attempt too
+                 
+                 reconstructed_query += f" -{brand}"
+             
+             # Clean up double spaces
+             reconstructed_query = " ".join(reconstructed_query.split())
+             logger.info(f"Applied exclusions to query: {reconstructed_query}")
+
         if reconstructed_query != intent_payload["raw_query"]:
             logger.info(f"Rewriting query for search: '{intent_payload['raw_query']}' -> '{reconstructed_query}'")
             intent_payload["raw_query"] = reconstructed_query
@@ -225,6 +285,10 @@ class NextGenAIOrchestrator:
         
         # Take up to the requested limit
         normalized_items = unique_ebay_items[:limit]
+
+        # Cache these results for potential "Why" questions next turn
+        if user_id:
+             self.last_search_cache[user_id] = normalized_items
 
         reranked = self._rerank_items(query, normalized_items, user_context)
 
@@ -426,30 +490,17 @@ class NextGenAIOrchestrator:
             "i", "want", "them", "to", "be", "make", "show", "me", "find", 
             "looking", "for", "are", "is", "of", "with", "in", "a", "an", "the",
             "and", "or", "search", "get", "can", "could", "would", "should", 
-            "will", "they", "it", "please", "some", "any", "more"
+            "will", "they", "it", "please", "some", "any", "more",
+            "actually", "instead", "change", "only", "prefer", "rather", "but"
         }
         meaningful_words = [w for w in original_query.split() if w.lower() not in stopwords and len(w) > 1]
         
-        if len(meaningful_words) >= 3:
-            # 3+ meaningful words = likely a new product search, not a refinement
+        if len(meaningful_words) >= 4: # Increased threshold slightly
+            # 4+ meaningful words = likely a new product search, not a refinement
             logger.debug(f"Query '{original_query}' has {len(meaningful_words)} meaningful words; treating as new search")
             return original_query
         
-        # --- Heuristic 3: Check for product-like patterns ---
-        # Alphanumeric model numbers, brand-like capitalized words, etc.
-        query_lower = original_query.lower()
-        product_indicators = [
-            "iphone", "macbook", "samsung", "galaxy", "pixel", "sony", "lg", "dell",
-            "hp", "lenovo", "asus", "acer", "nike", "adidas", "puma", "reebok",
-            "playstation", "xbox", "nintendo", "airpods", "watch", "ipad", "surface"
-        ]
-        if any(indicator in query_lower for indicator in product_indicators):
-            logger.debug(f"Query '{original_query}' contains product indicator; treating as new search")
-            return original_query
-        
-        # --- Refinement Mode: This is likely a short refinement query ---
-        # Only now do we prepend context from history
-        
+        # --- Refinement Mode: Prepend structured context from history ---
         context_components = []
         seen_tokens = set()
         
@@ -458,42 +509,37 @@ class NextGenAIOrchestrator:
                 context_components.append(str(value))
                 seen_tokens.add(str(value).lower())
 
-        # Only take the FIRST brand/model/category (not all user preferences!)
         brands = intent_payload.get("brands", [])
         if brands:
             add_component(brands[0])
-            
+
         models = intent_payload.get("models", [])
         if models:
             add_component(models[0])
-            
-        if not models:
-            categories = intent_payload.get("categories", [])
-            if categories:
-                add_component(categories[0])
+
+        categories = intent_payload.get("categories", [])
+        if categories:
+            add_component(categories[0])
                 
         if not context_components:
             return original_query
 
-        # Add refinement tokens
+        # Add refinement tokens, avoiding duplicates
         refinement_components = []
         for w in meaningful_words:
             if w.lower() not in seen_tokens:
-                refinement_components.append(w)
+                if not any(w.lower() in t or t in w.lower() for t in seen_tokens):
+                    refinement_components.append(w)
                     
         final_query = " ".join(context_components + refinement_components)
         return final_query.strip()
 
     def handle_query_stream(
-        self, query: str, user_context: Dict[str, Any], limit: int = 10, offset: int = 0, exclude_ids: List[str] = None
+        self, query: str, user_context: Dict[str, Any], limit: int = 10, offset: int = 0, exclude_ids: List[str] = None, history: List[str] = None
     ):
         """
         Generator that yields events for the conversational pipeline.
-        Events:
-        - {"type": "status", "content": "..."}
-        - {"type": "results", "content": [...]}
-        - {"type": "token", "content": "..."}
-        - {"type": "done", "content": ""}
+        Mirrors handle_query preprocessing but yields incremental events.
         """
         yield {"type": "status", "content": "Analyzing your request..."}
         
@@ -501,19 +547,70 @@ class NextGenAIOrchestrator:
         if self.ner_inference:
             entity_payload = self.ner_inference.extract_entities(query)
         
+        intent_payload = self._build_intent_payload(query, entity_payload)
+        user_id = user_context.get("userId") or user_context.get("user_id") or "global"
+
+        # Non-search intent (greetings, thanks)
+        non_search = self._detect_non_search_intent(query)
+        if non_search:
+            yield {"type": "token", "content": non_search["response"]}
+            yield {"type": "done", "content": ""}
+            return
+
+        # Informational follow-up ("Why?", "Tell me more")
+        is_informational = self._is_informational_query(query)
+        if is_informational and user_id in self.last_search_cache:
+            cached_items = self.last_search_cache[user_id]
+            yield {"type": "results", "content": {"items": cached_items, "entities": {}, "citations": [], "recommendation": {}}}
+            rag_response = None
+            if self.rag:
+                try:
+                    rag_response = self.rag.answer(query, cached_items, mode="explain")
+                except Exception:
+                    pass
+            answer = rag_response.answer if rag_response else "I couldn't generate an explanation."
+            yield {"type": "token", "content": answer}
+            yield {"type": "done", "content": ""}
+            return
+
         yield {"type": "status", "content": "Searching for products..."}
 
-        intent_payload = self._build_intent_payload(query, entity_payload)
+        # Context enrichment from history
+        if history:
+            if self.generator:
+                try:
+                    rewritten = self._rewrite_query_with_llm(query, history)
+                    if rewritten and rewritten != query:
+                        intent_payload["raw_query"] = rewritten
+                        if self.ner_inference:
+                            entity_payload = self.ner_inference.extract_entities(rewritten)
+                            intent_payload = self._build_intent_payload(rewritten, entity_payload)
+                except Exception:
+                    intent_payload = self._enrich_with_context(intent_payload, history)
+            else:
+                intent_payload = self._enrich_with_context(intent_payload, history)
+
         intent_payload = self._merge_user_preferences(intent_payload, user_context)
-        
-        # Pass pagination params
+
+        # Query reconstruction + negation exclusions
+        reconstructed_query = self._reconstruct_search_query(intent_payload, entity_payload)
+        excluded_brands = intent_payload.get("excluded_brands", [])
+        if excluded_brands:
+            for brand in excluded_brands:
+                reconstructed_query = reconstructed_query.replace(f"not {brand}".lower(), "").replace(f"no {brand}".lower(), "")
+                reconstructed_query = reconstructed_query.replace(f"not {brand}", "").replace(f"no {brand}", "")
+                reconstructed_query += f" -{brand}"
+            reconstructed_query = " ".join(reconstructed_query.split())
+
+        if reconstructed_query != intent_payload["raw_query"]:
+            intent_payload["raw_query"] = reconstructed_query
+
         ebay_items = self._search_ebay(intent_payload, user_context, limit=limit, offset=offset)
         
-        # Deduplicate results by ID AND filter out already seen IDs
+        # Deduplicate
         all_excluded = set(exclude_ids or [])
         seen_now = set()
         unique_ebay_items = []
-        
         for item in ebay_items:
             norm = self._normalize_item(item)
             iid = norm.get("item_id")
@@ -521,28 +618,21 @@ class NextGenAIOrchestrator:
                 unique_ebay_items.append(norm)
                 seen_now.add(iid)
         
-        # Take up to the requested limit
         normalized_items = unique_ebay_items[:limit]
+
+        # Cache for "Why" questions
+        if user_id:
+            self.last_search_cache[user_id] = normalized_items
 
         yield {"type": "status", "content": "Ranking best matches..."}
 
         reranked = self._rerank_items(query, normalized_items, user_context)
 
-        features = self._build_personalization_features(
-            intent_payload, normalized_items, user_context
-        )
-        recommendation = self.bandit.select(
-            [
-                (
-                    item.item_id,
-                    features,
-                    item.payload,
-                )
-                for item in reranked
-            ]
-        )
+        features = self._build_personalization_features(intent_payload, normalized_items, user_context)
+        recommendation = self.bandit.select([
+            (item.item_id, features, item.payload) for item in reranked
+        ])
 
-        # Yield results immediately
         yield {
             "type": "results", 
             "content": {
@@ -553,10 +643,6 @@ class NextGenAIOrchestrator:
             }
         }
 
-        # If this is a "Show More" request (offset > 0), we might skip RAG or keep it brief.
-        # For now, we always generate a response if it's the first page, 
-        # or a brief "Here are more results" if it's a subsequent page.
-        
         if offset > 0:
             yield {"type": "token", "content": "Here are some more results matching your criteria."}
             yield {"type": "done", "content": ""}
@@ -567,35 +653,20 @@ class NextGenAIOrchestrator:
         rag_response = None
         if self.rag:
             try:
-                # TODO: If RAG supports streaming, hook it up here. 
-                # For now, we simulate streaming the generated text.
                 rag_response = self.rag.answer(query, normalized_items)
             except Exception as exc:
                 self.metric_sink.log(
-                    MetricRecord(
-                        name="nextgen_rag_error",
-                        value=1.0,
-                        metadata={"error": str(exc)[:120]},
-                    )
+                    MetricRecord(name="nextgen_rag_error", value=1.0, metadata={"error": str(exc)[:120]})
                 )
-                rag_response = None
 
         answer_text = self._select_answer(rag_response, reranked, normalized_items, entity_payload)
-
-        self.metric_sink.log(
-            MetricRecord(
-                name="nextgen_response_latency_ms",
-                value=42.0, # Placeholder, ideally measure start-end time
-                metadata={"query": query[:50]},
-            )
-        )
 
         # Simulate token streaming
         import time
         tokens = answer_text.split(" ")
         for token in tokens:
             yield {"type": "token", "content": token + " "}
-            time.sleep(0.02) # Artificial delay for "typing" effect
+            time.sleep(0.02)
 
         yield {"type": "done", "content": ""}
 
@@ -721,6 +792,42 @@ class NextGenAIOrchestrator:
 
     def _build_intent_payload(self, query: str, entity_payload: Dict[str, Any]) -> Dict[str, Any]:
         entities = entity_payload.get("entities", {}) if entity_payload else {}
+        query_lower = query.lower()
+
+        # --- Negation Handling (Brands) ---
+        negation_words = ["not", "no", "except", "without", "exclude", "don't", "dont", "doesn't", "doesnt"]
+        excluded_brands = []
+        kept_brands = []
+        for brand in entities.get("BRAND", []):
+            brand_lower = str(brand).lower()
+            pattern_index = query_lower.find(brand_lower)
+            is_excluded = False
+            if pattern_index > 0:
+                preceding = query_lower[max(0, pattern_index - 25):pattern_index]
+                if any(neg in preceding.split() for neg in negation_words):
+                    is_excluded = True
+            if is_excluded:
+                excluded_brands.append(brand)
+            else:
+                kept_brands.append(brand)
+        entities["BRAND"] = kept_brands
+
+        # --- Negation Handling (Categories) ---
+        excluded_categories = []
+        kept_categories = []
+        for cat in (entities.get("CATEGORY", []) or entities.get("PRODUCT_TYPE", [])):
+            cat_lower = str(cat).lower()
+            pattern_index = query_lower.find(cat_lower)
+            is_excluded = False
+            if pattern_index > 0:
+                preceding = query_lower[max(0, pattern_index - 25):pattern_index]
+                if any(neg in preceding.split() for neg in negation_words):
+                    is_excluded = True
+            if is_excluded:
+                excluded_categories.append(cat)
+            else:
+                kept_categories.append(cat)
+
         price_values = entities.get("PRICE_RANGE") or entities.get("PRICE_TOKEN") or []
         price_range = None
         if price_values:
@@ -731,12 +838,44 @@ class NextGenAIOrchestrator:
             "intent": "search_product",
             "entities": entities,
             "raw_entities": entity_payload.get("raw_entities", []),
-            "brands": entities.get("BRAND", []),
-            "categories": entities.get("CATEGORY", []) or entities.get("PRODUCT_TYPE", []),
+            "brands": kept_brands,
+            "excluded_brands": excluded_brands,
+            "categories": kept_categories,
+            "excluded_categories": excluded_categories,
             "models": entities.get("MODEL", []),
             "price_range": price_range,
         }
         return intent_payload
+
+    def _is_informational_query(self, query: str) -> bool:
+        """Detect if the query is asking about the previous results rather than for new products."""
+        q = query.lower().strip()
+        if q.startswith(("why", "how come", "what makes", "tell me about", "explain", "compare")):
+            return True
+        if any(ref in q for ref in [
+            "first one", "top pick", "that one", "this one", "first result",
+            "second one", "third one", "which one", "the best one",
+            "tell me more", "more about", "more info", "more details"
+        ]):
+            return True
+        return False
+
+    @staticmethod
+    def _detect_non_search_intent(query: str) -> Optional[Dict[str, str]]:
+        """Detect greetings, thanks, goodbyes, and other non-search intents."""
+        q = query.lower().strip().rstrip("!?.")
+        
+        greetings = {"hi", "hey", "hello", "hiya", "howdy", "yo", "sup", "hi there", "hey there", "hello there", "good morning", "good afternoon", "good evening"}
+        thanks = {"thanks", "thank you", "thx", "ty", "thank u", "cheers", "appreciated", "much appreciated"}
+        goodbyes = {"bye", "goodbye", "see you", "later", "see ya", "cya", "take care", "good night", "gn"}
+        
+        if q in greetings:
+            return {"type": "greeting", "response": "Hey there! 👋 I'm Scout, your AI shopping assistant. What are you looking for today?"}
+        if q in thanks:
+            return {"type": "thanks", "response": "You're welcome! Happy to help. Let me know if you need anything else! 😊"}
+        if q in goodbyes:
+            return {"type": "goodbye", "response": "See you later! Happy shopping! 🛍️"}
+        return None
 
     def _enrich_with_context(self, intent_payload: Dict[str, Any], history: List[str]) -> Dict[str, Any]:
         """
@@ -800,7 +939,16 @@ class NextGenAIOrchestrator:
                         intent_payload["models"] = models
                         intent_payload["entities"].setdefault("MODEL", []).extend(models)
                         logger.info(f"Inherited models from context: {models}")
-                
+
+                # Inherit Price if missing
+                if not intent_payload.get("price_range"):
+                    past_price = past_buckets.get("PRICE_RANGE") or past_buckets.get("PRICE_TOKEN") or []
+                    if past_price:
+                        inherited_price = ", ".join(map(str, past_price))
+                        intent_payload["price_range"] = inherited_price
+                        intent_payload["entities"].setdefault("PRICE_RANGE", []).extend(past_price)
+                        logger.info(f"Inherited price from context: {inherited_price}")
+
                 # If we found (Brand OR Model OR Category), stop looking back.
                 if intent_payload.get("categories") or intent_payload.get("brands") or intent_payload.get("models"):
                     break
@@ -1302,20 +1450,6 @@ class NextGenAIOrchestrator:
                 "I also found"
             ]
             message += f". {random.choice(transitions)} {describe(runner_up)}"
-
-        message += "."
-        return message
-
-        summary = describe(top)
-        intro = "Here's the best match I found"
-        if brand:
-            intro += f" for {brand}"
-        intro += ": "
-
-        message = intro + summary
-
-        if runner_up:
-            message += f". Another good option is {describe(runner_up)}"
 
         message += "."
         return message
