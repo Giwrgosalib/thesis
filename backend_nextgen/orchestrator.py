@@ -136,7 +136,6 @@ class NextGenAIOrchestrator:
         )
 
         self.knowledge_graph = KnowledgeGraph()
-        self.knowledge_graph = KnowledgeGraph()
         self.ebay_service = EBayService()
 
         # Load fallback dictionaries
@@ -149,6 +148,11 @@ class NextGenAIOrchestrator:
             logger.warning(f"Failed to load fallback dictionaries: {e}")
             self.fallback_categories = []
             self.fallback_brands = []
+
+        # Seed knowledge graph with brand/category relationships from fallback dicts.
+        # This enables KG-based query expansion: if a BRAND entity is found,
+        # related product categories can be appended to the search query.
+        self._seed_knowledge_graph()
 
         # Optional rewrite validator (classifier to reject hallucinations)
         self.rewrite_validator = None
@@ -175,11 +179,41 @@ class NextGenAIOrchestrator:
         """
         Synchronous query handler that returns the full response.
         """
+        _request_start = time.perf_counter()
+        _latencies: Dict[str, float] = {}
+
+        # --- NER stage ---
         entity_payload = {}
+        _t = time.perf_counter()
         if self.ner_inference:
             entity_payload = self.ner_inference.extract_entities(query)
-        
+            # Active learning: flag low-confidence predictions for human review.
+            # The UncertaintySampler surfaces examples the model is unsure about
+            # so they can be added to the annotation queue for retraining.
+            raw_ents = entity_payload.get("raw_entities", [])
+            if raw_ents:
+                try:
+                    scores = [e["score"] for e in raw_ents if "score" in e]
+                    if scores:
+                        # Build a pseudo logit matrix: low-confidence predictions
+                        # have high entropy and will be surfaced by the sampler.
+                        logits = np.array([[1 - s, s] for s in scores], dtype=np.float32)
+                        tokens = query.split()
+                        al_example = self.uncertainty_sampler.sample(logits, tokens, query)
+                        if al_example is not None:
+                            logger.info(
+                                "Active learning: low-confidence NER for '%s' "
+                                "(confidence=%.3f) — flagged for review.",
+                                query[:60], al_example.confidence,
+                            )
+                except Exception as _al_exc:
+                    logger.debug("Active learning sampling error: %s", _al_exc)
+        _latencies["ner_ms"] = round((time.perf_counter() - _t) * 1000, 2)
+
         intent_payload = self._build_intent_payload(query, entity_payload)
+        # KG query expansion: append related category terms for known brands so the
+        # eBay search gets a richer query string without changing the displayed query.
+        intent_payload = self._kg_expand_intent(intent_payload)
         user_id = user_context.get("userId") or user_context.get("user_id") or "global"
 
         # --- FIX 1: Non-search intent detection (greetings, thanks, chitchat) ---
@@ -268,9 +302,11 @@ class NextGenAIOrchestrator:
             logger.info(f"Rewriting query for search: '{intent_payload['raw_query']}' -> '{reconstructed_query}'")
             intent_payload["raw_query"] = reconstructed_query
 
-        # Pass pagination params
+        # --- Retrieval stage ---
+        _t = time.perf_counter()
         ebay_items = self._search_ebay(intent_payload, user_context, limit=limit, offset=offset)
-        
+        _latencies["retrieval_ms"] = round((time.perf_counter() - _t) * 1000, 2)
+
         # Deduplicate results by ID AND filter out already seen IDs
         all_excluded = set(exclude_ids or [])
         seen_now = set()
@@ -290,7 +326,10 @@ class NextGenAIOrchestrator:
         if user_id:
              self.last_search_cache[user_id] = normalized_items
 
+        # --- Reranking stage ---
+        _t = time.perf_counter()
         reranked = self._rerank_items(query, normalized_items, user_context)
+        _latencies["reranking_ms"] = round((time.perf_counter() - _t) * 1000, 2)
 
         features = self._build_personalization_features(
             intent_payload, normalized_items, user_context
@@ -317,6 +356,8 @@ class NextGenAIOrchestrator:
                 "reasoning_steps": ["Fetched additional results."]
             }
 
+        # --- RAG stage ---
+        _t = time.perf_counter()
         rag_response = None
         if self.rag:
             try:
@@ -330,14 +371,24 @@ class NextGenAIOrchestrator:
                     )
                 )
                 rag_response = None
+        _latencies["rag_ms"] = round((time.perf_counter() - _t) * 1000, 2)
 
         answer_text = self._select_answer(rag_response, reranked, normalized_items, entity_payload)
 
+        _latencies["total_ms"] = round((time.perf_counter() - _request_start) * 1000, 2)
+        logger.info(
+            "NextGen latency — NER: %(ner_ms).1fms | Retrieval: %(retrieval_ms).1fms | "
+            "Reranking: %(reranking_ms).1fms | RAG: %(rag_ms).1fms | Total: %(total_ms).1fms",
+            _latencies,
+        )
         self.metric_sink.log(
             MetricRecord(
                 name="nextgen_response_latency_ms",
-                value=42.0, # Placeholder
-                metadata={"query": query[:50]},
+                value=_latencies["total_ms"],
+                metadata={
+                    "query": query[:50],
+                    **{k: str(v) for k, v in _latencies.items()},
+                },
             )
         )
         
@@ -353,20 +404,26 @@ class NextGenAIOrchestrator:
             "reasoning_steps": [
                 f"Analyzed {len(normalized_items)} items.",
                 f"Selected top recommendation with score {recommendation.score:.2f}.",
-                f"Context: {intent_payload.get('categories', [])} {intent_payload.get('brands', [])}"
+                f"Context: {intent_payload.get('categories', [])} {intent_payload.get('brands', [])}",
             ],
+            "latencies": _latencies,
             "suggestions": self._generate_history_suggestions(user_context)
         }
 
     def _rewrite_query_with_llm(self, current_query: str, history: List[str]) -> str:
         """
         Use the custom LLM to rewrite the current query based on conversation history.
-        Simplified prompt to prevent instruction echoing.
+
+        Guards against:
+        - Prompt echoing (hallucination triggers)
+        - Outputs that are much longer/shorter than the original query
+        - Semantic drift: candidate must share at least one non-trivial token with
+          the original query or the recent history anchor
         """
         if not history:
             return current_query
 
-        history_str = " | ".join(history[-2:]) # Only last 2 for focus
+        history_str = " | ".join(history[-2:])  # Only last 2 turns for focus
         prompt = (
             f"History: {history_str}\n"
             f"Current: {current_query}\n"
@@ -375,28 +432,51 @@ class NextGenAIOrchestrator:
 
         try:
             rewritten = self.generator.generate(prompt)
-            
-            # Basic cleanup
+
+            # Basic cleanup: take first line, strip whitespace
             cleaned = rewritten.strip().split("\n")[0].strip()
-            
-            # Remove any leading "Query:" or "Output:" if the model added it
-            for prefix in ["Query:", "Output:", "Search Query:", "Rewritten query:"]:
+
+            # Remove any leading "Query:" / "Output:" echoing
+            for prefix in ["Query:", "Output:", "Search Query:", "Rewritten query:", "Answer:"]:
                 if cleaned.lower().startswith(prefix.lower()):
                     cleaned = cleaned[len(prefix):].strip()
 
-            # Guard against echoing the prompt components or instructions
+            # Guard 1: empty or trivially short
+            if not cleaned or len(cleaned) < 3:
+                return current_query
+
+            # Guard 2: hallucination triggers — LLM echoing prompt structure
             hallucination_triggers = [
                 "return the optimal", "search query for", "current input",
-                "history:", "current:", "task:", "rules:"
+                "history:", "current:", "task:", "rules:", "instruction:",
+                "respond with", "your response",
             ]
             if any(trigger in cleaned.lower() for trigger in hallucination_triggers):
-                logger.warning(f"LLM echoed prompt guidelines; falling back: '{cleaned}'")
+                logger.warning(f"LLM echoed prompt guidelines; falling back: '{cleaned[:80]}'")
                 return current_query
 
-            if not cleaned or len(cleaned) < 2:
+            # Guard 3: length ratio check — rewrite shouldn't be >3× or <0.3× original
+            orig_words = len(current_query.split())
+            rewrite_words = len(cleaned.split())
+            if orig_words > 0 and not (0.3 <= rewrite_words / orig_words <= 3.0):
+                logger.warning(
+                    f"Rewrite length ratio out of bounds ({rewrite_words}/{orig_words}); "
+                    f"falling back: '{cleaned[:80]}'"
+                )
                 return current_query
 
+            # Guard 4: semantic anchor check — at least one non-trivial token must overlap
+            # with the original query or the history anchor to prevent topic drift
+            anchor = self._extract_anchor_from_history(history) or current_query
+            if not self._has_anchor_overlap(cleaned, anchor):
+                logger.warning(
+                    f"Rewritten query has no token overlap with anchor; falling back: '{cleaned[:80]}'"
+                )
+                return current_query
+
+            logger.info(f"LLM rewrite accepted: '{current_query}' → '{cleaned}'")
             return cleaned
+
         except Exception as e:
             logger.error(f"Error in LLM query rewriting: {e}")
             return current_query
@@ -709,42 +789,140 @@ class NextGenAIOrchestrator:
         else:
             entity_diversity = 0.0
 
+        # Entity-type presence indicators (one-hot style flags, more informative than hash)
+        # Canonical entity types aligned with the NER schema
+        ENTITY_TYPES = [
+            "BRAND", "PRODUCT_TYPE", "CATEGORY", "MODEL",
+            "COLOR", "SIZE", "PRICE_RANGE", "CONDITION",
+            "MATERIAL", "FEATURE", "TECH", "SHIPPING",
+        ]
+        entity_flags = {
+            et: 1.0 if entity_buckets.get(et) else 0.0
+            for et in ENTITY_TYPES
+        }
+
+        # Preference overlap: fraction of query brands/categories that match user prefs
+        pref_brands = {str(b).lower() for b in preferences.get("brands", [])}
+        query_brands = {str(b).lower() for b in intent_payload.get("brands", [])}
+        brand_overlap = len(pref_brands & query_brands) / max(len(pref_brands | query_brands), 1)
+
+        pref_cats = {str(c).lower() for c in preferences.get("categories", [])}
+        query_cats = {str(c).lower() for c in intent_payload.get("categories", [])}
+        cat_overlap = len(pref_cats & query_cats) / max(len(pref_cats | query_cats), 1)
+
         slots = [
-            (0, min(len(normalized_items) / 10.0, 1.0)),
-            (1, 1.0 if intent_payload.get("price_range") else 0.0),
-            (2, min(len(intent_payload.get("brands", [])) / 4.0, 1.0)),
-            (3, min(len(intent_payload.get("categories", [])) / 4.0, 1.0)),
-            (4, entity_diversity),
-            (5, self._average_price_feature(normalized_items)),
-            (6, self._seller_reputation_feature(normalized_items)),
-            (
-                7,
-                1.0
-                if user_context.get("loggedIn") or user_context.get("logged_in")
-                else 0.0,
-            ),
-            (8, min(len(preferences.get("brands", [])) / 5.0, 1.0)),
+            # Context richness
+            (0, min(len(normalized_items) / 10.0, 1.0)),      # result count (normalized)
+            (1, 1.0 if intent_payload.get("price_range") else 0.0),  # has price constraint
+            (2, min(len(intent_payload.get("brands", [])) / 4.0, 1.0)),    # brand specificity
+            (3, min(len(intent_payload.get("categories", [])) / 4.0, 1.0)),  # category breadth
+            (4, entity_diversity),                              # entity type diversity
+            # Item quality signals
+            (5, self._average_price_feature(normalized_items)),     # avg price (normalized)
+            (6, self._seller_reputation_feature(normalized_items)),  # seller quality
+            # User context
+            (7, 1.0 if user_context.get("loggedIn") or user_context.get("logged_in") else 0.0),
+            (8, min(len(preferences.get("brands", [])) / 5.0, 1.0)),      # pref breadth
             (9, min(len(preferences.get("categories", [])) / 5.0, 1.0)),
             (10, min(len(preferences.get("recent_queries", [])) / 10.0, 1.0)),
-            (11, 1.0 if preferences else 0.0),
+            (11, 1.0 if preferences else 0.0),                  # has any prefs
+            # Preference alignment
+            (12, float(brand_overlap)),   # query vs pref brand overlap
+            (13, float(cat_overlap)),     # query vs pref category overlap
         ]
 
         for idx, value in slots:
             if idx < feature_dim:
                 vector[idx] = float(value)
 
-        hashed_start = 12
-        if hashed_start < feature_dim:
-            hashed = hashlib.sha256(
-                intent_payload.get("raw_query", "").encode("utf-8", "ignore")
-            ).digest()
-            hashed_values = np.frombuffer(hashed, dtype=np.uint8) / 255.0
-            idx = hashed_start
-            while idx < feature_dim:
-                vector[idx] = hashed_values[idx % hashed_values.size]
-                idx += 1
+        # Entity-type indicator flags (slots 14–25, one per canonical entity type)
+        flag_start = 14
+        for i, et in enumerate(ENTITY_TYPES):
+            slot = flag_start + i
+            if slot < feature_dim:
+                vector[slot] = entity_flags[et]
+
+        # Remaining slots: query length features (informative about search complexity)
+        remaining_start = flag_start + len(ENTITY_TYPES)
+        raw_query = intent_payload.get("raw_query", "")
+        query_len_feature = min(len(raw_query.split()) / 20.0, 1.0)
+        char_len_feature = min(len(raw_query) / 150.0, 1.0)
+        for slot, val in [(remaining_start, query_len_feature), (remaining_start + 1, char_len_feature)]:
+            if slot < feature_dim:
+                vector[slot] = val
 
         return vector
+
+    # ------------------------------------------------------------------
+    # Knowledge graph helpers  (B8)
+    # ------------------------------------------------------------------
+
+    def _seed_knowledge_graph(self) -> None:
+        """
+        Populate the knowledge graph with brand → category relationships
+        loaded from the fallback dictionaries.
+
+        This gives the KG enough data to perform query expansion: when the
+        NER model detects a BRAND entity, we can look up related categories
+        and append them to the eBay search string.
+        """
+        from backend_nextgen.knowledge.graph_builder import KGNode
+        try:
+            # Each brand becomes a 'brand' node; each category a 'category' node.
+            # Edges represent "is_sold_in" relationships (brand → category).
+            for brand in self.fallback_brands:
+                self.knowledge_graph.add_node(KGNode(
+                    node_id=f"brand:{brand}", label="brand",
+                    attributes={"name": brand},
+                ))
+            for cat in self.fallback_categories:
+                self.knowledge_graph.add_node(KGNode(
+                    node_id=f"category:{cat}", label="category",
+                    attributes={"name": cat},
+                ))
+            # Wire electronics brands to common categories as example relations
+            electronics_brands = {"apple", "samsung", "sony", "lg", "dell", "hp",
+                                   "lenovo", "asus", "acer", "microsoft"}
+            for brand in self.fallback_brands:
+                if brand.lower() in electronics_brands:
+                    self.knowledge_graph.graph.add_edge(
+                        f"brand:{brand}", "category:Electronics", relation="sold_in"
+                    )
+            logger.info(
+                "Knowledge graph seeded: %d brand nodes, %d category nodes.",
+                sum(1 for b in self.fallback_brands if b),
+                sum(1 for c in self.fallback_categories if c),
+            )
+        except Exception as exc:
+            logger.warning("Knowledge graph seeding failed: %s", exc)
+
+    def _kg_expand_intent(self, intent_payload: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Use the knowledge graph to expand the search intent.
+
+        If the NER model found a BRAND entity, look up related categories in
+        the KG and merge them into the intent's category list. This widens
+        the eBay query without changing the user-facing display.
+        """
+        try:
+            brands = intent_payload.get("brands", [])
+            existing_cats = set(intent_payload.get("categories", []))
+            added: List[str] = []
+            for brand in brands:
+                node_id = f"brand:{brand}"
+                for neighbor in self.knowledge_graph.neighbors(node_id):
+                    # neighbor format: "category:<name>"
+                    if neighbor.startswith("category:"):
+                        cat = neighbor.split(":", 1)[1]
+                        if cat not in existing_cats:
+                            existing_cats.add(cat)
+                            added.append(cat)
+            if added:
+                intent_payload["categories"] = list(existing_cats)
+                logger.debug("KG expanded categories by %d terms: %s", len(added), added)
+        except Exception as exc:
+            logger.debug("KG expansion skipped: %s", exc)
+        return intent_payload
 
     def _average_price_feature(self, items: List[Dict[str, Any]]) -> float:
         prices = [
@@ -1053,45 +1231,44 @@ class NextGenAIOrchestrator:
             )
             
             # Vector Similarity Boost (Post-Reranking)
+            # Encode the top reranked items and boost those whose semantic vectors
+            # are close to the user's long-term preference vector.
             if user_id and user_id in self.user_vectors and self.retriever:
-                user_vec = self.user_vectors[user_id]
-                # Encode items to get their vectors (if not already available)
-                # This is expensive, so we only do it for the top K
-                item_texts = [
-                    f"{item.item.get('title', '')} {item.item.get('description', '')}" 
-                    for item in reranked
-                ]
-                item_vecs = self.retriever.encode_queries(item_texts)
-                
-                # Calculate cosine similarity
-                sims = np.dot(item_vecs, user_vec) / (
-                    np.linalg.norm(item_vecs, axis=1) * np.linalg.norm(user_vec)
-                )
-                
-                # Boost score and add reasoning
-                preferences = user_context.get("preferences", {})
-                preferred_brands = set(b.lower() for b in preferences.get("brands", []))
-                
-                for i, item in enumerate(reranked):
-                    sim_score = float(sims[i])
-                    # Boost up to 0.5 based on similarity
-                    item.score += sim_score * 0.5
-                    
-                    # Determine Reasoning
-                    reasoning = "Best match 🔍"
-                    title_lower = item.payload.get("title", "").lower()
-                    
-                    # Check for explicit brand match
-                    if any(brand in title_lower for brand in preferred_brands):
-                        reasoning = "Matches your preferences 📝"
-                    # Check for implicit vector match (high similarity)
-                    elif sim_score > 0.3: # Threshold for "style match"
-                        reasoning = "Matches your style 🧬"
-                        
-                    item.payload["reasoning"] = reasoning
-                    
-                # Re-sort
-                reranked.sort(key=lambda x: x.score, reverse=True)
+                user_vec = self.user_vectors[user_id].astype(np.float32)
+                user_norm = np.linalg.norm(user_vec)
+                if user_norm > 1e-9:
+                    preferences = user_context.get("preferences", {})
+                    preferred_brands = {b.lower() for b in preferences.get("brands", [])}
+                    item_texts = [
+                        f"{item.payload.get('title', '')} {item.payload.get('description', '')}".strip()
+                        for item in reranked
+                    ]
+                    try:
+                        item_vecs = self.retriever.encode_queries(item_texts)  # (N, dim)
+                        item_norms = np.linalg.norm(item_vecs, axis=1, keepdims=True).clip(min=1e-9)
+                        # Resize user vector to match encoder dim if needed
+                        enc_dim = item_vecs.shape[1]
+                        if user_vec.shape[0] != enc_dim:
+                            # Pad or truncate to match encoder dimension
+                            if user_vec.shape[0] < enc_dim:
+                                user_vec = np.pad(user_vec, (0, enc_dim - user_vec.shape[0]))
+                            else:
+                                user_vec = user_vec[:enc_dim]
+                            user_norm = np.linalg.norm(user_vec).clip(min=1e-9)
+                        sims = (item_vecs / item_norms) @ (user_vec / user_norm)  # cosine
+                        for i, item in enumerate(reranked):
+                            sim_score = float(sims[i])
+                            item.score += sim_score * 0.5
+                            title_lower = item.payload.get("title", "").lower()
+                            if any(brand in title_lower for brand in preferred_brands):
+                                item.payload["reasoning"] = "Matches your preferences 📝"
+                            elif sim_score > 0.3:
+                                item.payload["reasoning"] = "Matches your style 🧬"
+                            else:
+                                item.payload.setdefault("reasoning", "Best match 🔍")
+                        reranked.sort(key=lambda x: x.score, reverse=True)
+                    except Exception as boost_exc:
+                        logger.warning(f"Vector similarity boost failed (non-fatal): {boost_exc}")
                 
         except Exception as exc:
             self.metric_sink.log(

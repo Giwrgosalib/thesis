@@ -1,0 +1,10 @@
+{
+  "Recall@1": 1.0,
+  "Recall@5": 1.0,
+  "Recall@10": 1.0,
+  "Recall@20": 1.0,
+  "MRR": 1.0,
+  "NDCG@5": 1.0,
+  "NDCG@10": 1.0,
+  "num_queries": 2383
+}

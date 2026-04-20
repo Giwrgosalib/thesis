@@ -171,40 +171,54 @@ class EnhancedBiLSTM_CRF(nn.Module):
         return tag_space
     
     def _forward_alg(self, feats: torch.Tensor):
-        """Forward algorithm for CRF."""
+        """Vectorised forward algorithm for CRF (no Python loop over tags).
+
+        Replaces the original per-tag Python loop with a single batched
+        logsumexp, giving ~K× speedup (K = tagset_size).
+
+        Args:
+            feats: (seq_len, tagset_size) emission scores
+        Returns:
+            alpha: scalar log-partition score
+        """
         device = feats.device
-        seq_len = feats.size(0)
-        
-        # Initialize forward variables
-        forward_var = torch.full((1, self.tagset_size), -10000., device=device)
-        forward_var[0][self.tag_to_ix["START_TAG"]] = 0.
-        
+        # forward_var: (tagset_size,) log-alpha for each tag
+        forward_var = torch.full((self.tagset_size,), -10000., device=device)
+        forward_var[self.tag_to_ix["START_TAG"]] = 0.
+
         for feat in feats:
-            alphas_t = []
-            for next_tag in range(self.tagset_size):
-                emit_score = feat[next_tag].view(1, -1).expand(1, self.tagset_size)
-                trans_score = self.transitions[next_tag].view(1, -1)
-                next_tag_var = forward_var + trans_score + emit_score
-                alphas_t.append(torch.logsumexp(next_tag_var, dim=1).view(1))
-            forward_var = torch.cat(alphas_t).view(1, -1)
-        
+            # broadcast: next_tag_var[next_tag, prev_tag] =
+            #   forward_var[prev_tag] + transitions[next_tag, prev_tag]
+            # shape: (tagset_size, tagset_size)
+            next_tag_var = forward_var.unsqueeze(0) + self.transitions
+            # logsumexp over prev_tags, then add emission: (tagset_size,)
+            forward_var = torch.logsumexp(next_tag_var, dim=1) + feat
+
         terminal_var = forward_var + self.transitions[self.tag_to_ix["STOP_TAG"]]
-        alpha = torch.logsumexp(terminal_var, dim=1)
-        return alpha
-    
+        alpha = torch.logsumexp(terminal_var, dim=0)
+        return alpha.unsqueeze(0)   # keep (1,) shape for compatibility
+
     def _score_sentence(self, feats: torch.Tensor, tags: torch.Tensor):
-        """Score a given sequence of tags."""
+        """Vectorised sequence scorer (no Python loop over positions).
+
+        Args:
+            feats: (seq_len, tagset_size) emission scores
+            tags:  (seq_len,) gold tag indices
+        Returns:
+            score: (1,) scalar
+        """
         device = feats.device
-        score = torch.zeros(1, device=device)
-        
-        # Add START tag
-        tags = torch.cat([torch.tensor([self.tag_to_ix["START_TAG"]], dtype=torch.long, device=device), tags])
-        
-        for i, feat in enumerate(feats):
-            score = score + self.transitions[tags[i+1], tags[i]] + feat[tags[i+1]]
-        
+        start = torch.tensor([self.tag_to_ix["START_TAG"]], dtype=torch.long, device=device)
+        tags_with_start = torch.cat([start, tags])          # (seq_len+1,)
+
+        # Transition scores for each step: transitions[tags[t], tags[t-1]]
+        trans_scores = self.transitions[tags_with_start[1:], tags_with_start[:-1]]  # (seq_len,)
+        # Emission scores: feats[t, tags[t]]
+        emit_scores  = feats[torch.arange(feats.size(0), device=device), tags]     # (seq_len,)
+
+        score = (trans_scores + emit_scores).sum()
         score = score + self.transitions[self.tag_to_ix["STOP_TAG"], tags[-1]]
-        return score
+        return score.unsqueeze(0)
     
     def neg_log_likelihood(self, sentence: torch.Tensor, tags: torch.Tensor, words: Optional[List[str]] = None):
         """Negative log likelihood loss for single sample."""
