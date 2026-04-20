@@ -1,0 +1,129 @@
+{
+  "thesis_title": "Intelligent Product Search Assistant: A Comparative Study of BiLSTM-CRF and Transformer-Based NER Architectures",
+  "generated_at": "2026-04-20",
+
+  "engines": {
+    "legacy": {
+      "name": "BiLSTM-CRF (Enhanced)",
+      "description": "Two-layer Bidirectional LSTM with CRF decoding, multi-head attention, character-level CNN embeddings",
+      "model_file": "backend/models/enhanced/enhanced_ner_model.pth",
+      "architecture": {
+        "embedding_dim": 128,
+        "hidden_dim": 256,
+        "num_layers": 2,
+        "dropout": 0.3,
+        "use_attention": true,
+        "optimizer": "AdamW",
+        "learning_rate": 0.001,
+        "lr_schedule": "cosine_with_warmup"
+      },
+      "training": {
+        "dataset": "backend/data/train_enriched.csv",
+        "epochs_run": 25,
+        "best_epoch": 9,
+        "early_stopping_patience": 3,
+        "vocab_size": 3026,
+        "entity_types_count": 144,
+        "train_split": 0.8,
+        "val_split": 0.1,
+        "test_split": 0.1
+      },
+      "metrics": {
+        "best_val_loss": 14.02,
+        "val_f1": 0.1863,
+        "vs_gold_f1": 0.442,
+        "avg_inference_latency_ms": 668.8,
+        "entity_count_wins_vs_nextgen": 17,
+        "entity_count_ties_vs_nextgen": 19
+      }
+    },
+    "nextgen": {
+      "name": "DeBERTa-v3-base + CRF Head",
+      "description": "Microsoft DeBERTa-v3-base fine-tuned with CRF token classification head for multi-type NER",
+      "model_dir": "backend_nextgen/models/ner",
+      "base_model": "microsoft/deberta-v3-base",
+      "architecture": {
+        "max_sequence_length": 256,
+        "use_crf_head": true,
+        "optimizer": "AdamW",
+        "learning_rate": 2e-5,
+        "warmup_steps": 135
+      },
+      "training": {
+        "dataset": "backend/data/train_enriched.csv",
+        "epochs_run": 5,
+        "best_epoch": 5,
+        "eval_strategy": "epoch",
+        "batch_size": 16,
+        "gradient_accumulation_steps": 2,
+        "entity_types_count": 17
+      },
+      "metrics": {
+        "best_eval_f1": 0.7569,
+        "best_eval_precision": 0.7595,
+        "best_eval_recall": 0.7542,
+        "best_eval_loss": 0.6333,
+        "vs_gold_f1": 0.6629,
+        "avg_inference_latency_ms": 52.2,
+        "entity_count_wins_vs_legacy": 14,
+        "entity_count_ties_vs_legacy": 19
+      }
+    }
+  },
+
+  "retrieval_pipeline": {
+    "encoder": "intfloat/e5-base-v2",
+    "pooling": "mean (attention-masked)",
+    "index_type": "FAISS IndexFlatIP",
+    "embedding_dim": 768,
+    "index_size": 2383,
+    "normalization": "L2",
+    "metrics": {
+      "Recall@1": 1.0,
+      "Recall@5": 1.0,
+      "Recall@10": 1.0,
+      "Recall@20": 1.0,
+      "MRR": 1.0,
+      "NDCG@5": 1.0,
+      "NDCG@10": 1.0,
+      "num_eval_queries": 2383
+    }
+  },
+
+  "ab_comparison": {
+    "num_queries": 50,
+    "dataset": "backend/data/test_dataset_fixed.csv",
+    "legacy_avg_latency_ms": 668.8,
+    "nextgen_avg_latency_ms": 52.2,
+    "speedup_factor": 12.8,
+    "entity_count_wins": {
+      "legacy": 17,
+      "nextgen": 14,
+      "tie": 19
+    },
+    "legacy_macro_f1_vs_gold": 0.442,
+    "nextgen_macro_f1_vs_gold": 0.6629,
+    "nextgen_f1_improvement_pct": 50.0,
+    "nextgen_latency_improvement_pct": 92.2
+  },
+
+  "ranking": {
+    "reranker": "cross-encoder/ms-marco-MiniLM-L-6-v2",
+    "candidate_pool": 100,
+    "rerank_top_k": 20
+  },
+
+  "personalization": {
+    "algorithm": "Contextual Thompson Sampling (bandit)",
+    "exploration_rate": 0.1
+  },
+
+  "key_findings": [
+    "NextGen DeBERTa NER achieves 50% higher F1 vs gold labels than the Legacy BiLSTM-CRF (0.663 vs 0.442)",
+    "NextGen is 12.8× faster at inference (52ms vs 669ms), enabling real-time search",
+    "Legacy engine recognises 144 entity types vs NextGen's 17 canonical types — higher coverage at lower precision",
+    "E5-base-v2 with mean pooling achieves perfect self-retrieval (Recall@1=1.0, MRR=1.0) on the training corpus",
+    "Both engines agree on entity types in 38% of queries (19/50 ties); legacy finds more entities in 34% of cases",
+    "Active learning wiring flags low-confidence NER predictions for human review, improving future training data quality"
+  ]
+}
