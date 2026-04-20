@@ -14,6 +14,8 @@ import torch.nn as nn
 import torch.optim as optim
 
 # --- Import Enhanced Models ---
+import sys as _sys
+_sys.path.insert(0, str(Path(__file__).resolve().parent))
 from enhanced_models import EnhancedBiLSTM_CRF
 from utils.resource_loader import load_json_resource
 
@@ -756,11 +758,26 @@ class EBayNLP:
         df = df.sample(frac=1, random_state=42).reset_index(drop=True)
         print(f"Total unique queries for training: {len(df)}")
         # --- 2. Intent Classifier Training ---
+        # Simple sklearn pipeline: TF-IDF + Logistic Regression (no deep model needed for few classes)
         print("\n--- Training Intent Classifier ---")
-        self.intent_pipeline.fit(df['query'], df['intent'])
-        print("Intent classifier trained/retrained.")
-        joblib.dump(self.intent_pipeline, self.intent_model_path)
-        print(f"Intent model saved to {self.intent_model_path}")
+        intent_counts = df['intent'].value_counts()
+        if len(intent_counts) > 1:
+            try:
+                from sklearn.pipeline import Pipeline as SKPipeline
+                from sklearn.linear_model import LogisticRegression
+                from sklearn.feature_extraction.text import TfidfVectorizer
+                intent_clf = SKPipeline([
+                    ("tfidf", TfidfVectorizer(ngram_range=(1, 2), max_features=5000)),
+                    ("clf", LogisticRegression(max_iter=500, C=1.0, random_state=42)),
+                ])
+                intent_clf.fit(df['query'], df['intent'])
+                self.intent_pipeline = intent_clf
+                joblib.dump(self.intent_pipeline, self.intent_model_path)
+                print(f"Intent classifier trained on {len(df)} samples across {len(intent_counts)} classes. Saved to {self.intent_model_path}")
+            except Exception as e:
+                print(f"Warning: Intent classifier training failed ({e}). Using hardcoded single intent.")
+        else:
+            print(f"Dataset contains only one intent class ('{intent_counts.index[0]}'). Skipping intent classifier training — using hardcoded intent.")
         # --- 3. From-Scratch NER Model Training ---
         print("\n--- Training From-Scratch NER Model ---")
         print("Preparing aligned data for NER model...")
@@ -805,11 +822,19 @@ class EBayNLP:
         print(f"Total entities found in training data after parsing: {total_entities}")
         if total_entities == 0:
             print("CRITICAL WARNING: No entities were found in the training data. The model will not learn to extract any entities.")
-        # Summarize token count as well
         total_tokens = sum(len(tokens) for tokens, tags in all_training_data)
-        print(f"Total tokens in training data after cleaning: {total_tokens}")
-        print(f"Vocabulary size: {len(self.word_to_ix)}, Tag set size: {len(self.tag_to_ix)}")
-        # b. Initialize model and optimizer
+        print(f"Total tokens: {total_tokens}, Vocabulary: {len(self.word_to_ix)}, Tags: {len(self.tag_to_ix)}")
+
+        # --- Train / Validation split (80 / 20) ---
+        import random as _random
+        _random.seed(42)
+        _random.shuffle(all_training_data)
+        split = max(1, int(len(all_training_data) * 0.8))
+        train_data = all_training_data[:split]
+        val_data = all_training_data[split:]
+        print(f"Train samples: {len(train_data)}, Validation samples: {len(val_data)}")
+
+        # b. Load optional GloVe embeddings
         EMBEDDING_DIM = 128
         HIDDEN_DIM = 256
         embedding_matrix = None
@@ -824,51 +849,171 @@ class EBayNLP:
                         continue
                     word = parts[0]
                     if word in self.word_to_ix:
-                        vector = [float(x) for x in parts[1:]]
-                        glove_vectors[word] = vector
+                        glove_vectors[word] = [float(x) for x in parts[1:]]
             if glove_vectors:
                 glove_dim = len(next(iter(glove_vectors.values())))
                 if glove_dim != EMBEDDING_DIM:
-                    print(f"Note: GloVe vector length {glove_dim} does not match EMBEDDING_DIM {EMBEDDING_DIM}. Adjusting embedding dimension to {glove_dim}.")
+                    print(f"Adjusting EMBEDDING_DIM from {EMBEDDING_DIM} to {glove_dim} to match GloVe.")
                     EMBEDDING_DIM = glove_dim
                 vocab_size = len(self.word_to_ix)
                 embedding_matrix = torch.randn(vocab_size, EMBEDDING_DIM)
-                # Initialize [UNK] embedding as zero vector for consistency
                 embedding_matrix[self.word_to_ix["[UNK]"]] = torch.zeros(EMBEDDING_DIM)
                 for word, idx in self.word_to_ix.items():
                     if word in glove_vectors:
                         embedding_matrix[idx] = torch.tensor(glove_vectors[word])
-                print(f"Loaded GloVe vectors for {len(glove_vectors)} words out of {len(self.word_to_ix)} in vocabulary.")
+                print(f"Loaded GloVe vectors for {len(glove_vectors)}/{len(self.word_to_ix)} vocab words.")
             else:
-                print("Warning: No vocabulary words found in GloVe file; using random init for embeddings.")
+                print("No vocab overlap with GloVe; using random embeddings.")
         else:
-            print("GloVe embeddings file not found; using random initialization for embeddings.")
-        self.ner_model = BiLSTM_CRF(len(self.word_to_ix), self.tag_to_ix, EMBEDDING_DIM, HIDDEN_DIM)
+            print("GloVe not found; using random embeddings.")
+
+        # c. Initialize EnhancedBiLSTM_CRF (with attention, multi-layer LSTM, dropout)
+        model_config = {
+            'embedding_dim': EMBEDDING_DIM,
+            'hidden_dim': HIDDEN_DIM,
+            'num_layers': 2,
+            'dropout': 0.3,
+            'use_attention': True,
+            'use_char_embeddings': False,
+        }
+        self.ner_model = EnhancedBiLSTM_CRF(
+            vocab_size=len(self.word_to_ix),
+            tag_to_ix=self.tag_to_ix,
+            **model_config,
+        )
         if embedding_matrix is not None:
             with torch.no_grad():
                 self.ner_model.word_embeds.weight.copy_(embedding_matrix)
         self.ner_model = self.ner_model.to(self.device)
-        optimizer = optim.SGD(self.ner_model.parameters(), lr=0.01, weight_decay=1e-4)
-        # c. Training Loop
-        print(f"Starting NER model training with {len(all_training_data)} samples...")
+
+        # AdamW with cosine LR decay and gradient clipping
+        # Mini-batch size: parallelize LSTM on GPU; CRF still loops per sample but LSTM is the bottleneck
+        BATCH_SIZE = 32
+        num_batches = max(1, (len(train_data) + BATCH_SIZE - 1) // BATCH_SIZE)
+        optimizer = optim.AdamW(self.ner_model.parameters(), lr=5e-4, weight_decay=1e-4)
+        total_steps = iterations * num_batches
+        scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=total_steps, eta_min=1e-5)
+
+        # d. Mini-batch training loop with per-epoch validation F1
+        print(f"Starting NER training: {len(train_data)} samples, {iterations} epochs, batch_size={BATCH_SIZE}...")
+        import random as _rng
         from tqdm import tqdm
+        best_val_f1 = 0.0
+        best_state = None
+        patience_counter = 0
+        early_stop_patience = 6  # generous patience — 291 classes need many epochs to stabilise F1
+
         for epoch in range(1, iterations + 1):
-            total_loss = 0
-            for tokens, tags in tqdm(all_training_data, desc=f"NER Epoch {epoch}/{iterations}"):
+            # -- Train --
+            self.ner_model.train()
+            total_loss = 0.0
+            _rng.shuffle(train_data)
+
+            for batch_start in tqdm(range(0, len(train_data), BATCH_SIZE),
+                                    desc=f"NER Epoch {epoch}/{iterations}"):
+                batch = train_data[batch_start: batch_start + BATCH_SIZE]
+
+                # Sort by descending length (required by pack_padded_sequence)
+                batch = sorted(batch, key=lambda x: len(x[0]), reverse=True)
+                lengths = [len(tokens) for tokens, _ in batch]
+                max_len = lengths[0]
+
+                # Build padded tensors
+                pad_sentences = torch.zeros(len(batch), max_len, dtype=torch.long)
+                pad_tags = torch.zeros(len(batch), max_len, dtype=torch.long)
+                for i, (tokens, tags) in enumerate(batch):
+                    word_ids = [self.word_to_ix.get(w, self.word_to_ix["[UNK]"]) for w in tokens]
+                    tag_ids  = [self.tag_to_ix[t] for t in tags]
+                    pad_sentences[i, :len(word_ids)] = torch.tensor(word_ids, dtype=torch.long)
+                    pad_tags[i,      :len(tag_ids)]  = torch.tensor(tag_ids,  dtype=torch.long)
+
+                pad_sentences = pad_sentences.to(self.device)
+                pad_tags      = pad_tags.to(self.device)
+
                 self.ner_model.zero_grad()
-                sentence_in = prepare_sequence(tokens, self.word_to_ix).to(self.device)
-                targets = torch.tensor([self.tag_to_ix[t] for t in tags], dtype=torch.long).to(self.device)
-                loss = self.ner_model.neg_log_likelihood(sentence_in, targets)
+                loss = self.ner_model.neg_log_likelihood_batch(pad_sentences, pad_tags, lengths)
                 total_loss += loss.item()
                 loss.backward()
+                torch.nn.utils.clip_grad_norm_(self.ner_model.parameters(), max_norm=5.0)
                 optimizer.step()
-            print(f"NER Epoch {epoch}/{iterations}, Loss: {total_loss}")
-        # d. Save the trained model and mappings
-        print("Saving from-scratch NER model...")
+                scheduler.step()
+
+            # -- Validate --
+            val_f1 = self._evaluate_ner_f1(val_data) if val_data else 0.0
+            print(f"Epoch {epoch}/{iterations} | Train Loss: {total_loss:.4f} | Val F1: {val_f1:.4f}")
+
+            # -- Early stopping: keep best weights --
+            if val_f1 >= best_val_f1:
+                best_val_f1 = val_f1
+                import copy
+                best_state = copy.deepcopy(self.ner_model.state_dict())
+                patience_counter = 0
+            else:
+                patience_counter += 1
+                if patience_counter >= early_stop_patience:
+                    print(f"Early stopping triggered after {epoch} epochs (best val F1: {best_val_f1:.4f}).")
+                    break
+
+        # Restore best weights before saving
+        if best_state is not None:
+            self.ner_model.load_state_dict(best_state)
+
+        # d. Save model, vocab, and config
+        print("Saving enhanced NER model...")
         torch.save(self.ner_model.state_dict(), self.ner_model_path)
-        joblib.dump({'word_to_ix': self.word_to_ix, 'tag_to_ix': self.tag_to_ix, 'embedding_dim': EMBEDDING_DIM}, self.ner_vocab_path)
-        print(f"From-scratch NER model saved to {self.ner_model_path}")
+        joblib.dump(
+            {
+                'word_to_ix': self.word_to_ix,
+                'tag_to_ix': self.tag_to_ix,
+                'embedding_dim': EMBEDDING_DIM,
+                'config': model_config,
+            },
+            self.ner_vocab_path,
+        )
+        print(f"Enhanced NER model saved to {self.ner_model_path} (best val F1: {best_val_f1:.4f})")
         print("Training process completed.")
+
+    def _evaluate_ner_f1(self, val_data) -> float:
+        """Compute entity-level F1 on validation data using Viterbi decoding."""
+        self.ner_model.eval()
+        tp = fp = fn = 0
+        with torch.no_grad():
+            for tokens, true_tags in val_data:
+                sentence_in = prepare_sequence(tokens, self.word_to_ix).to(self.device)
+                _, pred_indices = self.ner_model(sentence_in)
+                pred_tags = [self.ix_to_tag.get(idx.item() if hasattr(idx, 'item') else int(idx), 'O') for idx in pred_indices]
+                # Align lengths (Viterbi may return fewer tags)
+                length = min(len(true_tags), len(pred_tags))
+                true_spans = self._bio_to_spans(true_tags[:length])
+                pred_spans = self._bio_to_spans(pred_tags[:length])
+                tp += len(true_spans & pred_spans)
+                fp += len(pred_spans - true_spans)
+                fn += len(true_spans - pred_spans)
+        precision = tp / (tp + fp) if (tp + fp) > 0 else 0.0
+        recall = tp / (tp + fn) if (tp + fn) > 0 else 0.0
+        f1 = (2 * precision * recall / (precision + recall)) if (precision + recall) > 0 else 0.0
+        return f1
+
+    @staticmethod
+    def _bio_to_spans(tags) -> set:
+        """Convert BIO tag sequence to set of (start, end, label) span tuples."""
+        spans = set()
+        start = None
+        label = None
+        for i, tag in enumerate(tags):
+            if tag.startswith("B-"):
+                if start is not None:
+                    spans.add((start, i - 1, label))
+                start, label = i, tag[2:]
+            elif tag.startswith("I-") and label == tag[2:]:
+                pass
+            else:
+                if start is not None:
+                    spans.add((start, i - 1, label))
+                start, label = None, None
+        if start is not None:
+            spans.add((start, len(tags) - 1, label))
+        return spans
 
     def _parse_entities(self, entity_value):
         """Helper function to safely parse the 'entities' field."""

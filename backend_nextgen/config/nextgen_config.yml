@@ -15,8 +15,8 @@ nlp:
 retrieval:
   encoder_name: intfloat/e5-base-v2
   embedding_dim: 768
-  index_path: backend_nextgen/data/vector_store/faiss_index.npy
-  metadata_store: backend_nextgen/data/vector_store/metadata.npy
+  index_path: backend_nextgen/data/retrieval/product_index.npy
+  metadata_store: backend_nextgen/data/retrieval/product_metadata.npy
   top_k: 20
 
 rag:

@@ -1,0 +1,62 @@
+{
+  "_comment": "Canonical entity label normalization. Keep in sync with scripts/evaluate_ai_engines.py::LABEL_NORMALIZATION and backend_nextgen/scripts/train_transformer_ner.py::ENTITY_NORMALIZATION.",
+
+  "BRAND_NAME":   "BRAND",
+  "MANUFACTURER": "BRAND",
+  "MAKER":        "BRAND",
+
+  "PRODUCT":      "PRODUCT_TYPE",
+  "ITEM":         "PRODUCT_TYPE",
+  "TYPE":         "PRODUCT_TYPE",
+
+  "MODEL_NAME":   "MODEL",
+  "MODEL_NUMBER": "MODEL",
+  "VERSION":      "MODEL",
+  "VARIANT":      "MODEL",
+
+  "COLOUR":       "COLOR",
+  "HUE":          "COLOR",
+  "SHADE":        "COLOR",
+
+  "DIMENSION":    "SIZE",
+  "MEASUREMENT":  "SIZE",
+
+  "PRICE":             "PRICE_RANGE",
+  "COST":              "PRICE_RANGE",
+  "BUDGET":            "PRICE_RANGE",
+  "PRICE_TOKEN":       "PRICE_RANGE",
+  "PRICE_QUALIFIER":   "PRICE_RANGE",
+  "PRICE_PREFERENCE":  "PRICE_RANGE",
+
+  "STATE":       "CONDITION",
+  "STATUS":      "CONDITION",
+
+  "FABRIC":      "MATERIAL",
+  "COMPOSITION": "MATERIAL",
+  "SUBSTANCE":   "MATERIAL",
+
+  "SPECIFICATION":  "FEATURE",
+  "SPEC":           "FEATURE",
+  "ATTRIBUTE":      "FEATURE",
+  "CHARACTERISTIC": "FEATURE",
+  "SPECS":          "FEATURE",
+
+  "TECHNOLOGY":  "TECH",
+  "TECHNICAL":   "TECH",
+
+  "PURPOSE":     "USAGE",
+  "APPLICATION": "USAGE",
+  "USE":         "USAGE",
+
+  "AUTHENTIC":   "AUTHENTICITY",
+  "GENUINE":     "AUTHENTICITY",
+  "ORIGINAL":    "AUTHENTICITY",
+
+  "COUNTRY":     "ORIGIN",
+  "MADE_IN":     "ORIGIN",
+  "LOCATION":    "ORIGIN",
+
+  "CERT":        "CERTIFICATION",
+  "STANDARD":    "CERTIFICATION",
+  "COMPLIANCE":  "CERTIFICATION"
+}

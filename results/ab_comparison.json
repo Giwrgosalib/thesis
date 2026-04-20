@@ -1,0 +1,5061 @@
+{
+  "stats": {
+    "num_queries": 50,
+    "legacy_avg_latency_ms": 668.8,
+    "nextgen_avg_latency_ms": 52.2,
+    "entity_count_wins": {
+      "legacy": 17,
+      "nextgen": 14,
+      "tie": 19
+    },
+    "legacy_macro_f1_vs_gold": 0.442,
+    "nextgen_macro_f1_vs_gold": 0.6629
+  },
+  "results": [
+    {
+      "query": "Can somebody help me find a wireless mouse ergonomic vertical under 60 bucks",
+      "legacy": {
+        "entities": [
+          {
+            "text": "wireless",
+            "label": "BRAND"
+          },
+          {
+            "text": "mouse ergonomic, vertical under, bucks",
+            "label": "PRODUCT_TYPE"
+          },
+          {
+            "text": "60",
+            "label": "FEATURE"
+          },
+          {
+            "text": "0, 60",
+            "label": "PRICE_RANGE"
+          }
+        ],
+        "labels_found": [
+          "BRAND",
+          "FEATURE",
+          "PRICE_RANGE",
+          "PRODUCT_TYPE"
+        ],
+        "latency_ms": 978.1,
+        "tp": [
+          "PRICE_RANGE",
+          "PRODUCT_TYPE"
+        ],
+        "fp": [
+          "BRAND",
+          "FEATURE"
+        ],
+        "fn": [
+          "STYLE",
+          "TYPE"
+        ]
+      },
+      "nextgen": {
+        "entities": [
+          {
+            "text": "wireless",
+            "label": "CONNECTIVITY",
+            "start": 28,
+            "end": 36
+          },
+          {
+            "text": "mouse",
+            "label": "PRODUCT_TYPE",
+            "start": 37,
+            "end": 42
+          },
+          {
+            "text": "ergonomic",
+            "label": "FEATURE",
+            "start": 43,
+            "end": 52
+          },
+          {
+            "text": "vertical",
+            "label": "FEATURE",
+            "start": 53,
+            "end": 61
+          },
+          {
+            "text": "under 60 bucks",
+            "label": "PRICE_RANGE",
+            "start": 62,
+            "end": 76
+          }
+        ],
+        "labels_found": [
+          "CONNECTIVITY",
+          "FEATURE",
+          "PRICE_RANGE",
+          "PRODUCT_TYPE"
+        ],
+        "latency_ms": 294.0,
+        "tp": [
+          "PRICE_RANGE",
+          "PRODUCT_TYPE"
+        ],
+        "fp": [
+          "CONNECTIVITY",
+          "FEATURE"
+        ],
+        "fn": [
+          "STYLE",
+          "TYPE"
+        ]
+      },
+      "agreement": [
+        "FEATURE",
+        "PRICE_RANGE",
+        "PRODUCT_TYPE"
+      ],
+      "legacy_only": [
+        "BRAND"
+      ],
+      "nextgen_only": [
+        "CONNECTIVITY"
+      ],
+      "gold": {
+        "labels": [
+          "PRICE_RANGE",
+          "PRODUCT_TYPE",
+          "STYLE",
+          "TYPE"
+        ]
+      }
+    },
+    {
+      "query": "I desperately need new running shoes not Nike or Adidas in size 10",
+      "legacy": {
+        "entities": [
+          {
+            "text": "new",
+            "label": "USAGE"
+          },
+          {
+            "text": "running shoes, or",
+            "label": "PRODUCT_TYPE"
+          },
+          {
+            "text": "not",
+            "label": "STORAGE"
+          },
+          {
+            "text": "Nike, 10",
+            "label": "FEATURE"
+          },
+          {
+            "text": "Adidas",
+            "label": "CONDITION"
+          },
+          {
+            "text": "size",
+            "label": "CONNECTIVITY"
+          },
+          {
+            "text": "Nike",
+            "label": "BRAND"
+          },
+          {
+            "text": "Footwear",
+            "label": "CATEGORY"
+          },
+          {
+            "text": "10",
+            "label": "SIZE"
+          }
+        ],
+        "labels_found": [
+          "BRAND",
+          "CATEGORY",
+          "CONDITION",
+          "CONNECTIVITY",
+          "FEATURE",
+          "PRODUCT_TYPE",
+          "SIZE",
+          "STORAGE",
+          "USAGE"
+        ],
+        "latency_ms": 806.2,
+        "tp": [
+          "PRODUCT_TYPE",
+          "SIZE"
+        ],
+        "fp": [
+          "BRAND",
+          "CATEGORY",
+          "CONDITION",
+          "CONNECTIVITY",
+          "FEATURE",
+          "STORAGE",
+          "USAGE"
+        ],
+        "fn": [
+          "BRAND_EXCLUSION"
+        ]
+      },
+      "nextgen": {
+        "entities": [
+          {
+            "text": "running shoes",
+            "label": "PRODUCT_TYPE",
+            "start": 23,
+            "end": 36
+          },
+          {
+            "text": "Nike",
+            "label": "BRAND",
+            "start": 41,
+            "end": 45
+          },
+          {
+            "text": "Adidas",
+            "label": "BRAND",
+            "start": 49,
+            "end": 55
+          },
+          {
+            "text": "size 10",
+            "label": "SIZE",
+            "start": 59,
+            "end": 66
+          }
+        ],
+        "labels_found": [
+          "BRAND",
+          "PRODUCT_TYPE",
+          "SIZE"
+        ],
+        "latency_ms": 227.2,
+        "tp": [
+          "PRODUCT_TYPE",
+          "SIZE"
+        ],
+        "fp": [
+          "BRAND"
+        ],
+        "fn": [
+          "BRAND_EXCLUSION"
+        ]
+      },
+      "agreement": [
+        "BRAND",
+        "PRODUCT_TYPE",
+        "SIZE"
+      ],
+      "legacy_only": [
+        "CATEGORY",
+        "CONDITION",
+        "CONNECTIVITY",
+        "FEATURE",
+        "STORAGE",
+        "USAGE"
+      ],
+      "nextgen_only": [],
+      "gold": {
+        "labels": [
+          "BRAND_EXCLUSION",
+          "PRODUCT_TYPE",
+          "SIZE"
+        ]
+      }
+    },
+    {
+      "query": "Show me some tablets with stylus pen support 128GB storage minimum",
+      "legacy": {
+        "entities": [
+          {
+            "text": "some tablets, stylus, support, Tablet",
+            "label": "PRODUCT_TYPE"
+          },
+          {
+            "text": "pen",
+            "label": "FEATURE"
+          },
+          {
+            "text": "128",
+            "label": "CONDITION"
+          },
+          {
+            "text": "Tablets",
+            "label": "CATEGORY"
+          }
+        ],
+        "labels_found": [
+          "CATEGORY",
+          "CONDITION",
+          "FEATURE",
+          "PRODUCT_TYPE"
+        ],
+        "latency_ms": 600.4,
+        "tp": [
+          "FEATURE",
+          "PRODUCT_TYPE"
+        ],
+        "fp": [
+          "CATEGORY",
+          "CONDITION"
+        ],
+        "fn": [
+          "QUANTITY",
+          "STORAGE"
+        ]
+      },
+      "nextgen": {
+        "entities": [
+          {
+            "text": "tablets",
+            "label": "PRODUCT_TYPE",
+            "start": 13,
+            "end": 20
+          },
+          {
+            "text": "stylus pen support",
+            "label": "FEATURE",
+            "start": 26,
+            "end": 44
+          }
+        ],
+        "labels_found": [
+          "FEATURE",
+          "PRODUCT_TYPE"
+        ],
+        "latency_ms": 24.5,
+        "tp": [
+          "FEATURE",
+          "PRODUCT_TYPE"
+        ],
+        "fp": [],
+        "fn": [
+          "QUANTITY",
+          "STORAGE"
+        ]
+      },
+      "agreement": [
+        "FEATURE",
+        "PRODUCT_TYPE"
+      ],
+      "legacy_only": [
+        "CATEGORY",
+        "CONDITION"
+      ],
+      "nextgen_only": [],
+      "gold": {
+        "labels": [
+          "FEATURE",
+          "PRODUCT_TYPE",
+          "QUANTITY",
+          "STORAGE"
+        ]
+      }
+    },
+    {
+      "query": "I have been looking everywhere for vintage Levi's 501 jeans size 32",
+      "legacy": {
+        "entities": [
+          {
+            "text": "been, everywhere, vintage Levi, 501, 32, Jeans",
+            "label": "PRODUCT_TYPE"
+          },
+          {
+            "text": "'s, jeans, size",
+            "label": "FEATURE"
+          },
+          {
+            "text": "Clothing",
+            "label": "CATEGORY"
+          },
+          {
+            "text": "32",
+            "label": "SIZE"
+          }
+        ],
+        "labels_found": [
+          "CATEGORY",
+          "FEATURE",
+          "PRODUCT_TYPE",
+          "SIZE"
+        ],
+        "latency_ms": 718.4,
+        "tp": [
+          "PRODUCT_TYPE",
+          "SIZE"
+        ],
+        "fp": [
+          "CATEGORY",
+          "FEATURE"
+        ],
+        "fn": [
+          "BRAND",
+          "CONDITION",
+          "MODEL"
+        ]
+      },
+      "nextgen": {
+        "entities": [
+          {
+            "text": "vintage",
+            "label": "PRODUCT_TYPE",
+            "start": 35,
+            "end": 42
+          },
+          {
+            "text": "Levi's",
+            "label": "BRAND",
+            "start": 43,
+            "end": 49
+          },
+          {
+            "text": "501",
+            "label": "MODEL",
+            "start": 50,
+            "end": 53
+          },
+          {
+            "text": "jeans",
+            "label": "PRODUCT_TYPE",
+            "start": 54,
+            "end": 59
+          },
+          {
+            "text": "size 32",
+            "label": "SIZE",
+            "start": 60,
+            "end": 67
+          }
+        ],
+        "labels_found": [
+          "BRAND",
+          "MODEL",
+          "PRODUCT_TYPE",
+          "SIZE"
+        ],
+        "latency_ms": 126.4,
+        "tp": [
+          "BRAND",
+          "MODEL",
+          "PRODUCT_TYPE",
+          "SIZE"
+        ],
+        "fp": [],
+        "fn": [
+          "CONDITION"
+        ]
+      },
+      "agreement": [
+        "PRODUCT_TYPE",
+        "SIZE"
+      ],
+      "legacy_only": [
+        "CATEGORY",
+        "FEATURE"
+      ],
+      "nextgen_only": [
+        "BRAND",
+        "MODEL"
+      ],
+      "gold": {
+        "labels": [
+          "BRAND",
+          "CONDITION",
+          "MODEL",
+          "PRODUCT_TYPE",
+          "SIZE"
+        ]
+      }
+    },
+    {
+      "query": "Does anyone have a Nintendo Switch Lite with games included in yellow",
+      "legacy": {
+        "entities": [
+          {
+            "text": "Nintendo",
+            "label": "BRAND"
+          },
+          {
+            "text": "Switch Lite, games included",
+            "label": "PRODUCT_TYPE"
+          },
+          {
+            "text": "yellow",
+            "label": "CONDITION"
+          }
+        ],
+        "labels_found": [
+          "BRAND",
+          "CONDITION",
+          "PRODUCT_TYPE"
+        ],
+        "latency_ms": 632.1,
+        "tp": [
+          "BRAND"
+        ],
+        "fp": [
+          "CONDITION",
+          "PRODUCT_TYPE"
+        ],
+        "fn": [
+          "ACCESSORY",
+          "COLOR",
+          "INCLUSIONS",
+          "MODEL"
+        ]
+      },
+      "nextgen": {
+        "entities": [
+          {
+            "text": "Nintendo",
+            "label": "BRAND",
+            "start": 19,
+            "end": 27
+          },
+          {
+            "text": "Switch Lite",
+            "label": "MODEL",
+            "start": 28,
+            "end": 39
+          },
+          {
+            "text": "yellow",
+            "label": "COLOR",
+            "start": 63,
+            "end": 69
+          }
+        ],
+        "labels_found": [
+          "BRAND",
+          "COLOR",
+          "MODEL"
+        ],
+        "latency_ms": 54.2,
+        "tp": [
+          "BRAND",
+          "COLOR",
+          "MODEL"
+        ],
+        "fp": [],
+        "fn": [
+          "ACCESSORY",
+          "INCLUSIONS"
+        ]
+      },
+      "agreement": [
+        "BRAND"
+      ],
+      "legacy_only": [
+        "CONDITION",
+        "PRODUCT_TYPE"
+      ],
+      "nextgen_only": [
+        "COLOR",
+        "MODEL"
+      ],
+      "gold": {
+        "labels": [
+          "ACCESSORY",
+          "BRAND",
+          "COLOR",
+          "INCLUSIONS",
+          "MODEL"
+        ]
+      }
+    },
+    {
+      "query": "My daughter wants a kids tablet with parental controls and learning games",
+      "legacy": {
+        "entities": [
+          {
+            "text": "kids, tablet, parental controls",
+            "label": "PRODUCT_TYPE"
+          },
+          {
+            "text": "learning, games",
+            "label": "FEATURE"
+          },
+          {
+            "text": "Tablets",
+            "label": "CATEGORY"
+          }
+        ],
+        "labels_found": [
+          "CATEGORY",
+          "FEATURE",
+          "PRODUCT_TYPE"
+        ],
+        "latency_ms": 733.1,
+        "tp": [
+          "FEATURE",
+          "PRODUCT_TYPE"
+        ],
+        "fp": [
+          "CATEGORY"
+        ],
+        "fn": []
+      },
+      "nextgen": {
+        "entities": [
+          {
+            "text": "kids tablet",
+            "label": "PRODUCT_TYPE",
+            "start": 20,
+            "end": 31
+          },
+          {
+            "text": "parental controls",
+            "label": "FEATURE",
+            "start": 37,
+            "end": 54
+          },
+          {
+            "text": "learning games",
+            "label": "FEATURE",
+            "start": 59,
+            "end": 73
+          }
+        ],
+        "labels_found": [
+          "FEATURE",
+          "PRODUCT_TYPE"
+        ],
+        "latency_ms": 22.3,
+        "tp": [
+          "FEATURE",
+          "PRODUCT_TYPE"
+        ],
+        "fp": [],
+        "fn": []
+      },
+      "agreement": [
+        "FEATURE",
+        "PRODUCT_TYPE"
+      ],
+      "legacy_only": [
+        "CATEGORY"
+      ],
+      "nextgen_only": [],
+      "gold": {
+        "labels": [
+          "FEATURE",
+          "PRODUCT_TYPE"
+        ]
+      }
+    },
+    {
+      "query": "I'm in the market for a used Tesla Model 3 with autopilot long range",
+      "legacy": {
+        "entities": [
+          {
+            "text": "used",
+            "label": "USAGE"
+          },
+          {
+            "text": "Tesla Model, autopilot long",
+            "label": "PRODUCT_TYPE"
+          },
+          {
+            "text": "3",
+            "label": "CONDITION"
+          },
+          {
+            "text": "range",
+            "label": "FEATURE"
+          }
+        ],
+        "labels_found": [
+          "CONDITION",
+          "FEATURE",
+          "PRODUCT_TYPE",
+          "USAGE"
+        ],
+        "latency_ms": 724.2,
+        "tp": [
+          "CONDITION",
+          "FEATURE"
+        ],
+        "fp": [
+          "PRODUCT_TYPE",
+          "USAGE"
+        ],
+        "fn": [
+          "BRAND",
+          "MODEL",
+          "RANGE"
+        ]
+      },
+      "nextgen": {
+        "entities": [
+          {
+            "text": "used",
+            "label": "CONDITION",
+            "start": 24,
+            "end": 28
+          },
+          {
+            "text": "Tesla",
+            "label": "BRAND",
+            "start": 29,
+            "end": 34
+          },
+          {
+            "text": "Model 3",
+            "label": "MODEL",
+            "start": 35,
+            "end": 42
+          },
+          {
+            "text": "autopilot",
+            "label": "FEATURE",
+            "start": 48,
+            "end": 57
+          },
+          {
+            "text": "long range",
+            "label": "FEATURE",
+            "start": 58,
+            "end": 68
+          }
+        ],
+        "labels_found": [
+          "BRAND",
+          "CONDITION",
+          "FEATURE",
+          "MODEL"
+        ],
+        "latency_ms": 299.6,
+        "tp": [
+          "BRAND",
+          "CONDITION",
+          "FEATURE",
+          "MODEL"
+        ],
+        "fp": [],
+        "fn": [
+          "RANGE"
+        ]
+      },
+      "agreement": [
+        "CONDITION",
+        "FEATURE"
+      ],
+      "legacy_only": [
+        "PRODUCT_TYPE",
+        "USAGE"
+      ],
+      "nextgen_only": [
+        "BRAND",
+        "MODEL"
+      ],
+      "gold": {
+        "labels": [
+          "BRAND",
+          "CONDITION",
+          "FEATURE",
+          "MODEL",
+          "RANGE"
+        ]
+      }
+    },
+    {
+      "query": "Looking to buy a camping hammock ultralight with mosquito net and rainfly",
+      "legacy": {
+        "entities": [
+          {
+            "text": "camping",
+            "label": "BRAND"
+          },
+          {
+            "text": "hammock ultralight, mosquito net",
+            "label": "PRODUCT_TYPE"
+          },
+          {
+            "text": "rainfly",
+            "label": "FEATURE"
+          }
+        ],
+        "labels_found": [
+          "BRAND",
+          "FEATURE",
+          "PRODUCT_TYPE"
+        ],
+        "latency_ms": 595.7,
+        "tp": [
+          "PRODUCT_TYPE"
+        ],
+        "fp": [
+          "BRAND",
+          "FEATURE"
+        ],
+        "fn": [
+          "ACCESSORY",
+          "WEIGHT"
+        ]
+      },
+      "nextgen": {
+        "entities": [
+          {
+            "text": "camping hammock",
+            "label": "PRODUCT_TYPE",
+            "start": 17,
+            "end": 32
+          },
+          {
+            "text": "ultralight",
+            "label": "MATERIAL",
+            "start": 33,
+            "end": 43
+          },
+          {
+            "text": "mosquito net",
+            "label": "FEATURE",
+            "start": 49,
+            "end": 61
+          },
+          {
+            "text": "rainfly",
+            "label": "FEATURE",
+            "start": 66,
+            "end": 73
+          }
+        ],
+        "labels_found": [
+          "FEATURE",
+          "MATERIAL",
+          "PRODUCT_TYPE"
+        ],
+        "latency_ms": 19.3,
+        "tp": [
+          "PRODUCT_TYPE"
+        ],
+        "fp": [
+          "FEATURE",
+          "MATERIAL"
+        ],
+        "fn": [
+          "ACCESSORY",
+          "WEIGHT"
+        ]
+      },
+      "agreement": [
+        "FEATURE",
+        "PRODUCT_TYPE"
+      ],
+      "legacy_only": [
+        "BRAND"
+      ],
+      "nextgen_only": [
+        "MATERIAL"
+      ],
+      "gold": {
+        "labels": [
+          "ACCESSORY",
+          "PRODUCT_TYPE",
+          "WEIGHT"
+        ]
+      }
+    },
+    {
+      "query": "We need to find new office monitors 27 inch 4K IPS panel adjustable stand",
+      "legacy": {
+        "entities": [
+          {
+            "text": "new, IPS",
+            "label": "USAGE"
+          },
+          {
+            "text": "office monitors, 27 inch, panel, Monitor",
+            "label": "PRODUCT_TYPE"
+          },
+          {
+            "text": "4, adjustable",
+            "label": "CONDITION"
+          },
+          {
+            "text": "Monitors",
+            "label": "CATEGORY"
+          },
+          {
+            "text": "27",
+            "label": "SIZE"
+          }
+        ],
+        "labels_found": [
+          "CATEGORY",
+          "CONDITION",
+          "PRODUCT_TYPE",
+          "SIZE",
+          "USAGE"
+        ],
+        "latency_ms": 785.5,
+        "tp": [
+          "PRODUCT_TYPE",
+          "SIZE"
+        ],
+        "fp": [
+          "CATEGORY",
+          "CONDITION",
+          "USAGE"
+        ],
+        "fn": [
+          "FEATURE",
+          "PANEL_TYPE",
+          "RESOLUTION"
+        ]
+      },
+      "nextgen": {
+        "entities": [
+          {
+            "text": "new",
+            "label": "CONDITION",
+            "start": 16,
+            "end": 19
+          },
+          {
+            "text": "office monitors",
+            "label": "PRODUCT_TYPE",
+            "start": 20,
+            "end": 35
+          },
+          {
+            "text": "27 inch",
+            "label": "SIZE",
+            "start": 36,
+            "end": 43
+          },
+          {
+            "text": "IPS",
+            "label": "PRODUCT_TYPE",
+            "start": 47,
+            "end": 50
+          },
+          {
+            "text": "adjustable stand",
+            "label": "FEATURE",
+            "start": 57,
+            "end": 73
+          }
+        ],
+        "labels_found": [
+          "CONDITION",
+          "FEATURE",
+          "PRODUCT_TYPE",
+          "SIZE"
+        ],
+        "latency_ms": 67.5,
+        "tp": [
+          "FEATURE",
+          "PRODUCT_TYPE",
+          "SIZE"
+        ],
+        "fp": [
+          "CONDITION"
+        ],
+        "fn": [
+          "PANEL_TYPE",
+          "RESOLUTION"
+        ]
+      },
+      "agreement": [
+        "CONDITION",
+        "PRODUCT_TYPE",
+        "SIZE"
+      ],
+      "legacy_only": [
+        "CATEGORY",
+        "USAGE"
+      ],
+      "nextgen_only": [
+        "FEATURE"
+      ],
+      "gold": {
+        "labels": [
+          "FEATURE",
+          "PANEL_TYPE",
+          "PRODUCT_TYPE",
+          "RESOLUTION",
+          "SIZE"
+        ]
+      }
+    },
+    {
+      "query": "Help me locate a good quality espresso machine manual lever not automatic",
+      "legacy": {
+        "entities": [
+          {
+            "text": "good quality, espresso machine, lever",
+            "label": "PRODUCT_TYPE"
+          },
+          {
+            "text": "manual, not, automatic",
+            "label": "FEATURE"
+          }
+        ],
+        "labels_found": [
+          "FEATURE",
+          "PRODUCT_TYPE"
+        ],
+        "latency_ms": 608.5,
+        "tp": [
+          "PRODUCT_TYPE"
+        ],
+        "fp": [
+          "FEATURE"
+        ],
+        "fn": [
+          "TYPE",
+          "TYPE_EXCLUSION"
+        ]
+      },
+      "nextgen": {
+        "entities": [
+          {
+            "text": "good quality",
+            "label": "CONDITION",
+            "start": 17,
+            "end": 29
+          },
+          {
+            "text": "espresso machine",
+            "label": "PRODUCT_TYPE",
+            "start": 30,
+            "end": 46
+          },
+          {
+            "text": "manual lever",
+            "label": "FEATURE",
+            "start": 47,
+            "end": 59
+          },
+          {
+            "text": "not automatic",
+            "label": "FEATURE",
+            "start": 60,
+            "end": 73
+          }
+        ],
+        "labels_found": [
+          "CONDITION",
+          "FEATURE",
+          "PRODUCT_TYPE"
+        ],
+        "latency_ms": 37.8,
+        "tp": [
+          "PRODUCT_TYPE"
+        ],
+        "fp": [
+          "CONDITION",
+          "FEATURE"
+        ],
+        "fn": [
+          "TYPE",
+          "TYPE_EXCLUSION"
+        ]
+      },
+      "agreement": [
+        "FEATURE",
+        "PRODUCT_TYPE"
+      ],
+      "legacy_only": [],
+      "nextgen_only": [
+        "CONDITION"
+      ],
+      "gold": {
+        "labels": [
+          "PRODUCT_TYPE",
+          "TYPE",
+          "TYPE_EXCLUSION"
+        ]
+      }
+    },
+    {
+      "query": "Anyone selling Canon lenses 50mm f1.4 for full frame EF mount used",
+      "legacy": {
+        "entities": [
+          {
+            "text": "Anyone, used",
+            "label": "FEATURE"
+          },
+          {
+            "text": "Canon, 50 mm, EF mount, RAM",
+            "label": "PRODUCT_TYPE"
+          },
+          {
+            "text": "f1.4",
+            "label": "CONDITION"
+          },
+          {
+            "text": "full frame",
+            "label": "USAGE"
+          },
+          {
+            "text": "Canon",
+            "label": "BRAND"
+          },
+          {
+            "text": "Computer Components",
+            "label": "CATEGORY"
+          },
+          {
+            "text": "50",
+            "label": "SIZE"
+          }
+        ],
+        "labels_found": [
+          "BRAND",
+          "CATEGORY",
+          "CONDITION",
+          "FEATURE",
+          "PRODUCT_TYPE",
+          "SIZE",
+          "USAGE"
+        ],
+        "latency_ms": 970.5,
+        "tp": [
+          "BRAND",
+          "CONDITION",
+          "PRODUCT_TYPE"
+        ],
+        "fp": [
+          "CATEGORY",
+          "FEATURE",
+          "SIZE",
+          "USAGE"
+        ],
+        "fn": [
+          "APERTURE",
+          "FOCAL_LENGTH",
+          "MOUNT",
+          "SENSOR"
+        ]
+      },
+      "nextgen": {
+        "entities": [
+          {
+            "text": "Canon",
+            "label": "BRAND",
+            "start": 15,
+            "end": 20
+          },
+          {
+            "text": "lenses",
+            "label": "PRODUCT_TYPE",
+            "start": 21,
+            "end": 27
+          },
+          {
+            "text": "50mm",
+            "label": "SIZE",
+            "start": 28,
+            "end": 32
+          },
+          {
+            "text": "f1.4",
+            "label": "SIZE",
+            "start": 33,
+            "end": 37
+          },
+          {
+            "text": "full frame",
+            "label": "USAGE",
+            "start": 42,
+            "end": 52
+          },
+          {
+            "text": "EF",
+            "label": "SIZE",
+            "start": 53,
+            "end": 55
+          },
+          {
+            "text": "used",
+            "label": "CONDITION",
+            "start": 62,
+            "end": 66
+          }
+        ],
+        "labels_found": [
+          "BRAND",
+          "CONDITION",
+          "PRODUCT_TYPE",
+          "SIZE",
+          "USAGE"
+        ],
+        "latency_ms": 40.8,
+        "tp": [
+          "BRAND",
+          "CONDITION",
+          "PRODUCT_TYPE"
+        ],
+        "fp": [
+          "SIZE",
+          "USAGE"
+        ],
+        "fn": [
+          "APERTURE",
+          "FOCAL_LENGTH",
+          "MOUNT",
+          "SENSOR"
+        ]
+      },
+      "agreement": [
+        "BRAND",
+        "CONDITION",
+        "PRODUCT_TYPE",
+        "SIZE",
+        "USAGE"
+      ],
+      "legacy_only": [
+        "CATEGORY",
+        "FEATURE"
+      ],
+      "nextgen_only": [],
+      "gold": {
+        "labels": [
+          "APERTURE",
+          "BRAND",
+          "CONDITION",
+          "FOCAL_LENGTH",
+          "MOUNT",
+          "PRODUCT_TYPE",
+          "SENSOR"
+        ]
+      }
+    },
+    {
+      "query": "I really want a comfortable office chair mesh back with headrest budget",
+      "legacy": {
+        "entities": [
+          {
+            "text": "comfortable office, chair mesh, budget",
+            "label": "PRODUCT_TYPE"
+          },
+          {
+            "text": "back",
+            "label": "CONDITION"
+          },
+          {
+            "text": "headrest",
+            "label": "FEATURE"
+          }
+        ],
+        "labels_found": [
+          "CONDITION",
+          "FEATURE",
+          "PRODUCT_TYPE"
+        ],
+        "latency_ms": 710.9,
+        "tp": [
+          "FEATURE",
+          "PRODUCT_TYPE"
+        ],
+        "fp": [
+          "CONDITION"
+        ],
+        "fn": [
+          "PRICE_PREFERENCE",
+          "TYPE"
+        ]
+      },
+      "nextgen": {
+        "entities": [
+          {
+            "text": "comfortable office chair",
+            "label": "PRODUCT_TYPE",
+            "start": 16,
+            "end": 40
+          },
+          {
+            "text": "mesh",
+            "label": "MATERIAL",
+            "start": 41,
+            "end": 45
+          },
+          {
+            "text": "headrest",
+            "label": "FEATURE",
+            "start": 56,
+            "end": 64
+          }
+        ],
+        "labels_found": [
+          "FEATURE",
+          "MATERIAL",
+          "PRODUCT_TYPE"
+        ],
+        "latency_ms": 20.6,
+        "tp": [
+          "FEATURE",
+          "PRODUCT_TYPE"
+        ],
+        "fp": [
+          "MATERIAL"
+        ],
+        "fn": [
+          "PRICE_PREFERENCE",
+          "TYPE"
+        ]
+      },
+      "agreement": [
+        "FEATURE",
+        "PRODUCT_TYPE"
+      ],
+      "legacy_only": [
+        "CONDITION"
+      ],
+      "nextgen_only": [
+        "MATERIAL"
+      ],
+      "gold": {
+        "labels": [
+          "FEATURE",
+          "PRICE_PREFERENCE",
+          "PRODUCT_TYPE",
+          "TYPE"
+        ]
+      }
+    },
+    {
+      "query": "Can you show me power banks 20000mAh with fast charging USB C output",
+      "legacy": {
+        "entities": [
+          {
+            "text": "power banks, 20000mAh",
+            "label": "PRODUCT_TYPE"
+          },
+          {
+            "text": "fast charging",
+            "label": "USAGE"
+          },
+          {
+            "text": "USB",
+            "label": "SIZE"
+          },
+          {
+            "text": "C",
+            "label": "FEATURE"
+          }
+        ],
+        "labels_found": [
+          "FEATURE",
+          "PRODUCT_TYPE",
+          "SIZE",
+          "USAGE"
+        ],
+        "latency_ms": 620.5,
+        "tp": [
+          "FEATURE",
+          "PRODUCT_TYPE"
+        ],
+        "fp": [
+          "SIZE",
+          "USAGE"
+        ],
+        "fn": [
+          "CAPACITY",
+          "CONNECTOR"
+        ]
+      },
+      "nextgen": {
+        "entities": [
+          {
+            "text": "power banks",
+            "label": "PRODUCT_TYPE",
+            "start": 16,
+            "end": 27
+          },
+          {
+            "text": "20000mAh",
+            "label": "SIZE",
+            "start": 28,
+            "end": 36
+          },
+          {
+            "text": "fast charging",
+            "label": "FEATURE",
+            "start": 42,
+            "end": 55
+          },
+          {
+            "text": "USB C output",
+            "label": "FEATURE",
+            "start": 56,
+            "end": 68
+          }
+        ],
+        "labels_found": [
+          "FEATURE",
+          "PRODUCT_TYPE",
+          "SIZE"
+        ],
+        "latency_ms": 31.8,
+        "tp": [
+          "FEATURE",
+          "PRODUCT_TYPE"
+        ],
+        "fp": [
+          "SIZE"
+        ],
+        "fn": [
+          "CAPACITY",
+          "CONNECTOR"
+        ]
+      },
+      "agreement": [
+        "FEATURE",
+        "PRODUCT_TYPE",
+        "SIZE"
+      ],
+      "legacy_only": [
+        "USAGE"
+      ],
+      "nextgen_only": [],
+      "gold": {
+        "labels": [
+          "CAPACITY",
+          "CONNECTOR",
+          "FEATURE",
+          "PRODUCT_TYPE"
+        ]
+      }
+    },
+    {
+      "query": "Searching for women's hiking boots waterproof ankle support size 8 wide",
+      "legacy": {
+        "entities": [
+          {
+            "text": "women 's, boots, waterproof ankle, wide, Hiking Boots",
+            "label": "PRODUCT_TYPE"
+          },
+          {
+            "text": "hiking, support size, 8",
+            "label": "FEATURE"
+          },
+          {
+            "text": "Footwear",
+            "label": "CATEGORY"
+          },
+          {
+            "text": "8",
+            "label": "SIZE"
+          }
+        ],
+        "labels_found": [
+          "CATEGORY",
+          "FEATURE",
+          "PRODUCT_TYPE",
+          "SIZE"
+        ],
+        "latency_ms": 668.0,
+        "tp": [
+          "FEATURE",
+          "PRODUCT_TYPE",
+          "SIZE"
+        ],
+        "fp": [
+          "CATEGORY"
+        ],
+        "fn": [
+          "GENDER"
+        ]
+      },
+      "nextgen": {
+        "entities": [
+          {
+            "text": "women's",
+            "label": "TIER",
+            "start": 14,
+            "end": 21
+          },
+          {
+            "text": "hiking boots",
+            "label": "PRODUCT_TYPE",
+            "start": 22,
+            "end": 34
+          },
+          {
+            "text": "waterproof",
+            "label": "FEATURE",
+            "start": 35,
+            "end": 45
+          },
+          {
+            "text": "ankle support",
+            "label": "FEATURE",
+            "start": 46,
+            "end": 59
+          },
+          {
+            "text": "size 8 wide",
+            "label": "SIZE",
+            "start": 60,
+            "end": 71
+          }
+        ],
+        "labels_found": [
+          "FEATURE",
+          "PRODUCT_TYPE",
+          "SIZE",
+          "TIER"
+        ],
+        "latency_ms": 25.4,
+        "tp": [
+          "FEATURE",
+          "PRODUCT_TYPE",
+          "SIZE"
+        ],
+        "fp": [
+          "TIER"
+        ],
+        "fn": [
+          "GENDER"
+        ]
+      },
+      "agreement": [
+        "FEATURE",
+        "PRODUCT_TYPE",
+        "SIZE"
+      ],
+      "legacy_only": [
+        "CATEGORY"
+      ],
+      "nextgen_only": [
+        "TIER"
+      ],
+      "gold": {
+        "labels": [
+          "FEATURE",
+          "GENDER",
+          "PRODUCT_TYPE",
+          "SIZE"
+        ]
+      }
+    },
+    {
+      "query": "My husband is looking for a smartwatch for fitness tracking under 300",
+      "legacy": {
+        "entities": [
+          {
+            "text": "smartwatch, fitness tracking, Watch",
+            "label": "PRODUCT_TYPE"
+          },
+          {
+            "text": "under",
+            "label": "CONDITION"
+          },
+          {
+            "text": "300",
+            "label": "FEATURE"
+          },
+          {
+            "text": "0, 300",
+            "label": "PRICE_RANGE"
+          },
+          {
+            "text": "Wearables, Watches",
+            "label": "CATEGORY"
+          }
+        ],
+        "labels_found": [
+          "CATEGORY",
+          "CONDITION",
+          "FEATURE",
+          "PRICE_RANGE",
+          "PRODUCT_TYPE"
+        ],
+        "latency_ms": 577.3,
+        "tp": [
+          "PRICE_RANGE",
+          "PRODUCT_TYPE"
+        ],
+        "fp": [
+          "CATEGORY",
+          "CONDITION",
+          "FEATURE"
+        ],
+        "fn": [
+          "USAGE"
+        ]
+      },
+      "nextgen": {
+        "entities": [
+          {
+            "text": "smartwatch",
+            "label": "PRODUCT_TYPE",
+            "start": 28,
+            "end": 38
+          },
+          {
+            "text": "fitness",
+            "label": "USAGE",
+            "start": 43,
+            "end": 50
+          },
+          {
+            "text": "under 300",
+            "label": "PRICE_RANGE",
+            "start": 60,
+            "end": 69
+          }
+        ],
+        "labels_found": [
+          "PRICE_RANGE",
+          "PRODUCT_TYPE",
+          "USAGE"
+        ],
+        "latency_ms": 23.4,
+        "tp": [
+          "PRICE_RANGE",
+          "PRODUCT_TYPE",
+          "USAGE"
+        ],
+        "fp": [],
+        "fn": []
+      },
+      "agreement": [
+        "PRICE_RANGE",
+        "PRODUCT_TYPE"
+      ],
+      "legacy_only": [
+        "CATEGORY",
+        "CONDITION",
+        "FEATURE"
+      ],
+      "nextgen_only": [
+        "USAGE"
+      ],
+      "gold": {
+        "labels": [
+          "PRICE_RANGE",
+          "PRODUCT_TYPE",
+          "USAGE"
+        ]
+      }
+    },
+    {
+      "query": "Please find me a laptop stand aluminum adjustable with cooling fan",
+      "legacy": {
+        "entities": [
+          {
+            "text": "laptop stand, aluminum adjustable, cooling, Laptop",
+            "label": "PRODUCT_TYPE"
+          },
+          {
+            "text": "fan",
+            "label": "FEATURE"
+          },
+          {
+            "text": "Computers",
+            "label": "CATEGORY"
+          }
+        ],
+        "labels_found": [
+          "CATEGORY",
+          "FEATURE",
+          "PRODUCT_TYPE"
+        ],
+        "latency_ms": 629.2,
+        "tp": [
+          "FEATURE",
+          "PRODUCT_TYPE"
+        ],
+        "fp": [
+          "CATEGORY"
+        ],
+        "fn": [
+          "MATERIAL"
+        ]
+      },
+      "nextgen": {
+        "entities": [
+          {
+            "text": "laptop stand",
+            "label": "PRODUCT_TYPE",
+            "start": 17,
+            "end": 29
+          },
+          {
+            "text": "aluminum",
+            "label": "MATERIAL",
+            "start": 30,
+            "end": 38
+          },
+          {
+            "text": "adjustable",
+            "label": "FEATURE",
+            "start": 39,
+            "end": 49
+          },
+          {
+            "text": "cooling fan",
+            "label": "FEATURE",
+            "start": 55,
+            "end": 66
+          }
+        ],
+        "labels_found": [
+          "FEATURE",
+          "MATERIAL",
+          "PRODUCT_TYPE"
+        ],
+        "latency_ms": 43.5,
+        "tp": [
+          "FEATURE",
+          "MATERIAL",
+          "PRODUCT_TYPE"
+        ],
+        "fp": [],
+        "fn": []
+      },
+      "agreement": [
+        "FEATURE",
+        "PRODUCT_TYPE"
+      ],
+      "legacy_only": [
+        "CATEGORY"
+      ],
+      "nextgen_only": [
+        "MATERIAL"
+      ],
+      "gold": {
+        "labels": [
+          "FEATURE",
+          "MATERIAL",
+          "PRODUCT_TYPE"
+        ]
+      }
+    },
+    {
+      "query": "Does anybody have mechanical keyboard 75 percent layout hot swappable",
+      "legacy": {
+        "entities": [
+          {
+            "text": "anybody, mechanical keyboard, percent",
+            "label": "PRODUCT_TYPE"
+          },
+          {
+            "text": "75, layout hot, swappable",
+            "label": "FEATURE"
+          },
+          {
+            "text": "Computer Peripherals",
+            "label": "CATEGORY"
+          }
+        ],
+        "labels_found": [
+          "CATEGORY",
+          "FEATURE",
+          "PRODUCT_TYPE"
+        ],
+        "latency_ms": 561.9,
+        "tp": [
+          "FEATURE",
+          "PRODUCT_TYPE"
+        ],
+        "fp": [
+          "CATEGORY"
+        ],
+        "fn": [
+          "LAYOUT"
+        ]
+      },
+      "nextgen": {
+        "entities": [
+          {
+            "text": "mechanical keyboard",
+            "label": "PRODUCT_TYPE",
+            "start": 18,
+            "end": 37
+          },
+          {
+            "text": "75",
+            "label": "SIZE",
+            "start": 38,
+            "end": 40
+          },
+          {
+            "text": "hot swappable",
+            "label": "FEATURE",
+            "start": 56,
+            "end": 69
+          }
+        ],
+        "labels_found": [
+          "FEATURE",
+          "PRODUCT_TYPE",
+          "SIZE"
+        ],
+        "latency_ms": 24.4,
+        "tp": [
+          "FEATURE",
+          "PRODUCT_TYPE"
+        ],
+        "fp": [
+          "SIZE"
+        ],
+        "fn": [
+          "LAYOUT"
+        ]
+      },
+      "agreement": [
+        "FEATURE",
+        "PRODUCT_TYPE"
+      ],
+      "legacy_only": [
+        "CATEGORY"
+      ],
+      "nextgen_only": [
+        "SIZE"
+      ],
+      "gold": {
+        "labels": [
+          "FEATURE",
+          "LAYOUT",
+          "PRODUCT_TYPE"
+        ]
+      }
+    },
+    {
+      "query": "I would really appreciate help finding a good electric kettle gooseneck",
+      "legacy": {
+        "entities": [
+          {
+            "text": "would really, appreciate help, electric, gooseneck",
+            "label": "PRODUCT_TYPE"
+          },
+          {
+            "text": "finding, kettle",
+            "label": "FEATURE"
+          },
+          {
+            "text": "good",
+            "label": "USAGE"
+          }
+        ],
+        "labels_found": [
+          "FEATURE",
+          "PRODUCT_TYPE",
+          "USAGE"
+        ],
+        "latency_ms": 640.3,
+        "tp": [
+          "PRODUCT_TYPE"
+        ],
+        "fp": [
+          "FEATURE",
+          "USAGE"
+        ],
+        "fn": [
+          "STYLE"
+        ]
+      },
+      "nextgen": {
+        "entities": [
+          {
+            "text": "electric kettle",
+            "label": "PRODUCT_TYPE",
+            "start": 46,
+            "end": 61
+          },
+          {
+            "text": "gooseneck",
+            "label": "PRODUCT_TYPE",
+            "start": 62,
+            "end": 71
+          }
+        ],
+        "labels_found": [
+          "PRODUCT_TYPE"
+        ],
+        "latency_ms": 32.0,
+        "tp": [
+          "PRODUCT_TYPE"
+        ],
+        "fp": [],
+        "fn": [
+          "STYLE"
+        ]
+      },
+      "agreement": [
+        "PRODUCT_TYPE"
+      ],
+      "legacy_only": [
+        "FEATURE",
+        "USAGE"
+      ],
+      "nextgen_only": [],
+      "gold": {
+        "labels": [
+          "PRODUCT_TYPE",
+          "STYLE"
+        ]
+      }
+    },
+    {
+      "query": "We are searching for bunk beds twin over full solid wood with stairs",
+      "legacy": {
+        "entities": [
+          {
+            "text": "bunk beds twin",
+            "label": "PRODUCT_TYPE"
+          },
+          {
+            "text": "over, stairs",
+            "label": "CONDITION"
+          },
+          {
+            "text": "wood",
+            "label": "CAPACITY"
+          }
+        ],
+        "labels_found": [
+          "CAPACITY",
+          "CONDITION",
+          "PRODUCT_TYPE"
+        ],
+        "latency_ms": 603.8,
+        "tp": [
+          "PRODUCT_TYPE"
+        ],
+        "fp": [
+          "CAPACITY",
+          "CONDITION"
+        ],
+        "fn": [
+          "FEATURE",
+          "MATERIAL",
+          "SIZE"
+        ]
+      },
+      "nextgen": {
+        "entities": [
+          {
+            "text": "bunk beds",
+            "label": "PRODUCT_TYPE",
+            "start": 21,
+            "end": 30
+          },
+          {
+            "text": "twin over full",
+            "label": "SIZE",
+            "start": 31,
+            "end": 45
+          },
+          {
+            "text": "solid wood",
+            "label": "MATERIAL",
+            "start": 46,
+            "end": 56
+          },
+          {
+            "text": "stairs",
+            "label": "FEATURE",
+            "start": 62,
+            "end": 68
+          }
+        ],
+        "labels_found": [
+          "FEATURE",
+          "MATERIAL",
+          "PRODUCT_TYPE",
+          "SIZE"
+        ],
+        "latency_ms": 45.9,
+        "tp": [
+          "FEATURE",
+          "MATERIAL",
+          "PRODUCT_TYPE",
+          "SIZE"
+        ],
+        "fp": [],
+        "fn": []
+      },
+      "agreement": [
+        "PRODUCT_TYPE"
+      ],
+      "legacy_only": [
+        "CAPACITY",
+        "CONDITION"
+      ],
+      "nextgen_only": [
+        "FEATURE",
+        "MATERIAL",
+        "SIZE"
+      ],
+      "gold": {
+        "labels": [
+          "FEATURE",
+          "MATERIAL",
+          "PRODUCT_TYPE",
+          "SIZE"
+        ]
+      }
+    },
+    {
+      "query": "Looking for someone selling a used PlayStation VR2 with controllers",
+      "legacy": {
+        "entities": [
+          {
+            "text": "someone, used PlayStation, VR2",
+            "label": "PRODUCT_TYPE"
+          },
+          {
+            "text": "controllers",
+            "label": "CONDITION"
+          },
+          {
+            "text": "Sony",
+            "label": "BRAND"
+          }
+        ],
+        "labels_found": [
+          "BRAND",
+          "CONDITION",
+          "PRODUCT_TYPE"
+        ],
+        "latency_ms": 535.7,
+        "tp": [
+          "BRAND",
+          "CONDITION"
+        ],
+        "fp": [
+          "PRODUCT_TYPE"
+        ],
+        "fn": [
+          "ACCESSORY",
+          "MODEL"
+        ]
+      },
+      "nextgen": {
+        "entities": [
+          {
+            "text": "used",
+            "label": "CONDITION",
+            "start": 30,
+            "end": 34
+          },
+          {
+            "text": "PlayStation",
+            "label": "BRAND",
+            "start": 35,
+            "end": 46
+          },
+          {
+            "text": "VR2",
+            "label": "MODEL",
+            "start": 47,
+            "end": 50
+          },
+          {
+            "text": "controllers",
+            "label": "INCLUSIONS",
+            "start": 56,
+            "end": 67
+          }
+        ],
+        "labels_found": [
+          "BRAND",
+          "CONDITION",
+          "INCLUSIONS",
+          "MODEL"
+        ],
+        "latency_ms": 69.2,
+        "tp": [
+          "BRAND",
+          "CONDITION",
+          "MODEL"
+        ],
+        "fp": [
+          "INCLUSIONS"
+        ],
+        "fn": [
+          "ACCESSORY"
+        ]
+      },
+      "agreement": [
+        "BRAND",
+        "CONDITION"
+      ],
+      "legacy_only": [
+        "PRODUCT_TYPE"
+      ],
+      "nextgen_only": [
+        "INCLUSIONS",
+        "MODEL"
+      ],
+      "gold": {
+        "labels": [
+          "ACCESSORY",
+          "BRAND",
+          "CONDITION",
+          "MODEL"
+        ]
+      }
+    },
+    {
+      "query": "I need to find a baby stroller travel system with car seat lightweight",
+      "legacy": {
+        "entities": [
+          {
+            "text": "baby",
+            "label": "BRAND"
+          },
+          {
+            "text": "stroller",
+            "label": "MATERIAL"
+          },
+          {
+            "text": "travel system, car",
+            "label": "PRODUCT_TYPE"
+          },
+          {
+            "text": "seat, lightweight",
+            "label": "FEATURE"
+          }
+        ],
+        "labels_found": [
+          "BRAND",
+          "FEATURE",
+          "MATERIAL",
+          "PRODUCT_TYPE"
+        ],
+        "latency_ms": 604.1,
+        "tp": [
+          "PRODUCT_TYPE"
+        ],
+        "fp": [
+          "BRAND",
+          "FEATURE",
+          "MATERIAL"
+        ],
+        "fn": [
+          "ACCESSORY",
+          "WEIGHT"
+        ]
+      },
+      "nextgen": {
+        "entities": [
+          {
+            "text": "baby stroller",
+            "label": "PRODUCT_TYPE",
+            "start": 17,
+            "end": 30
+          },
+          {
+            "text": "travel system",
+            "label": "PRODUCT_TYPE",
+            "start": 31,
+            "end": 44
+          },
+          {
+            "text": "car seat",
+            "label": "FEATURE",
+            "start": 50,
+            "end": 58
+          },
+          {
+            "text": "lightweight",
+            "label": "FEATURE",
+            "start": 59,
+            "end": 70
+          }
+        ],
+        "labels_found": [
+          "FEATURE",
+          "PRODUCT_TYPE"
+        ],
+        "latency_ms": 32.4,
+        "tp": [
+          "PRODUCT_TYPE"
+        ],
+        "fp": [
+          "FEATURE"
+        ],
+        "fn": [
+          "ACCESSORY",
+          "WEIGHT"
+        ]
+      },
+      "agreement": [
+        "FEATURE",
+        "PRODUCT_TYPE"
+      ],
+      "legacy_only": [
+        "BRAND",
+        "MATERIAL"
+      ],
+      "nextgen_only": [],
+      "gold": {
+        "labels": [
+          "ACCESSORY",
+          "PRODUCT_TYPE",
+          "WEIGHT"
+        ]
+      }
+    },
+    {
+      "query": "Can I please see some gaming chairs with RGB lights and speakers built in",
+      "legacy": {
+        "entities": [
+          {
+            "text": "gaming chairs, lights, speakers",
+            "label": "PRODUCT_TYPE"
+          },
+          {
+            "text": "RGB",
+            "label": "USAGE"
+          },
+          {
+            "text": "and",
+            "label": "FEATURE"
+          },
+          {
+            "text": "built",
+            "label": "CONDITION"
+          }
+        ],
+        "labels_found": [
+          "CONDITION",
+          "FEATURE",
+          "PRODUCT_TYPE",
+          "USAGE"
+        ],
+        "latency_ms": 733.1,
+        "tp": [
+          "FEATURE",
+          "PRODUCT_TYPE"
+        ],
+        "fp": [
+          "CONDITION",
+          "USAGE"
+        ],
+        "fn": []
+      },
+      "nextgen": {
+        "entities": [
+          {
+            "text": "gaming chairs",
+            "label": "PRODUCT_TYPE",
+            "start": 22,
+            "end": 35
+          },
+          {
+            "text": "RGB lights",
+            "label": "FEATURE",
+            "start": 41,
+            "end": 51
+          },
+          {
+            "text": "speakers",
+            "label": "FEATURE",
+            "start": 56,
+            "end": 64
+          },
+          {
+            "text": "built in",
+            "label": "FEATURE",
+            "start": 65,
+            "end": 73
+          }
+        ],
+        "labels_found": [
+          "FEATURE",
+          "PRODUCT_TYPE"
+        ],
+        "latency_ms": 23.9,
+        "tp": [
+          "FEATURE",
+          "PRODUCT_TYPE"
+        ],
+        "fp": [],
+        "fn": []
+      },
+      "agreement": [
+        "FEATURE",
+        "PRODUCT_TYPE"
+      ],
+      "legacy_only": [
+        "CONDITION",
+        "USAGE"
+      ],
+      "nextgen_only": [],
+      "gold": {
+        "labels": [
+          "FEATURE",
+          "PRODUCT_TYPE"
+        ]
+      }
+    },
+    {
+      "query": "Anybody know where to get a dehumidifier 50 pints for basement use",
+      "legacy": {
+        "entities": [
+          {
+            "text": "where, dehumidifier 50, pints, basement use",
+            "label": "PRODUCT_TYPE"
+          }
+        ],
+        "labels_found": [
+          "PRODUCT_TYPE"
+        ],
+        "latency_ms": 598.9,
+        "tp": [
+          "PRODUCT_TYPE"
+        ],
+        "fp": [],
+        "fn": [
+          "CAPACITY",
+          "USAGE"
+        ]
+      },
+      "nextgen": {
+        "entities": [
+          {
+            "text": "dehumidifier",
+            "label": "PRODUCT_TYPE",
+            "start": 28,
+            "end": 40
+          },
+          {
+            "text": "50",
+            "label": "SIZE",
+            "start": 41,
+            "end": 43
+          },
+          {
+            "text": "basement use",
+            "label": "USAGE",
+            "start": 54,
+            "end": 66
+          }
+        ],
+        "labels_found": [
+          "PRODUCT_TYPE",
+          "SIZE",
+          "USAGE"
+        ],
+        "latency_ms": 64.5,
+        "tp": [
+          "PRODUCT_TYPE",
+          "USAGE"
+        ],
+        "fp": [
+          "SIZE"
+        ],
+        "fn": [
+          "CAPACITY"
+        ]
+      },
+      "agreement": [
+        "PRODUCT_TYPE"
+      ],
+      "legacy_only": [],
+      "nextgen_only": [
+        "SIZE",
+        "USAGE"
+      ],
+      "gold": {
+        "labels": [
+          "CAPACITY",
+          "PRODUCT_TYPE",
+          "USAGE"
+        ]
+      }
+    },
+    {
+      "query": "I have been wanting an acoustic guitar for beginners with case included",
+      "legacy": {
+        "entities": [
+          {
+            "text": "wanting an, guitar, beginners, case, Acoustic Guitar",
+            "label": "PRODUCT_TYPE"
+          },
+          {
+            "text": "acoustic",
+            "label": "FEATURE"
+          },
+          {
+            "text": "Musical Instruments",
+            "label": "CATEGORY"
+          }
+        ],
+        "labels_found": [
+          "CATEGORY",
+          "FEATURE",
+          "PRODUCT_TYPE"
+        ],
+        "latency_ms": 581.8,
+        "tp": [
+          "PRODUCT_TYPE"
+        ],
+        "fp": [
+          "CATEGORY",
+          "FEATURE"
+        ],
+        "fn": [
+          "ACCESSORY",
+          "INCLUSIONS",
+          "SKILL_LEVEL"
+        ]
+      },
+      "nextgen": {
+        "entities": [
+          {
+            "text": "acoustic guitar",
+            "label": "PRODUCT_TYPE",
+            "start": 23,
+            "end": 38
+          },
+          {
+            "text": "beginners",
+            "label": "USAGE",
+            "start": 43,
+            "end": 52
+          },
+          {
+            "text": "case included",
+            "label": "INCLUSIONS",
+            "start": 58,
+            "end": 71
+          }
+        ],
+        "labels_found": [
+          "INCLUSIONS",
+          "PRODUCT_TYPE",
+          "USAGE"
+        ],
+        "latency_ms": 46.7,
+        "tp": [
+          "INCLUSIONS",
+          "PRODUCT_TYPE"
+        ],
+        "fp": [
+          "USAGE"
+        ],
+        "fn": [
+          "ACCESSORY",
+          "SKILL_LEVEL"
+        ]
+      },
+      "agreement": [
+        "PRODUCT_TYPE"
+      ],
+      "legacy_only": [
+        "CATEGORY",
+        "FEATURE"
+      ],
+      "nextgen_only": [
+        "INCLUSIONS",
+        "USAGE"
+      ],
+      "gold": {
+        "labels": [
+          "ACCESSORY",
+          "INCLUSIONS",
+          "PRODUCT_TYPE",
+          "SKILL_LEVEL"
+        ]
+      }
+    },
+    {
+      "query": "My son needs a gaming PC prebuilt with RTX 4080 64GB RAM high end",
+      "legacy": {
+        "entities": [
+          {
+            "text": "gaming PC, prebuilt, end, RAM",
+            "label": "PRODUCT_TYPE"
+          },
+          {
+            "text": "RTX",
+            "label": "CONDITION"
+          },
+          {
+            "text": "4080 64",
+            "label": "USAGE"
+          },
+          {
+            "text": "GB",
+            "label": "MODEL"
+          },
+          {
+            "text": "RAM, high",
+            "label": "FEATURE"
+          },
+          {
+            "text": "Computer Components",
+            "label": "CATEGORY"
+          }
+        ],
+        "labels_found": [
+          "CATEGORY",
+          "CONDITION",
+          "FEATURE",
+          "MODEL",
+          "PRODUCT_TYPE",
+          "USAGE"
+        ],
+        "latency_ms": 814.0,
+        "tp": [
+          "PRODUCT_TYPE"
+        ],
+        "fp": [
+          "CATEGORY",
+          "CONDITION",
+          "FEATURE",
+          "MODEL",
+          "USAGE"
+        ],
+        "fn": [
+          "GPU",
+          "RAM",
+          "TIER",
+          "TYPE"
+        ]
+      },
+      "nextgen": {
+        "entities": [
+          {
+            "text": "gaming PC",
+            "label": "PRODUCT_TYPE",
+            "start": 15,
+            "end": 24
+          },
+          {
+            "text": "prebuilt",
+            "label": "CONDITION",
+            "start": 25,
+            "end": 33
+          },
+          {
+            "text": "RTX 4080",
+            "label": "MODEL",
+            "start": 39,
+            "end": 47
+          },
+          {
+            "text": "high end",
+            "label": "TIER",
+            "start": 57,
+            "end": 65
+          }
+        ],
+        "labels_found": [
+          "CONDITION",
+          "MODEL",
+          "PRODUCT_TYPE",
+          "TIER"
+        ],
+        "latency_ms": 51.0,
+        "tp": [
+          "PRODUCT_TYPE",
+          "TIER"
+        ],
+        "fp": [
+          "CONDITION",
+          "MODEL"
+        ],
+        "fn": [
+          "GPU",
+          "RAM",
+          "TYPE"
+        ]
+      },
+      "agreement": [
+        "CONDITION",
+        "MODEL",
+        "PRODUCT_TYPE"
+      ],
+      "legacy_only": [
+        "CATEGORY",
+        "FEATURE",
+        "USAGE"
+      ],
+      "nextgen_only": [
+        "TIER"
+      ],
+      "gold": {
+        "labels": [
+          "GPU",
+          "PRODUCT_TYPE",
+          "RAM",
+          "TIER",
+          "TYPE"
+        ]
+      }
+    },
+    {
+      "query": "Show me vacuum cleaners for pet hair bagless upright with HEPA filter",
+      "legacy": {
+        "entities": [
+          {
+            "text": "vacuum cleaners, pet hair, Vacuum Cleaner",
+            "label": "PRODUCT_TYPE"
+          },
+          {
+            "text": "bagless",
+            "label": "CONDITION"
+          },
+          {
+            "text": "upright, filter",
+            "label": "FEATURE"
+          },
+          {
+            "text": "HEPA",
+            "label": "CONNECTIVITY"
+          },
+          {
+            "text": "Home Appliances",
+            "label": "CATEGORY"
+          }
+        ],
+        "labels_found": [
+          "CATEGORY",
+          "CONDITION",
+          "CONNECTIVITY",
+          "FEATURE",
+          "PRODUCT_TYPE"
+        ],
+        "latency_ms": 826.0,
+        "tp": [
+          "FEATURE",
+          "PRODUCT_TYPE"
+        ],
+        "fp": [
+          "CATEGORY",
+          "CONDITION",
+          "CONNECTIVITY"
+        ],
+        "fn": [
+          "FILTER",
+          "TYPE",
+          "USAGE"
+        ]
+      },
+      "nextgen": {
+        "entities": [
+          {
+            "text": "vacuum cleaners",
+            "label": "PRODUCT_TYPE",
+            "start": 8,
+            "end": 23
+          },
+          {
+            "text": "pet",
+            "label": "USAGE",
+            "start": 28,
+            "end": 31
+          },
+          {
+            "text": "bagless",
+            "label": "FEATURE",
+            "start": 37,
+            "end": 44
+          },
+          {
+            "text": "upright",
+            "label": "PRODUCT_TYPE",
+            "start": 45,
+            "end": 52
+          },
+          {
+            "text": "HEPA filter",
+            "label": "FEATURE",
+            "start": 58,
+            "end": 69
+          }
+        ],
+        "labels_found": [
+          "FEATURE",
+          "PRODUCT_TYPE",
+          "USAGE"
+        ],
+        "latency_ms": 24.7,
+        "tp": [
+          "FEATURE",
+          "PRODUCT_TYPE",
+          "USAGE"
+        ],
+        "fp": [],
+        "fn": [
+          "FILTER",
+          "TYPE"
+        ]
+      },
+      "agreement": [
+        "FEATURE",
+        "PRODUCT_TYPE"
+      ],
+      "legacy_only": [
+        "CATEGORY",
+        "CONDITION",
+        "CONNECTIVITY"
+      ],
+      "nextgen_only": [
+        "USAGE"
+      ],
+      "gold": {
+        "labels": [
+          "FEATURE",
+          "FILTER",
+          "PRODUCT_TYPE",
+          "TYPE",
+          "USAGE"
+        ]
+      }
+    },
+    {
+      "query": "I'm searching for a portable AC unit 14000 BTU self evaporating quiet",
+      "legacy": {
+        "entities": [
+          {
+            "text": "portable, AC unit, BTU, quiet",
+            "label": "PRODUCT_TYPE"
+          },
+          {
+            "text": "14000, evaporating",
+            "label": "FEATURE"
+          },
+          {
+            "text": "self",
+            "label": "CONDITION"
+          }
+        ],
+        "labels_found": [
+          "CONDITION",
+          "FEATURE",
+          "PRODUCT_TYPE"
+        ],
+        "latency_ms": 694.5,
+        "tp": [
+          "FEATURE",
+          "PRODUCT_TYPE"
+        ],
+        "fp": [
+          "CONDITION"
+        ],
+        "fn": [
+          "BTU"
+        ]
+      },
+      "nextgen": {
+        "entities": [
+          {
+            "text": "portable AC unit",
+            "label": "PRODUCT_TYPE",
+            "start": 20,
+            "end": 36
+          },
+          {
+            "text": "14000 BTU",
+            "label": "CAPACITY",
+            "start": 37,
+            "end": 46
+          },
+          {
+            "text": "self evaporating",
+            "label": "FEATURE",
+            "start": 47,
+            "end": 63
+          },
+          {
+            "text": "quiet",
+            "label": "FEATURE",
+            "start": 64,
+            "end": 69
+          }
+        ],
+        "labels_found": [
+          "CAPACITY",
+          "FEATURE",
+          "PRODUCT_TYPE"
+        ],
+        "latency_ms": 70.2,
+        "tp": [
+          "FEATURE",
+          "PRODUCT_TYPE"
+        ],
+        "fp": [
+          "CAPACITY"
+        ],
+        "fn": [
+          "BTU"
+        ]
+      },
+      "agreement": [
+        "FEATURE",
+        "PRODUCT_TYPE"
+      ],
+      "legacy_only": [
+        "CONDITION"
+      ],
+      "nextgen_only": [
+        "CAPACITY"
+      ],
+      "gold": {
+        "labels": [
+          "BTU",
+          "FEATURE",
+          "PRODUCT_TYPE"
+        ]
+      }
+    },
+    {
+      "query": "Do you guys have any electric fireplaces wall mount with realistic flames",
+      "legacy": {
+        "entities": [
+          {
+            "text": "electric fireplaces, wall mount, realistic",
+            "label": "PRODUCT_TYPE"
+          }
+        ],
+        "labels_found": [
+          "PRODUCT_TYPE"
+        ],
+        "latency_ms": 722.6,
+        "tp": [
+          "PRODUCT_TYPE"
+        ],
+        "fp": [],
+        "fn": [
+          "FEATURE",
+          "TYPE"
+        ]
+      },
+      "nextgen": {
+        "entities": [
+          {
+            "text": "electric fireplaces",
+            "label": "PRODUCT_TYPE",
+            "start": 21,
+            "end": 40
+          },
+          {
+            "text": "wall mount",
+            "label": "PRODUCT_TYPE",
+            "start": 41,
+            "end": 51
+          },
+          {
+            "text": "realistic flames",
+            "label": "FEATURE",
+            "start": 57,
+            "end": 73
+          }
+        ],
+        "labels_found": [
+          "FEATURE",
+          "PRODUCT_TYPE"
+        ],
+        "latency_ms": 37.0,
+        "tp": [
+          "FEATURE",
+          "PRODUCT_TYPE"
+        ],
+        "fp": [],
+        "fn": [
+          "TYPE"
+        ]
+      },
+      "agreement": [
+        "PRODUCT_TYPE"
+      ],
+      "legacy_only": [],
+      "nextgen_only": [
+        "FEATURE"
+      ],
+      "gold": {
+        "labels": [
+          "FEATURE",
+          "PRODUCT_TYPE",
+          "TYPE"
+        ]
+      }
+    },
+    {
+      "query": "Looking for a kid's bicycle 20 inch with training wheels blue color",
+      "legacy": {
+        "entities": [
+          {
+            "text": "kid",
+            "label": "BRAND"
+          },
+          {
+            "text": "'s bicycle, 20 inch, wheels",
+            "label": "PRODUCT_TYPE"
+          },
+          {
+            "text": "training",
+            "label": "USAGE"
+          },
+          {
+            "text": "blue",
+            "label": "CONDITION"
+          },
+          {
+            "text": "20",
+            "label": "SIZE"
+          }
+        ],
+        "labels_found": [
+          "BRAND",
+          "CONDITION",
+          "PRODUCT_TYPE",
+          "SIZE",
+          "USAGE"
+        ],
+        "latency_ms": 716.5,
+        "tp": [
+          "PRODUCT_TYPE",
+          "SIZE"
+        ],
+        "fp": [
+          "BRAND",
+          "CONDITION",
+          "USAGE"
+        ],
+        "fn": [
+          "ACCESSORY",
+          "COLOR"
+        ]
+      },
+      "nextgen": {
+        "entities": [
+          {
+            "text": "kid's bicycle",
+            "label": "PRODUCT_TYPE",
+            "start": 14,
+            "end": 27
+          },
+          {
+            "text": "20 inch",
+            "label": "SIZE",
+            "start": 28,
+            "end": 35
+          },
+          {
+            "text": "training wheels",
+            "label": "FEATURE",
+            "start": 41,
+            "end": 56
+          },
+          {
+            "text": "blue",
+            "label": "COLOR",
+            "start": 57,
+            "end": 61
+          }
+        ],
+        "labels_found": [
+          "COLOR",
+          "FEATURE",
+          "PRODUCT_TYPE",
+          "SIZE"
+        ],
+        "latency_ms": 30.9,
+        "tp": [
+          "COLOR",
+          "PRODUCT_TYPE",
+          "SIZE"
+        ],
+        "fp": [
+          "FEATURE"
+        ],
+        "fn": [
+          "ACCESSORY"
+        ]
+      },
+      "agreement": [
+        "PRODUCT_TYPE",
+        "SIZE"
+      ],
+      "legacy_only": [
+        "BRAND",
+        "CONDITION",
+        "USAGE"
+      ],
+      "nextgen_only": [
+        "COLOR",
+        "FEATURE"
+      ],
+      "gold": {
+        "labels": [
+          "ACCESSORY",
+          "COLOR",
+          "PRODUCT_TYPE",
+          "SIZE"
+        ]
+      }
+    },
+    {
+      "query": "Help me find a sewing machine for quilting heavy duty with extension table",
+      "legacy": {
+        "entities": [
+          {
+            "text": "sewing machine, quilting heavy, extension",
+            "label": "PRODUCT_TYPE"
+          },
+          {
+            "text": "duty",
+            "label": "CONDITION"
+          }
+        ],
+        "labels_found": [
+          "CONDITION",
+          "PRODUCT_TYPE"
+        ],
+        "latency_ms": 691.8,
+        "tp": [
+          "PRODUCT_TYPE"
+        ],
+        "fp": [
+          "CONDITION"
+        ],
+        "fn": [
+          "ACCESSORY",
+          "QUALITY",
+          "USAGE"
+        ]
+      },
+      "nextgen": {
+        "entities": [
+          {
+            "text": "sewing machine",
+            "label": "PRODUCT_TYPE",
+            "start": 15,
+            "end": 29
+          },
+          {
+            "text": "quilting",
+            "label": "USAGE",
+            "start": 34,
+            "end": 42
+          },
+          {
+            "text": "heavy",
+            "label": "TIER",
+            "start": 43,
+            "end": 48
+          },
+          {
+            "text": "extension table",
+            "label": "FEATURE",
+            "start": 59,
+            "end": 74
+          }
+        ],
+        "labels_found": [
+          "FEATURE",
+          "PRODUCT_TYPE",
+          "TIER",
+          "USAGE"
+        ],
+        "latency_ms": 23.3,
+        "tp": [
+          "PRODUCT_TYPE",
+          "USAGE"
+        ],
+        "fp": [
+          "FEATURE",
+          "TIER"
+        ],
+        "fn": [
+          "ACCESSORY",
+          "QUALITY"
+        ]
+      },
+      "agreement": [
+        "PRODUCT_TYPE"
+      ],
+      "legacy_only": [
+        "CONDITION"
+      ],
+      "nextgen_only": [
+        "FEATURE",
+        "TIER",
+        "USAGE"
+      ],
+      "gold": {
+        "labels": [
+          "ACCESSORY",
+          "PRODUCT_TYPE",
+          "QUALITY",
+          "USAGE"
+        ]
+      }
+    },
+    {
+      "query": "I really need to get a dash cam front and rear 4K with parking mode",
+      "legacy": {
+        "entities": [
+          {
+            "text": "dash cam front, rear 4, parking",
+            "label": "PRODUCT_TYPE"
+          },
+          {
+            "text": "K",
+            "label": "CONDITION"
+          }
+        ],
+        "labels_found": [
+          "CONDITION",
+          "PRODUCT_TYPE"
+        ],
+        "latency_ms": 795.1,
+        "tp": [
+          "PRODUCT_TYPE"
+        ],
+        "fp": [
+          "CONDITION"
+        ],
+        "fn": [
+          "FEATURE",
+          "RESOLUTION",
+          "TYPE"
+        ]
+      },
+      "nextgen": {
+        "entities": [
+          {
+            "text": "dash cam",
+            "label": "PRODUCT_TYPE",
+            "start": 23,
+            "end": 31
+          },
+          {
+            "text": "front and",
+            "label": "PRODUCT_TYPE",
+            "start": 32,
+            "end": 41
+          },
+          {
+            "text": "rear 4K",
+            "label": "FEATURE",
+            "start": 42,
+            "end": 49
+          },
+          {
+            "text": "parking mode",
+            "label": "FEATURE",
+            "start": 55,
+            "end": 67
+          }
+        ],
+        "labels_found": [
+          "FEATURE",
+          "PRODUCT_TYPE"
+        ],
+        "latency_ms": 55.8,
+        "tp": [
+          "FEATURE",
+          "PRODUCT_TYPE"
+        ],
+        "fp": [],
+        "fn": [
+          "RESOLUTION",
+          "TYPE"
+        ]
+      },
+      "agreement": [
+        "PRODUCT_TYPE"
+      ],
+      "legacy_only": [
+        "CONDITION"
+      ],
+      "nextgen_only": [
+        "FEATURE"
+      ],
+      "gold": {
+        "labels": [
+          "FEATURE",
+          "PRODUCT_TYPE",
+          "RESOLUTION",
+          "TYPE"
+        ]
+      }
+    },
+    {
+      "query": "Someone please show me electric scooters adults 350W foldable long range",
+      "legacy": {
+        "entities": [
+          {
+            "text": "electric scooters, 350W, long, Electric Scooter",
+            "label": "PRODUCT_TYPE"
+          },
+          {
+            "text": "adults, foldable, range",
+            "label": "FEATURE"
+          },
+          {
+            "text": "Electric Vehicles",
+            "label": "CATEGORY"
+          }
+        ],
+        "labels_found": [
+          "CATEGORY",
+          "FEATURE",
+          "PRODUCT_TYPE"
+        ],
+        "latency_ms": 563.3,
+        "tp": [
+          "PRODUCT_TYPE"
+        ],
+        "fp": [
+          "CATEGORY",
+          "FEATURE"
+        ],
+        "fn": [
+          "AGE",
+          "POWER",
+          "RANGE",
+          "TYPE"
+        ]
+      },
+      "nextgen": {
+        "entities": [
+          {
+            "text": "electric scooters",
+            "label": "PRODUCT_TYPE",
+            "start": 23,
+            "end": 40
+          },
+          {
+            "text": "adults",
+            "label": "SIZE",
+            "start": 41,
+            "end": 47
+          },
+          {
+            "text": "350W",
+            "label": "SIZE",
+            "start": 48,
+            "end": 52
+          },
+          {
+            "text": "foldable",
+            "label": "FEATURE",
+            "start": 53,
+            "end": 61
+          },
+          {
+            "text": "long range",
+            "label": "FEATURE",
+            "start": 62,
+            "end": 72
+          }
+        ],
+        "labels_found": [
+          "FEATURE",
+          "PRODUCT_TYPE",
+          "SIZE"
+        ],
+        "latency_ms": 31.0,
+        "tp": [
+          "PRODUCT_TYPE"
+        ],
+        "fp": [
+          "FEATURE",
+          "SIZE"
+        ],
+        "fn": [
+          "AGE",
+          "POWER",
+          "RANGE",
+          "TYPE"
+        ]
+      },
+      "agreement": [
+        "FEATURE",
+        "PRODUCT_TYPE"
+      ],
+      "legacy_only": [
+        "CATEGORY"
+      ],
+      "nextgen_only": [
+        "SIZE"
+      ],
+      "gold": {
+        "labels": [
+          "AGE",
+          "POWER",
+          "PRODUCT_TYPE",
+          "RANGE",
+          "TYPE"
+        ]
+      }
+    },
+    {
+      "query": "Can anyone recommend a good bread knife serrated 10 inch German steel",
+      "legacy": {
+        "entities": [
+          {
+            "text": "bread knife, serrated 10, German",
+            "label": "PRODUCT_TYPE"
+          },
+          {
+            "text": "inch, steel",
+            "label": "FEATURE"
+          },
+          {
+            "text": "10",
+            "label": "SIZE"
+          }
+        ],
+        "labels_found": [
+          "FEATURE",
+          "PRODUCT_TYPE",
+          "SIZE"
+        ],
+        "latency_ms": 729.4,
+        "tp": [
+          "PRODUCT_TYPE",
+          "SIZE"
+        ],
+        "fp": [
+          "FEATURE"
+        ],
+        "fn": [
+          "MATERIAL",
+          "TYPE"
+        ]
+      },
+      "nextgen": {
+        "entities": [
+          {
+            "text": "bread knife",
+            "label": "PRODUCT_TYPE",
+            "start": 28,
+            "end": 39
+          },
+          {
+            "text": "serrated",
+            "label": "FEATURE",
+            "start": 40,
+            "end": 48
+          },
+          {
+            "text": "10 inch",
+            "label": "SIZE",
+            "start": 49,
+            "end": 56
+          },
+          {
+            "text": "German steel",
+            "label": "MATERIAL",
+            "start": 57,
+            "end": 69
+          }
+        ],
+        "labels_found": [
+          "FEATURE",
+          "MATERIAL",
+          "PRODUCT_TYPE",
+          "SIZE"
+        ],
+        "latency_ms": 30.1,
+        "tp": [
+          "MATERIAL",
+          "PRODUCT_TYPE",
+          "SIZE"
+        ],
+        "fp": [
+          "FEATURE"
+        ],
+        "fn": [
+          "TYPE"
+        ]
+      },
+      "agreement": [
+        "FEATURE",
+        "PRODUCT_TYPE",
+        "SIZE"
+      ],
+      "legacy_only": [],
+      "nextgen_only": [
+        "MATERIAL"
+      ],
+      "gold": {
+        "labels": [
+          "MATERIAL",
+          "PRODUCT_TYPE",
+          "SIZE",
+          "TYPE"
+        ]
+      }
+    },
+    {
+      "query": "I want to purchase a home security system wireless with cameras and sensors",
+      "legacy": {
+        "entities": [
+          {
+            "text": "home security, system wireless, cameras, Camera",
+            "label": "PRODUCT_TYPE"
+          },
+          {
+            "text": "sensors",
+            "label": "CONDITION"
+          },
+          {
+            "text": "Cameras",
+            "label": "CATEGORY"
+          }
+        ],
+        "labels_found": [
+          "CATEGORY",
+          "CONDITION",
+          "PRODUCT_TYPE"
+        ],
+        "latency_ms": 694.5,
+        "tp": [
+          "PRODUCT_TYPE"
+        ],
+        "fp": [
+          "CATEGORY",
+          "CONDITION"
+        ],
+        "fn": [
+          "ACCESSORY",
+          "TYPE"
+        ]
+      },
+      "nextgen": {
+        "entities": [
+          {
+            "text": "home security system",
+            "label": "PRODUCT_TYPE",
+            "start": 21,
+            "end": 41
+          },
+          {
+            "text": "wireless",
+            "label": "CONNECTIVITY",
+            "start": 42,
+            "end": 50
+          },
+          {
+            "text": "cameras",
+            "label": "FEATURE",
+            "start": 56,
+            "end": 63
+          }
+        ],
+        "labels_found": [
+          "CONNECTIVITY",
+          "FEATURE",
+          "PRODUCT_TYPE"
+        ],
+        "latency_ms": 57.9,
+        "tp": [
+          "PRODUCT_TYPE"
+        ],
+        "fp": [
+          "CONNECTIVITY",
+          "FEATURE"
+        ],
+        "fn": [
+          "ACCESSORY",
+          "TYPE"
+        ]
+      },
+      "agreement": [
+        "PRODUCT_TYPE"
+      ],
+      "legacy_only": [
+        "CATEGORY",
+        "CONDITION"
+      ],
+      "nextgen_only": [
+        "CONNECTIVITY",
+        "FEATURE"
+      ],
+      "gold": {
+        "labels": [
+          "ACCESSORY",
+          "PRODUCT_TYPE",
+          "TYPE"
+        ]
+      }
+    },
+    {
+      "query": "We are looking for king size mattress medium firm hybrid with cooling",
+      "legacy": {
+        "entities": [
+          {
+            "text": "king, medium firm, cooling",
+            "label": "PRODUCT_TYPE"
+          },
+          {
+            "text": "mattress",
+            "label": "USAGE"
+          },
+          {
+            "text": "hybrid",
+            "label": "CONDITION"
+          }
+        ],
+        "labels_found": [
+          "CONDITION",
+          "PRODUCT_TYPE",
+          "USAGE"
+        ],
+        "latency_ms": 834.9,
+        "tp": [
+          "PRODUCT_TYPE"
+        ],
+        "fp": [
+          "CONDITION",
+          "USAGE"
+        ],
+        "fn": [
+          "FEATURE",
+          "FIRMNESS",
+          "SIZE",
+          "TYPE"
+        ]
+      },
+      "nextgen": {
+        "entities": [
+          {
+            "text": "king size",
+            "label": "SIZE",
+            "start": 19,
+            "end": 28
+          },
+          {
+            "text": "mattress",
+            "label": "PRODUCT_TYPE",
+            "start": 29,
+            "end": 37
+          },
+          {
+            "text": "medium firm",
+            "label": "SIZE",
+            "start": 38,
+            "end": 49
+          },
+          {
+            "text": "hybrid",
+            "label": "FEATURE",
+            "start": 50,
+            "end": 56
+          },
+          {
+            "text": "cooling",
+            "label": "FEATURE",
+            "start": 62,
+            "end": 69
+          }
+        ],
+        "labels_found": [
+          "FEATURE",
+          "PRODUCT_TYPE",
+          "SIZE"
+        ],
+        "latency_ms": 29.4,
+        "tp": [
+          "FEATURE",
+          "PRODUCT_TYPE",
+          "SIZE"
+        ],
+        "fp": [],
+        "fn": [
+          "FIRMNESS",
+          "TYPE"
+        ]
+      },
+      "agreement": [
+        "PRODUCT_TYPE"
+      ],
+      "legacy_only": [
+        "CONDITION",
+        "USAGE"
+      ],
+      "nextgen_only": [
+        "FEATURE",
+        "SIZE"
+      ],
+      "gold": {
+        "labels": [
+          "FEATURE",
+          "FIRMNESS",
+          "PRODUCT_TYPE",
+          "SIZE",
+          "TYPE"
+        ]
+      }
+    },
+    {
+      "query": "Please help me locate a document scanner duplex with auto feeder portable",
+      "legacy": {
+        "entities": [
+          {
+            "text": "document scanner, duplex",
+            "label": "PRODUCT_TYPE"
+          },
+          {
+            "text": "auto",
+            "label": "CONNECTIVITY"
+          },
+          {
+            "text": "feeder, portable",
+            "label": "FEATURE"
+          }
+        ],
+        "labels_found": [
+          "CONNECTIVITY",
+          "FEATURE",
+          "PRODUCT_TYPE"
+        ],
+        "latency_ms": 555.6,
+        "tp": [
+          "FEATURE",
+          "PRODUCT_TYPE"
+        ],
+        "fp": [
+          "CONNECTIVITY"
+        ],
+        "fn": [
+          "TYPE"
+        ]
+      },
+      "nextgen": {
+        "entities": [
+          {
+            "text": "document scanner",
+            "label": "PRODUCT_TYPE",
+            "start": 24,
+            "end": 40
+          },
+          {
+            "text": "duplex",
+            "label": "PRODUCT_TYPE",
+            "start": 41,
+            "end": 47
+          },
+          {
+            "text": "auto feeder",
+            "label": "FEATURE",
+            "start": 53,
+            "end": 64
+          },
+          {
+            "text": "portable",
+            "label": "FEATURE",
+            "start": 65,
+            "end": 73
+          }
+        ],
+        "labels_found": [
+          "FEATURE",
+          "PRODUCT_TYPE"
+        ],
+        "latency_ms": 24.6,
+        "tp": [
+          "FEATURE",
+          "PRODUCT_TYPE"
+        ],
+        "fp": [],
+        "fn": [
+          "TYPE"
+        ]
+      },
+      "agreement": [
+        "FEATURE",
+        "PRODUCT_TYPE"
+      ],
+      "legacy_only": [
+        "CONNECTIVITY"
+      ],
+      "nextgen_only": [],
+      "gold": {
+        "labels": [
+          "FEATURE",
+          "PRODUCT_TYPE",
+          "TYPE"
+        ]
+      }
+    },
+    {
+      "query": "Does anyone sell vintage turntables with built in preamp USB output",
+      "legacy": {
+        "entities": [
+          {
+            "text": "vintage turntables, built",
+            "label": "PRODUCT_TYPE"
+          },
+          {
+            "text": "USB",
+            "label": "CONNECTIVITY"
+          },
+          {
+            "text": "output",
+            "label": "FEATURE"
+          }
+        ],
+        "labels_found": [
+          "CONNECTIVITY",
+          "FEATURE",
+          "PRODUCT_TYPE"
+        ],
+        "latency_ms": 406.4,
+        "tp": [
+          "FEATURE",
+          "PRODUCT_TYPE"
+        ],
+        "fp": [
+          "CONNECTIVITY"
+        ],
+        "fn": [
+          "CONDITION"
+        ]
+      },
+      "nextgen": {
+        "entities": [
+          {
+            "text": "vintage turntables",
+            "label": "PRODUCT_TYPE",
+            "start": 17,
+            "end": 35
+          },
+          {
+            "text": "built in preamp",
+            "label": "FEATURE",
+            "start": 41,
+            "end": 56
+          },
+          {
+            "text": "USB",
+            "label": "CONNECTIVITY",
+            "start": 57,
+            "end": 60
+          }
+        ],
+        "labels_found": [
+          "CONNECTIVITY",
+          "FEATURE",
+          "PRODUCT_TYPE"
+        ],
+        "latency_ms": 25.9,
+        "tp": [
+          "FEATURE",
+          "PRODUCT_TYPE"
+        ],
+        "fp": [
+          "CONNECTIVITY"
+        ],
+        "fn": [
+          "CONDITION"
+        ]
+      },
+      "agreement": [
+        "CONNECTIVITY",
+        "FEATURE",
+        "PRODUCT_TYPE"
+      ],
+      "legacy_only": [],
+      "nextgen_only": [],
+      "gold": {
+        "labels": [
+          "CONDITION",
+          "FEATURE",
+          "PRODUCT_TYPE"
+        ]
+      }
+    },
+    {
+      "query": "I'm in desperate need of a router WiFi 6E mesh system for large home",
+      "legacy": {
+        "entities": [
+          {
+            "text": "router WiFi, 6E mesh",
+            "label": "PRODUCT_TYPE"
+          },
+          {
+            "text": "system",
+            "label": "CONDITION"
+          },
+          {
+            "text": "large",
+            "label": "CONNECTIVITY"
+          },
+          {
+            "text": "home",
+            "label": "FEATURE"
+          }
+        ],
+        "labels_found": [
+          "CONDITION",
+          "CONNECTIVITY",
+          "FEATURE",
+          "PRODUCT_TYPE"
+        ],
+        "latency_ms": 719.3,
+        "tp": [
+          "PRODUCT_TYPE"
+        ],
+        "fp": [
+          "CONDITION",
+          "CONNECTIVITY",
+          "FEATURE"
+        ],
+        "fn": [
+          "COVERAGE",
+          "TECH",
+          "TYPE"
+        ]
+      },
+      "nextgen": {
+        "entities": [
+          {
+            "text": "router",
+            "label": "PRODUCT_TYPE",
+            "start": 27,
+            "end": 33
+          },
+          {
+            "text": "WiFi 6E",
+            "label": "PRODUCT_TYPE",
+            "start": 34,
+            "end": 41
+          },
+          {
+            "text": "mesh",
+            "label": "FEATURE",
+            "start": 42,
+            "end": 46
+          },
+          {
+            "text": "large home",
+            "label": "USAGE",
+            "start": 58,
+            "end": 68
+          }
+        ],
+        "labels_found": [
+          "FEATURE",
+          "PRODUCT_TYPE",
+          "USAGE"
+        ],
+        "latency_ms": 24.8,
+        "tp": [
+          "PRODUCT_TYPE"
+        ],
+        "fp": [
+          "FEATURE",
+          "USAGE"
+        ],
+        "fn": [
+          "COVERAGE",
+          "TECH",
+          "TYPE"
+        ]
+      },
+      "agreement": [
+        "FEATURE",
+        "PRODUCT_TYPE"
+      ],
+      "legacy_only": [
+        "CONDITION",
+        "CONNECTIVITY"
+      ],
+      "nextgen_only": [
+        "USAGE"
+      ],
+      "gold": {
+        "labels": [
+          "COVERAGE",
+          "PRODUCT_TYPE",
+          "TECH",
+          "TYPE"
+        ]
+      }
+    },
+    {
+      "query": "Looking for quality binoculars 10x50 night vision waterproof for hunting",
+      "legacy": {
+        "entities": [
+          {
+            "text": "quality",
+            "label": "USAGE"
+          },
+          {
+            "text": "binoculars 10x50, night vision, hunting",
+            "label": "PRODUCT_TYPE"
+          },
+          {
+            "text": "waterproof",
+            "label": "CONDITION"
+          }
+        ],
+        "labels_found": [
+          "CONDITION",
+          "PRODUCT_TYPE",
+          "USAGE"
+        ],
+        "latency_ms": 714.6,
+        "tp": [
+          "PRODUCT_TYPE",
+          "USAGE"
+        ],
+        "fp": [
+          "CONDITION"
+        ],
+        "fn": [
+          "FEATURE",
+          "MAGNIFICATION"
+        ]
+      },
+      "nextgen": {
+        "entities": [
+          {
+            "text": "quality",
+            "label": "TIER",
+            "start": 12,
+            "end": 19
+          },
+          {
+            "text": "binoculars",
+            "label": "PRODUCT_TYPE",
+            "start": 20,
+            "end": 30
+          },
+          {
+            "text": "10x50",
+            "label": "SIZE",
+            "start": 31,
+            "end": 36
+          },
+          {
+            "text": "night vision",
+            "label": "FEATURE",
+            "start": 37,
+            "end": 49
+          },
+          {
+            "text": "waterproof",
+            "label": "FEATURE",
+            "start": 50,
+            "end": 60
+          },
+          {
+            "text": "hunting",
+            "label": "USAGE",
+            "start": 65,
+            "end": 72
+          }
+        ],
+        "labels_found": [
+          "FEATURE",
+          "PRODUCT_TYPE",
+          "SIZE",
+          "TIER",
+          "USAGE"
+        ],
+        "latency_ms": 63.5,
+        "tp": [
+          "FEATURE",
+          "PRODUCT_TYPE",
+          "USAGE"
+        ],
+        "fp": [
+          "SIZE",
+          "TIER"
+        ],
+        "fn": [
+          "MAGNIFICATION"
+        ]
+      },
+      "agreement": [
+        "PRODUCT_TYPE",
+        "USAGE"
+      ],
+      "legacy_only": [
+        "CONDITION"
+      ],
+      "nextgen_only": [
+        "FEATURE",
+        "SIZE",
+        "TIER"
+      ],
+      "gold": {
+        "labels": [
+          "FEATURE",
+          "MAGNIFICATION",
+          "PRODUCT_TYPE",
+          "USAGE"
+        ]
+      }
+    },
+    {
+      "query": "My wife wants a stand mixer Kitchenaid 6 quart with attachments tilt head",
+      "legacy": {
+        "entities": [
+          {
+            "text": "stand mixer, Kitchenaid 6, head",
+            "label": "PRODUCT_TYPE"
+          },
+          {
+            "text": "quart",
+            "label": "CONDITION"
+          },
+          {
+            "text": "attachments",
+            "label": "CONNECTIVITY"
+          },
+          {
+            "text": "tilt",
+            "label": "FEATURE"
+          },
+          {
+            "text": "head",
+            "label": "BRAND"
+          }
+        ],
+        "labels_found": [
+          "BRAND",
+          "CONDITION",
+          "CONNECTIVITY",
+          "FEATURE",
+          "PRODUCT_TYPE"
+        ],
+        "latency_ms": 686.9,
+        "tp": [
+          "BRAND",
+          "PRODUCT_TYPE"
+        ],
+        "fp": [
+          "CONDITION",
+          "CONNECTIVITY",
+          "FEATURE"
+        ],
+        "fn": [
+          "ACCESSORY",
+          "CAPACITY",
+          "TYPE"
+        ]
+      },
+      "nextgen": {
+        "entities": [
+          {
+            "text": "stand mixer",
+            "label": "PRODUCT_TYPE",
+            "start": 16,
+            "end": 27
+          },
+          {
+            "text": "Kitchenaid",
+            "label": "BRAND",
+            "start": 28,
+            "end": 38
+          },
+          {
+            "text": "6 quart",
+            "label": "SIZE",
+            "start": 39,
+            "end": 46
+          },
+          {
+            "text": "tilt head",
+            "label": "FEATURE",
+            "start": 64,
+            "end": 73
+          }
+        ],
+        "labels_found": [
+          "BRAND",
+          "FEATURE",
+          "PRODUCT_TYPE",
+          "SIZE"
+        ],
+        "latency_ms": 26.6,
+        "tp": [
+          "BRAND",
+          "PRODUCT_TYPE"
+        ],
+        "fp": [
+          "FEATURE",
+          "SIZE"
+        ],
+        "fn": [
+          "ACCESSORY",
+          "CAPACITY",
+          "TYPE"
+        ]
+      },
+      "agreement": [
+        "BRAND",
+        "FEATURE",
+        "PRODUCT_TYPE"
+      ],
+      "legacy_only": [
+        "CONDITION",
+        "CONNECTIVITY"
+      ],
+      "nextgen_only": [
+        "SIZE"
+      ],
+      "gold": {
+        "labels": [
+          "ACCESSORY",
+          "BRAND",
+          "CAPACITY",
+          "PRODUCT_TYPE",
+          "TYPE"
+        ]
+      }
+    },
+    {
+      "query": "Can somebody find me a wireless keyboard and mouse combo ergonomic quiet",
+      "legacy": {
+        "entities": [
+          {
+            "text": "wireless keyboard, combo ergonomic",
+            "label": "PRODUCT_TYPE"
+          },
+          {
+            "text": "and, quiet",
+            "label": "FEATURE"
+          },
+          {
+            "text": "mouse",
+            "label": "MODEL"
+          }
+        ],
+        "labels_found": [
+          "FEATURE",
+          "MODEL",
+          "PRODUCT_TYPE"
+        ],
+        "latency_ms": 609.1,
+        "tp": [
+          "FEATURE",
+          "PRODUCT_TYPE"
+        ],
+        "fp": [
+          "MODEL"
+        ],
+        "fn": [
+          "TYPE"
+        ]
+      },
+      "nextgen": {
+        "entities": [
+          {
+            "text": "wireless",
+            "label": "CONNECTIVITY",
+            "start": 23,
+            "end": 31
+          },
+          {
+            "text": "keyboard and mouse combo",
+            "label": "PRODUCT_TYPE",
+            "start": 32,
+            "end": 56
+          },
+          {
+            "text": "ergonomic",
+            "label": "FEATURE",
+            "start": 57,
+            "end": 66
+          },
+          {
+            "text": "quiet",
+            "label": "FEATURE",
+            "start": 67,
+            "end": 72
+          }
+        ],
+        "labels_found": [
+          "CONNECTIVITY",
+          "FEATURE",
+          "PRODUCT_TYPE"
+        ],
+        "latency_ms": 26.0,
+        "tp": [
+          "FEATURE",
+          "PRODUCT_TYPE"
+        ],
+        "fp": [
+          "CONNECTIVITY"
+        ],
+        "fn": [
+          "TYPE"
+        ]
+      },
+      "agreement": [
+        "FEATURE",
+        "PRODUCT_TYPE"
+      ],
+      "legacy_only": [
+        "MODEL"
+      ],
+      "nextgen_only": [
+        "CONNECTIVITY"
+      ],
+      "gold": {
+        "labels": [
+          "FEATURE",
+          "PRODUCT_TYPE",
+          "TYPE"
+        ]
+      }
+    },
+    {
+      "query": "I need help finding a pressure cooker instant pot 8 quart with air fryer lid",
+      "legacy": {
+        "entities": [
+          {
+            "text": "pressure cooker, pot, quart, fryer, Air Fryer",
+            "label": "PRODUCT_TYPE"
+          },
+          {
+            "text": "instant, 8",
+            "label": "FEATURE"
+          },
+          {
+            "text": "Kitchen Appliances",
+            "label": "CATEGORY"
+          }
+        ],
+        "labels_found": [
+          "CATEGORY",
+          "FEATURE",
+          "PRODUCT_TYPE"
+        ],
+        "latency_ms": 637.6,
+        "tp": [
+          "PRODUCT_TYPE"
+        ],
+        "fp": [
+          "CATEGORY",
+          "FEATURE"
+        ],
+        "fn": [
+          "ACCESSORY",
+          "BRAND",
+          "CAPACITY"
+        ]
+      },
+      "nextgen": {
+        "entities": [
+          {
+            "text": "pressure cooker",
+            "label": "PRODUCT_TYPE",
+            "start": 22,
+            "end": 37
+          },
+          {
+            "text": "instant pot",
+            "label": "PRODUCT_TYPE",
+            "start": 38,
+            "end": 49
+          },
+          {
+            "text": "8 quart",
+            "label": "SIZE",
+            "start": 50,
+            "end": 57
+          },
+          {
+            "text": "air fryer lid",
+            "label": "FEATURE",
+            "start": 63,
+            "end": 76
+          }
+        ],
+        "labels_found": [
+          "FEATURE",
+          "PRODUCT_TYPE",
+          "SIZE"
+        ],
+        "latency_ms": 25.7,
+        "tp": [
+          "PRODUCT_TYPE"
+        ],
+        "fp": [
+          "FEATURE",
+          "SIZE"
+        ],
+        "fn": [
+          "ACCESSORY",
+          "BRAND",
+          "CAPACITY"
+        ]
+      },
+      "agreement": [
+        "FEATURE",
+        "PRODUCT_TYPE"
+      ],
+      "legacy_only": [
+        "CATEGORY"
+      ],
+      "nextgen_only": [
+        "SIZE"
+      ],
+      "gold": {
+        "labels": [
+          "ACCESSORY",
+          "BRAND",
+          "CAPACITY",
+          "PRODUCT_TYPE"
+        ]
+      }
+    },
+    {
+      "query": "Show me some noise canceling earbuds wireless with long battery life",
+      "legacy": {
+        "entities": [
+          {
+            "text": "noise canceling, earbuds wireless, long, Earbuds",
+            "label": "PRODUCT_TYPE"
+          },
+          {
+            "text": "battery",
+            "label": "CONDITION"
+          },
+          {
+            "text": "Audio",
+            "label": "CATEGORY"
+          }
+        ],
+        "labels_found": [
+          "CATEGORY",
+          "CONDITION",
+          "PRODUCT_TYPE"
+        ],
+        "latency_ms": 451.0,
+        "tp": [
+          "PRODUCT_TYPE"
+        ],
+        "fp": [
+          "CATEGORY",
+          "CONDITION"
+        ],
+        "fn": [
+          "FEATURE",
+          "TYPE"
+        ]
+      },
+      "nextgen": {
+        "entities": [
+          {
+            "text": "noise canceling earbuds",
+            "label": "PRODUCT_TYPE",
+            "start": 13,
+            "end": 36
+          },
+          {
+            "text": "wireless",
+            "label": "PRODUCT_TYPE",
+            "start": 37,
+            "end": 45
+          },
+          {
+            "text": "long battery life",
+            "label": "FEATURE",
+            "start": 51,
+            "end": 68
+          }
+        ],
+        "labels_found": [
+          "FEATURE",
+          "PRODUCT_TYPE"
+        ],
+        "latency_ms": 74.0,
+        "tp": [
+          "FEATURE",
+          "PRODUCT_TYPE"
+        ],
+        "fp": [],
+        "fn": [
+          "TYPE"
+        ]
+      },
+      "agreement": [
+        "PRODUCT_TYPE"
+      ],
+      "legacy_only": [
+        "CATEGORY",
+        "CONDITION"
+      ],
+      "nextgen_only": [
+        "FEATURE"
+      ],
+      "gold": {
+        "labels": [
+          "FEATURE",
+          "PRODUCT_TYPE",
+          "TYPE"
+        ]
+      }
+    },
+    {
+      "query": "Anyone got a used mountain bike hardtail 29er with hydraulic brakes",
+      "legacy": {
+        "entities": [
+          {
+            "text": "used mountain, bike hardtail 29er, hydraulic, Mountain Bike",
+            "label": "PRODUCT_TYPE"
+          },
+          {
+            "text": "brakes",
+            "label": "FEATURE"
+          },
+          {
+            "text": "Cycling",
+            "label": "CATEGORY"
+          }
+        ],
+        "labels_found": [
+          "CATEGORY",
+          "FEATURE",
+          "PRODUCT_TYPE"
+        ],
+        "latency_ms": 757.9,
+        "tp": [
+          "FEATURE",
+          "PRODUCT_TYPE"
+        ],
+        "fp": [
+          "CATEGORY"
+        ],
+        "fn": [
+          "CONDITION",
+          "SIZE",
+          "TYPE"
+        ]
+      },
+      "nextgen": {
+        "entities": [
+          {
+            "text": "used",
+            "label": "CONDITION",
+            "start": 13,
+            "end": 17
+          },
+          {
+            "text": "mountain bike",
+            "label": "PRODUCT_TYPE",
+            "start": 18,
+            "end": 31
+          },
+          {
+            "text": "hardtail",
+            "label": "PRODUCT_TYPE",
+            "start": 32,
+            "end": 40
+          },
+          {
+            "text": "29er",
+            "label": "SIZE",
+            "start": 41,
+            "end": 45
+          },
+          {
+            "text": "hydraulic brakes",
+            "label": "FEATURE",
+            "start": 51,
+            "end": 67
+          }
+        ],
+        "labels_found": [
+          "CONDITION",
+          "FEATURE",
+          "PRODUCT_TYPE",
+          "SIZE"
+        ],
+        "latency_ms": 18.7,
+        "tp": [
+          "CONDITION",
+          "FEATURE",
+          "PRODUCT_TYPE",
+          "SIZE"
+        ],
+        "fp": [],
+        "fn": [
+          "TYPE"
+        ]
+      },
+      "agreement": [
+        "FEATURE",
+        "PRODUCT_TYPE"
+      ],
+      "legacy_only": [
+        "CATEGORY"
+      ],
+      "nextgen_only": [
+        "CONDITION",
+        "SIZE"
+      ],
+      "gold": {
+        "labels": [
+          "CONDITION",
+          "FEATURE",
+          "PRODUCT_TYPE",
+          "SIZE",
+          "TYPE"
+        ]
+      }
+    },
+    {
+      "query": "I have been trying to find a projector 4K laser short throw for living room",
+      "legacy": {
+        "entities": [
+          {
+            "text": "projector 4, K laser, throw",
+            "label": "PRODUCT_TYPE"
+          },
+          {
+            "text": "short, living, room",
+            "label": "FEATURE"
+          }
+        ],
+        "labels_found": [
+          "FEATURE",
+          "PRODUCT_TYPE"
+        ],
+        "latency_ms": 931.3,
+        "tp": [
+          "PRODUCT_TYPE"
+        ],
+        "fp": [
+          "FEATURE"
+        ],
+        "fn": [
+          "RESOLUTION",
+          "TYPE",
+          "USAGE"
+        ]
+      },
+      "nextgen": {
+        "entities": [
+          {
+            "text": "projector",
+            "label": "PRODUCT_TYPE",
+            "start": 29,
+            "end": 38
+          },
+          {
+            "text": "4K",
+            "label": "PRODUCT_TYPE",
+            "start": 39,
+            "end": 41
+          },
+          {
+            "text": "laser",
+            "label": "FEATURE",
+            "start": 42,
+            "end": 47
+          },
+          {
+            "text": "short throw",
+            "label": "FEATURE",
+            "start": 48,
+            "end": 59
+          },
+          {
+            "text": "living room",
+            "label": "USAGE",
+            "start": 64,
+            "end": 75
+          }
+        ],
+        "labels_found": [
+          "FEATURE",
+          "PRODUCT_TYPE",
+          "USAGE"
+        ],
+        "latency_ms": 17.9,
+        "tp": [
+          "PRODUCT_TYPE",
+          "USAGE"
+        ],
+        "fp": [
+          "FEATURE"
+        ],
+        "fn": [
+          "RESOLUTION",
+          "TYPE"
+        ]
+      },
+      "agreement": [
+        "FEATURE",
+        "PRODUCT_TYPE"
+      ],
+      "legacy_only": [],
+      "nextgen_only": [
+        "USAGE"
+      ],
+      "gold": {
+        "labels": [
+          "PRODUCT_TYPE",
+          "RESOLUTION",
+          "TYPE",
+          "USAGE"
+        ]
+      }
+    },
+    {
+      "query": "We want to buy an outdoor grill natural gas built in with rotisserie",
+      "legacy": {
+        "entities": [
+          {
+            "text": "to",
+            "label": "PRODUCT_TYPE"
+          }
+        ],
+        "labels_found": [
+          "PRODUCT_TYPE"
+        ],
+        "latency_ms": 631.5,
+        "tp": [
+          "PRODUCT_TYPE"
+        ],
+        "fp": [],
+        "fn": [
+          "FEATURE",
+          "FUEL",
+          "TYPE"
+        ]
+      },
+      "nextgen": {
+        "entities": [
+          {
+            "text": "outdoor grill",
+            "label": "PRODUCT_TYPE",
+            "start": 18,
+            "end": 31
+          },
+          {
+            "text": "natural gas",
+            "label": "MATERIAL",
+            "start": 32,
+            "end": 43
+          },
+          {
+            "text": "built in",
+            "label": "FEATURE",
+            "start": 44,
+            "end": 52
+          },
+          {
+            "text": "rotisserie",
+            "label": "FEATURE",
+            "start": 58,
+            "end": 68
+          }
+        ],
+        "labels_found": [
+          "FEATURE",
+          "MATERIAL",
+          "PRODUCT_TYPE"
+        ],
+        "latency_ms": 57.7,
+        "tp": [
+          "FEATURE",
+          "PRODUCT_TYPE"
+        ],
+        "fp": [
+          "MATERIAL"
+        ],
+        "fn": [
+          "FUEL",
+          "TYPE"
+        ]
+      },
+      "agreement": [
+        "PRODUCT_TYPE"
+      ],
+      "legacy_only": [],
+      "nextgen_only": [
+        "FEATURE",
+        "MATERIAL"
+      ],
+      "gold": {
+        "labels": [
+          "FEATURE",
+          "FUEL",
+          "PRODUCT_TYPE",
+          "TYPE"
+        ]
+      }
+    },
+    {
+      "query": "Please show me toddler car seats convertible with side impact protection",
+      "legacy": {
+        "entities": [
+          {
+            "text": "toddler car, seats convertible, side impact",
+            "label": "PRODUCT_TYPE"
+          }
+        ],
+        "labels_found": [
+          "PRODUCT_TYPE"
+        ],
+        "latency_ms": 542.6,
+        "tp": [
+          "PRODUCT_TYPE"
+        ],
+        "fp": [],
+        "fn": [
+          "FEATURE",
+          "TYPE"
+        ]
+      },
+      "nextgen": {
+        "entities": [
+          {
+            "text": "toddler car seats",
+            "label": "PRODUCT_TYPE",
+            "start": 15,
+            "end": 32
+          },
+          {
+            "text": "convertible",
+            "label": "PRODUCT_TYPE",
+            "start": 33,
+            "end": 44
+          },
+          {
+            "text": "side impact protection",
+            "label": "FEATURE",
+            "start": 50,
+            "end": 72
+          }
+        ],
+        "labels_found": [
+          "FEATURE",
+          "PRODUCT_TYPE"
+        ],
+        "latency_ms": 17.6,
+        "tp": [
+          "FEATURE",
+          "PRODUCT_TYPE"
+        ],
+        "fp": [],
+        "fn": [
+          "TYPE"
+        ]
+      },
+      "agreement": [
+        "PRODUCT_TYPE"
+      ],
+      "legacy_only": [],
+      "nextgen_only": [
+        "FEATURE"
+      ],
+      "gold": {
+        "labels": [
+          "FEATURE",
+          "PRODUCT_TYPE",
+          "TYPE"
+        ]
+      }
+    },
+    {
+      "query": "Does anyone have a KitchenAid mixer bowl 5 quart stainless steel lift",
+      "legacy": {
+        "entities": [
+          {
+            "text": "KitchenAid, bowl 5, stainless",
+            "label": "PRODUCT_TYPE"
+          },
+          {
+            "text": "quart, lift",
+            "label": "FEATURE"
+          },
+          {
+            "text": "steel",
+            "label": "CONDITION"
+          },
+          {
+            "text": "KitchenAid",
+            "label": "BRAND"
+          }
+        ],
+        "labels_found": [
+          "BRAND",
+          "CONDITION",
+          "FEATURE",
+          "PRODUCT_TYPE"
+        ],
+        "latency_ms": 521.1,
+        "tp": [
+          "BRAND",
+          "PRODUCT_TYPE"
+        ],
+        "fp": [
+          "CONDITION",
+          "FEATURE"
+        ],
+        "fn": [
+          "CAPACITY",
+          "MATERIAL",
+          "TYPE"
+        ]
+      },
+      "nextgen": {
+        "entities": [
+          {
+            "text": "KitchenAid",
+            "label": "BRAND",
+            "start": 19,
+            "end": 29
+          },
+          {
+            "text": "mixer bowl",
+            "label": "PRODUCT_TYPE",
+            "start": 30,
+            "end": 40
+          },
+          {
+            "text": "5 quart",
+            "label": "SIZE",
+            "start": 41,
+            "end": 48
+          },
+          {
+            "text": "stainless steel",
+            "label": "MATERIAL",
+            "start": 49,
+            "end": 64
+          },
+          {
+            "text": "lift",
+            "label": "FEATURE",
+            "start": 65,
+            "end": 69
+          }
+        ],
+        "labels_found": [
+          "BRAND",
+          "FEATURE",
+          "MATERIAL",
+          "PRODUCT_TYPE",
+          "SIZE"
+        ],
+        "latency_ms": 20.5,
+        "tp": [
+          "BRAND",
+          "MATERIAL",
+          "PRODUCT_TYPE"
+        ],
+        "fp": [
+          "FEATURE",
+          "SIZE"
+        ],
+        "fn": [
+          "CAPACITY",
+          "TYPE"
+        ]
+      },
+      "agreement": [
+        "BRAND",
+        "FEATURE",
+        "PRODUCT_TYPE"
+      ],
+      "legacy_only": [
+        "CONDITION"
+      ],
+      "nextgen_only": [
+        "MATERIAL",
+        "SIZE"
+      ],
+      "gold": {
+        "labels": [
+          "BRAND",
+          "CAPACITY",
+          "MATERIAL",
+          "PRODUCT_TYPE",
+          "TYPE"
+        ]
+      }
+    },
+    {
+      "query": "I'm looking to upgrade my graphics card RTX 4090 new in box",
+      "legacy": {
+        "entities": [
+          {
+            "text": "upgrade my, Graphics Card",
+            "label": "PRODUCT_TYPE"
+          },
+          {
+            "text": "graphics, box",
+            "label": "CONDITION"
+          },
+          {
+            "text": "Computer Components",
+            "label": "CATEGORY"
+          }
+        ],
+        "labels_found": [
+          "CATEGORY",
+          "CONDITION",
+          "PRODUCT_TYPE"
+        ],
+        "latency_ms": 468.5,
+        "tp": [
+          "CONDITION",
+          "PRODUCT_TYPE"
+        ],
+        "fp": [
+          "CATEGORY"
+        ],
+        "fn": [
+          "MODEL"
+        ]
+      },
+      "nextgen": {
+        "entities": [
+          {
+            "text": "graphics card",
+            "label": "PRODUCT_TYPE",
+            "start": 26,
+            "end": 39
+          },
+          {
+            "text": "RTX 4090",
+            "label": "MODEL",
+            "start": 40,
+            "end": 48
+          },
+          {
+            "text": "new in box",
+            "label": "CONDITION",
+            "start": 49,
+            "end": 59
+          }
+        ],
+        "labels_found": [
+          "CONDITION",
+          "MODEL",
+          "PRODUCT_TYPE"
+        ],
+        "latency_ms": 24.3,
+        "tp": [
+          "CONDITION",
+          "MODEL",
+          "PRODUCT_TYPE"
+        ],
+        "fp": [],
+        "fn": []
+      },
+      "agreement": [
+        "CONDITION",
+        "PRODUCT_TYPE"
+      ],
+      "legacy_only": [
+        "CATEGORY"
+      ],
+      "nextgen_only": [
+        "MODEL"
+      ],
+      "gold": {
+        "labels": [
+          "CONDITION",
+          "MODEL",
+          "PRODUCT_TYPE"
+        ]
+      }
+    },
+    {
+      "query": "Looking for someone selling a pool table 8 foot slate with accessories",
+      "legacy": {
+        "entities": [
+          {
+            "text": "pool, foot slate",
+            "label": "PRODUCT_TYPE"
+          },
+          {
+            "text": "table, accessories",
+            "label": "FEATURE"
+          },
+          {
+            "text": "8",
+            "label": "MODEL"
+          }
+        ],
+        "labels_found": [
+          "FEATURE",
+          "MODEL",
+          "PRODUCT_TYPE"
+        ],
+        "latency_ms": 506.8,
+        "tp": [
+          "PRODUCT_TYPE"
+        ],
+        "fp": [
+          "FEATURE",
+          "MODEL"
+        ],
+        "fn": [
+          "INCLUSIONS",
+          "MATERIAL",
+          "SIZE"
+        ]
+      },
+      "nextgen": {
+        "entities": [
+          {
+            "text": "pool table",
+            "label": "PRODUCT_TYPE",
+            "start": 30,
+            "end": 40
+          },
+          {
+            "text": "8 foot",
+            "label": "SIZE",
+            "start": 41,
+            "end": 47
+          },
+          {
+            "text": "slate",
+            "label": "MATERIAL",
+            "start": 48,
+            "end": 53
+          },
+          {
+            "text": "accessories",
+            "label": "INCLUSIONS",
+            "start": 59,
+            "end": 70
+          }
+        ],
+        "labels_found": [
+          "INCLUSIONS",
+          "MATERIAL",
+          "PRODUCT_TYPE",
+          "SIZE"
+        ],
+        "latency_ms": 22.7,
+        "tp": [
+          "INCLUSIONS",
+          "MATERIAL",
+          "PRODUCT_TYPE",
+          "SIZE"
+        ],
+        "fp": [],
+        "fn": []
+      },
+      "agreement": [
+        "PRODUCT_TYPE"
+      ],
+      "legacy_only": [
+        "FEATURE",
+        "MODEL"
+      ],
+      "nextgen_only": [
+        "INCLUSIONS",
+        "MATERIAL",
+        "SIZE"
+      ],
+      "gold": {
+        "labels": [
+          "INCLUSIONS",
+          "MATERIAL",
+          "PRODUCT_TYPE",
+          "SIZE"
+        ]
+      }
+    }
+  ]
+}

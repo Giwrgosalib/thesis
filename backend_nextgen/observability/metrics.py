@@ -4,6 +4,8 @@ Observability utilities for monitoring next-gen models.
 
 from __future__ import annotations
 
+import ast
+import json
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List
@@ -45,10 +47,14 @@ class MetricSink:
             )
 
     def log(self, record: MetricRecord) -> None:
+        try:
+            meta_str = json.dumps(record.metadata, ensure_ascii=False)
+        except (TypeError, ValueError):
+            meta_str = json.dumps({"raw": str(record.metadata)})
         with sqlite3.connect(self.db_path) as conn:
             conn.execute(
                 "INSERT INTO metrics (name, value, metadata, timestamp) VALUES (?, ?, ?, ?)",
-                (record.name, record.value, str(record.metadata), record.timestamp),
+                (record.name, record.value, meta_str, record.timestamp),
             )
 
     def query(self, name: str, since: float) -> List[MetricRecord]:
@@ -57,12 +63,18 @@ class MetricSink:
                 "SELECT value, metadata, timestamp FROM metrics WHERE name = ? AND timestamp >= ?",
                 (name, since),
             ).fetchall()
-        return [
-            MetricRecord(
-                name=name,
-                value=row[0],
-                metadata=eval(row[1]),
-                timestamp=row[2],
+        records = []
+        for row in rows:
+            # Safe deserialization — never use eval() on stored data
+            raw_meta = row[1]
+            try:
+                meta = json.loads(raw_meta)
+            except (json.JSONDecodeError, TypeError):
+                try:
+                    meta = ast.literal_eval(raw_meta)
+                except (ValueError, SyntaxError):
+                    meta = {"raw": str(raw_meta)}
+            records.append(
+                MetricRecord(name=name, value=row[0], metadata=meta, timestamp=row[2])
             )
-            for row in rows
-        ]
+        return records

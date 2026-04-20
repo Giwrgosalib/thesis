@@ -26,6 +26,11 @@ backend_nextgen/models/ner/*.txt
 backend_nextgen/models/ner/*.model
 backend_nextgen/models/ner/*.spm
 backend_nextgen/models/ner/tokenizer*
+# DeBERTa CRF model weights (large binary — download/train locally)
+backend_nextgen/models/deberta_crf/best_model/*.safetensors
+backend_nextgen/models/deberta_crf/best_model/*.bin
+backend_nextgen/models/deberta_crf/best_model/checkpoint-*/
+backend_nextgen/models/deberta_crf/best_model/training_args.bin
 
 # Frontend build output
 frontend/dist/
@@ -36,8 +41,11 @@ backend_nextgen/observability/*.db
 backend_nextgen/observability/*.sqlite
 data/observability/
 data/vector_store/
-backend_nextgen/data/
-backend/data/
+# backend_nextgen/data/ — unblocked so retrieval index and eval data are tracked
+backend_nextgen/data/observability/
+backend_nextgen/data/personalization/
+backend_nextgen/data/knowledge_graph/
+backend_nextgen/data/vector_store/
 backend/__pycache__/
 
 # Thesis documents
@@ -48,5 +56,5 @@ docs_notes/
 tmp/
 
 # Utility scripts (benchmarks, training, testing - not needed for production)
-scripts/
-backend_nextgen/scripts/
+# scripts/ -- unblocked so evaluation harness is tracked
+# backend_nextgen/scripts/ -- unblocked so training scripts are tracked
