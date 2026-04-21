@@ -26,6 +26,7 @@ tqdm==4.67.1
 flask==2.0.1
 werkzeug==2.0.3          # flask 2.0.x requires werkzeug<2.1; newer werkzeug removed url_quote
 flask-cors==5.0.1
+pymongo==4.7.3
 
 # ── Config / environment ────────────────────────────────────────────────────
 PyYAML==6.0.1
