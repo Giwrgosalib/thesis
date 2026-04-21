@@ -1,31 +1,37 @@
-# Single image that serves BOTH the Legacy (port 5000) and NextGen (port 5001) backends.
-# Base already includes PyTorch 2.5.1 + CUDA 12.4 — we skip reinstalling torch/torchvision.
-FROM pytorch/pytorch:2.5.1-cuda12.4-cudnn9-runtime
+# Both backends in one container.
+# Legacy BiLSTM-CRF  → :5000    (python backend/app.py)
+# NextGen DeBERTa    → :5001    (python run_nextgen.py)
+#
+# Uses python:3.11-slim + CPU torch so the build finishes in minutes
+# instead of timing out on the 7 GB pytorch/pytorch CUDA base image.
+# For GPU inference swap torch line to the cu124 index URL below.
+FROM python:3.11-slim
 
 WORKDIR /app
 
-# System deps
-RUN apt-get update && apt-get install -y \
-    build-essential \
-    curl \
-    git \
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential git \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Python dependencies (skip torch/torchvision — provided by base image)
-COPY requirements.txt .
-RUN grep -v -E "^(torch|torchvision)==" requirements.txt > /tmp/req_docker.txt \
-    && pip install --no-cache-dir -r /tmp/req_docker.txt
+# CPU torch first (cached layer, ~300 MB — far smaller than the CUDA wheel)
+# GPU alternative: --index-url https://download.pytorch.org/whl/cu124
+RUN pip install --no-cache-dir \
+    torch==2.6.0+cpu \
+    torchvision==0.21.0+cpu \
+    --index-url https://download.pytorch.org/whl/cpu
 
-# Copy application code
+# Remaining deps (torch/torchvision already installed above)
+COPY requirements.txt .
+RUN grep -v -E "^(torch|torchvision)==" requirements.txt > /tmp/req.txt \
+    && pip install --no-cache-dir -r /tmp/req.txt \
+    && python -m spacy download en_core_web_sm
+
 COPY . .
 
-# Environment
 ENV PYTHONPATH=/app
 ENV NEXTGEN_CONFIG_PATH=backend_nextgen/config/nextgen_config.yml
 
-# Both ports
 EXPOSE 5000 5001
 
-# Start both Flask apps in one container
 RUN chmod +x start_backends.sh
 CMD ["bash", "start_backends.sh"]

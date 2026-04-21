@@ -1,7 +1,7 @@
 services:
   # ── Both backends in one container ────────────────────────────────────────
-  # Legacy BiLSTM-CRF  → port 5000
-  # NextGen DeBERTa    → port 5001
+  # Legacy BiLSTM-CRF  → :5000   (/api/*)
+  # NextGen DeBERTa    → :5001   (/api/nextgen/*)
   backend:
     build:
       context: .
@@ -11,28 +11,19 @@ services:
       - "5001:5001"
     env_file:
       - backend/.env
-    environment:
-      - NVIDIA_VISIBLE_DEVICES=all
-      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
     volumes:
       - .:/app
       - /app/venv
       - /app/__pycache__
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: 1
-              capabilities: [gpu]
 
-  # ── React/Vite frontend (port 3000) ────────────────────────────────────────
+  # ── Vue CLI frontend (port 8080) ───────────────────────────────────────────
+  # Proxies /api/nextgen → backend:5001, /api → backend:5000
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
     ports:
-      - "3000:3000"
+      - "8080:8080"
     volumes:
       - ./frontend:/app
       - /app/node_modules
@@ -45,7 +36,7 @@ services:
   ngrok:
     image: ngrok/ngrok:latest
     restart: unless-stopped
-    command: http --domain=secure-openly-moth.ngrok-free.app frontend:3000
+    command: http --domain=secure-openly-moth.ngrok-free.app frontend:8080
     env_file:
       - backend/.env
     ports:
