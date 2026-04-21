@@ -1,32 +1,31 @@
-# Use official PyTorch image with CUDA support (Matching project version)
+# Single image that serves BOTH the Legacy (port 5000) and NextGen (port 5001) backends.
+# Base already includes PyTorch 2.5.1 + CUDA 12.4 — we skip reinstalling torch/torchvision.
 FROM pytorch/pytorch:2.5.1-cuda12.4-cudnn9-runtime
 
 WORKDIR /app
 
-# Install system dependencies
+# System deps
 RUN apt-get update && apt-get install -y \
     build-essential \
     curl \
     git \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy unified requirements (root-level, covers both engines)
+# Install Python dependencies (skip torch/torchvision — provided by base image)
 COPY requirements.txt .
-
-# Install Python dependencies
-# Torch is already in base image, but we install the rest
-RUN pip install --no-cache-dir -r requirements.txt
+RUN grep -v -E "^(torch|torchvision)==" requirements.txt > /tmp/req_docker.txt \
+    && pip install --no-cache-dir -r /tmp/req_docker.txt
 
 # Copy application code
 COPY . .
 
-# Set environment variables
+# Environment
 ENV PYTHONPATH=/app
-ENV FLASK_APP=backend/app.py
 ENV NEXTGEN_CONFIG_PATH=backend_nextgen/config/nextgen_config.yml
 
-# Expose port
-EXPOSE 5000
+# Both ports
+EXPOSE 5000 5001
 
-# Command to run the application
-CMD ["python", "backend/app.py"]
+# Start both Flask apps in one container
+RUN chmod +x start_backends.sh
+CMD ["bash", "start_backends.sh"]
