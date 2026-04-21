@@ -1,8 +1,9 @@
 export const appAuth = {
-  // Initiate login by redirecting to eBay OAuth flow
-  initiateEbayLogin(clientId) {
-    const redirectUrl = `/auth/ebay-login?client_id=${clientId}`;
-    window.location.href = redirectUrl;
+  // Initiate login by redirecting to eBay OAuth flow.
+  // No client_id needed — the backend generates one automatically and
+  // returns it in the ?client_id= query param after the OAuth callback.
+  initiateEbayLogin() {
+    window.location.href = "/auth/ebay-login";
   },
 
   // Check if token is valid
