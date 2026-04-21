@@ -8,7 +8,7 @@ nlp:
   max_sequence_length: 256
   use_crf_head: true # requires torchcrf to be installed
   enable_char_encoder: false
-  device: cuda
+  device: cpu   # use cuda for local GPU runs; Docker image uses cpu-only torch
   confidence_threshold: 0.55
   trained_model_path: models/ner
 
