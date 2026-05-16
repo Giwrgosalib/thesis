@@ -35,6 +35,8 @@ backend_nextgen/models/ner/tokenizer*
 # DeBERTa CRF model weights (large binary — download/train locally)
 backend_nextgen/models/deberta_crf/best_model/*.safetensors
 backend_nextgen/models/deberta_crf/best_model/*.bin
+backend_nextgen/models/deberta_crf/best_model/*.pt
+backend_nextgen/models/deberta_crf/best_model/tokenizer/
 backend_nextgen/models/deberta_crf/best_model/checkpoint-*/
 backend_nextgen/models/deberta_crf/best_model/training_args.bin
 # Query rewriter model weights
@@ -74,6 +76,7 @@ docs_notes/
 
 # Temp files
 tmp/
+thesis_project_refixed*/
 
 # Utility scripts (benchmarks, training, testing - not needed for production)
 # scripts/ -- unblocked so evaluation harness is tracked

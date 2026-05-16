@@ -66,24 +66,26 @@ class TransformerCRFNER(nn.Module):
         input_ids: torch.Tensor,
         attention_mask: torch.Tensor,
         labels: torch.Tensor | None = None,
+        crf_mask: torch.Tensor | None = None,
     ):
         outputs = self.encoder(input_ids=input_ids, attention_mask=attention_mask)
         sequence_output = self.dropout(outputs.last_hidden_state)
         emissions = self.classifier(sequence_output)
 
         if self.use_crf and self.crf is not None:
+            # Use attention_mask for CRF (includes [CLS]/[SEP] which learn to be "O").
+            # This is simpler and performs well empirically.
+            mask = attention_mask.bool()
             loss = None
             if labels is not None:
-                loss = -self.crf(
-                    emissions, labels, mask=attention_mask.bool(), reduction="mean"
-                )
-            tag_seqs = self.crf.decode(emissions, mask=attention_mask.bool())
+                loss = -self.crf(emissions, labels, mask=mask, reduction="mean")
+            tag_seqs = self.crf.decode(emissions, mask=mask)
             return loss, tag_seqs
 
         logits = emissions
         loss = None
         if labels is not None:
-            loss_fn = nn.CrossEntropyLoss()
+            loss_fn = nn.CrossEntropyLoss(ignore_index=-100)
             loss = loss_fn(logits.view(-1, logits.size(-1)), labels.view(-1))
         predictions = logits.argmax(dim=-1)
         return loss, predictions
