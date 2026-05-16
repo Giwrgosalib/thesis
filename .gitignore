@@ -7,6 +7,12 @@ __pycache__/
 venv/
 env/
 
+# Secrets and credentials — NEVER commit these
+backend/.env
+backend/.env.*
+backend/ebay_config/ebay-credentials.yaml
+*.env
+
 # Local environment overrides
 .env.local
 .envrc
@@ -31,9 +37,21 @@ backend_nextgen/models/deberta_crf/best_model/*.safetensors
 backend_nextgen/models/deberta_crf/best_model/*.bin
 backend_nextgen/models/deberta_crf/best_model/checkpoint-*/
 backend_nextgen/models/deberta_crf/best_model/training_args.bin
+# Query rewriter model weights
+backend_nextgen/models/query_rewriter/
+backend_nextgen/models/query_rewriter_validator/
+# Stale archives
+*.zip
+
+# Binaries
+*.exe
 
 # Frontend build output
 frontend/dist/
+
+# Training logs
+*_training_output.txt
+*_training_v*.txt
 
 # Logs and metrics
 *.log

@@ -36,29 +36,33 @@ python scripts/_train_legacy.py
 
 # NextGen DeBERTa NER (5 epochs fine-tuning)
 python backend_nextgen/scripts/train_transformer_ner.py \
-    --data backend/data/train_enriched.csv \
+    --data backend/data/unified_train.csv \
     --output backend_nextgen/models/ner \
     --epochs 5
 
 # Rebuild FAISS retrieval index
 python scripts/build_retrieval_index.py \
-    --data backend/data/train_enriched.csv \
+    --data backend/data/unified_train.csv \
     --output backend_nextgen/data/retrieval/
 ```
 
 ### Evaluation
 
 ```bash
-# Full A/B comparison (50 test queries)
-python scripts/compare_engines.py \
-    --input backend/data/test_dataset_fixed.csv \
-    --output results/ab_comparison.json \
-    --max_samples 50
+# Unified NER evaluation (1000 test queries, both engines)
+python scripts/evaluate_engines.py --output results/evaluation.json
+
+# Generate evaluation charts
+python scripts/plot_evaluation.py
+
+# Generate thesis figures
+python scripts/plot_thesis_figures.py
+python scripts/plot_thesis_figures_extra.py
 
 # Retrieval recall/MRR/NDCG
 python scripts/evaluate_retrieval.py
 
-# Single-query interactive
+# Single-query interactive comparison
 python scripts/compare_engines.py
 ```
 
@@ -84,8 +88,9 @@ python scripts/compare_engines.py
 
 | File | Rows | Purpose |
 |------|------|---------|
-| `backend/data/train_enriched.csv` | ~2383 | Training + retrieval index |
-| `backend/data/test_dataset_fixed.csv` | ~265 | A/B evaluation |
+| `backend/data/unified_train.csv` | ~2800 | Training (both engines) + retrieval index |
+| `backend/data/unified_val.csv` | ~350 | Validation |
+| `backend/data/unified_test.csv` | ~1000 | Evaluation (both engines) |
 
 ---
 
