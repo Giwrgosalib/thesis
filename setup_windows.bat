@@ -38,8 +38,8 @@ call venv\Scripts\activate.bat
 python -m pip install --upgrade pip
 
 :: 4. Install GPU PyTorch first (Critical for NextGen)
-echo [4/6] Installing NVIDIA GPU support (PyTorch CUDA 12.1)...
-pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
+echo [4/6] Installing NVIDIA GPU support (PyTorch CUDA 12.4)...
+pip install torch --index-url https://download.pytorch.org/whl/cu124
 
 echo [4/6] Installing remaining backend dependencies...
 pip install -r requirements.txt

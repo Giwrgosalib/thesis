@@ -55,6 +55,8 @@ frontend/dist/
 
 # Logs and metrics
 *.log
+backend/data/metrics/
+backend/data/feedback_log.csv
 backend_nextgen/observability/*.db
 backend_nextgen/observability/*.sqlite
 data/observability/
