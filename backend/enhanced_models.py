@@ -6,11 +6,7 @@ Includes improved BiLSTM-CRF with attention, better intent classification, and a
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import torch.optim as optim
-from torch.nn.utils.rnn import pad_sequence
-import numpy as np
 from typing import Dict, List, Tuple, Optional
-import math
 
 class AttentionLayer(nn.Module):
     """Self-attention layer for better sequence modeling."""
@@ -352,106 +348,3 @@ class EnhancedBiLSTM_CRF(nn.Module):
         score, tag_seq = self._viterbi_decode(feats)
         return score, tag_seq
 
-class EnhancedIntentClassifier(nn.Module):
-    """Enhanced intent classifier with attention and better architecture."""
-    
-    def __init__(self, vocab_size: int, num_intents: int, embedding_dim: int = 128,
-                 hidden_dim: int = 256, num_layers: int = 2, dropout: float = 0.3):
-        super(EnhancedIntentClassifier, self).__init__()
-        
-        self.embedding_dim = embedding_dim
-        self.hidden_dim = hidden_dim
-        self.num_layers = num_layers
-        self.dropout = dropout
-        
-        # Embeddings
-        self.word_embeds = nn.Embedding(vocab_size, embedding_dim)
-        self.embed_dropout = nn.Dropout(dropout)
-        
-        # BiLSTM
-        self.lstm = nn.LSTM(
-            embedding_dim,
-            hidden_dim // 2,
-            num_layers=num_layers,
-            bidirectional=True,
-            dropout=dropout if num_layers > 1 else 0,
-            batch_first=False
-        )
-        
-        # Attention
-        self.attention = AttentionLayer(hidden_dim)
-        
-        # Classifier
-        self.classifier = nn.Sequential(
-            nn.Dropout(dropout),
-            nn.Linear(hidden_dim, hidden_dim // 2),
-            nn.ReLU(),
-            nn.Dropout(dropout),
-            nn.Linear(hidden_dim // 2, num_intents)
-        )
-        
-        self._init_weights()
-    
-    def _init_weights(self):
-        """Initialize model weights."""
-        for name, param in self.lstm.named_parameters():
-            if 'weight' in name:
-                nn.init.xavier_uniform_(param)
-            elif 'bias' in name:
-                nn.init.zeros_(param)
-        
-        for module in self.classifier:
-            if isinstance(module, nn.Linear):
-                nn.init.xavier_uniform_(module.weight)
-                nn.init.zeros_(module.bias)
-    
-    def forward(self, sentence: torch.Tensor):
-        """Forward pass."""
-        # Embeddings
-        embeds = self.word_embeds(sentence)
-        embeds = self.embed_dropout(embeds)
-        embeds = embeds.unsqueeze(1)  # (seq_len, 1, embedding_dim)
-        
-        # LSTM
-        lstm_out, _ = self.lstm(embeds)  # (seq_len, 1, hidden_dim)
-        lstm_out = lstm_out.squeeze(1)  # (seq_len, hidden_dim)
-        
-        # Attention
-        lstm_out = lstm_out.unsqueeze(1)  # (seq_len, 1, hidden_dim)
-        attended_out, _ = self.attention(lstm_out)
-        
-        # Classification
-        logits = self.classifier(attended_out)
-        return logits
-
-class LearningRateScheduler:
-    """Learning rate scheduler with warmup and decay."""
-    
-    def __init__(self, optimizer, warmup_steps: int = 1000, d_model: int = 256):
-        self.optimizer = optimizer
-        self.warmup_steps = warmup_steps
-        self.d_model = d_model
-        self.step_count = 0
-    
-    def step(self):
-        """Update learning rate."""
-        self.step_count += 1
-        lr = self._get_lr()
-        for param_group in self.optimizer.param_groups:
-            param_group['lr'] = lr
-    
-    def _get_lr(self):
-        """Calculate learning rate."""
-        return (self.d_model ** -0.5) * min(
-            self.step_count ** -0.5,
-            self.step_count * (self.warmup_steps ** -1.5)
-        )
-
-def prepare_sequence(seq: List[str], to_ix: Dict[str, int]) -> torch.Tensor:
-    """Convert sequence to tensor with proper handling of unknown words."""
-    idxs = [to_ix.get(w, to_ix.get("[UNK]", 0)) for w in seq]
-    return torch.tensor(idxs, dtype=torch.long)
-
-def pad_sequences(sequences: List[torch.Tensor], pad_value: int = 0) -> torch.Tensor:
-    """Pad sequences to the same length."""
-    return pad_sequence(sequences, batch_first=True, padding_value=pad_value)

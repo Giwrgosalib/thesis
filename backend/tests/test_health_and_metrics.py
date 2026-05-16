@@ -17,8 +17,8 @@ def test_metrics_endpoint_uses_local_data(monkeypatch, client, tmp_path):
     data_dir.mkdir()
 
     (data_dir / "feedback_log.csv").write_text("rating\n5\n4\n3\n", encoding="utf-8")
-    (data_dir / "refined_balanced_dataset.csv").write_text(
-        "intent,text\nsearch_product,iphone 15 pro\n", encoding="utf-8"
+    (data_dir / "unified_train.csv").write_text(
+        "query,entities\niphone 15 pro,\"[]\"\n", encoding="utf-8"
     )
 
     # Force metrics module to read from the temporary folder.

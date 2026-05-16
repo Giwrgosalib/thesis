@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, redirect, make_response, send_from_directory, g
+from flask import Flask, request, jsonify, redirect, send_from_directory
 from flask_cors import CORS
 import requests
 import logging
@@ -37,7 +37,6 @@ from utils.validation import (
     ClientIdSchema,
     sanitize_string,
     validate_user_id,
-    validate_session_token,
 )
 
 # Add the library's parent directory to sys.path to find the oauthclient module

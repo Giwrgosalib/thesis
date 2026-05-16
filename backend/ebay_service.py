@@ -2,17 +2,16 @@ from typing import Dict, List, Any, Optional
 import requests
 import os
 import time
-from urllib.parse import quote_plus
 import logging
+from pathlib import Path
 from dotenv import load_dotenv
-from pymongo.collection import Collection  # Import Collection type hint
+from pymongo.collection import Collection
 
 # Set up logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
-from pathlib import Path
+
 dotenv_path = Path(__file__).parent / ".env"
-from dotenv import load_dotenv
 load_dotenv(dotenv_path=dotenv_path)
 
 class EBayService:

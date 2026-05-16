@@ -19,6 +19,13 @@ _sys.path.insert(0, str(Path(__file__).resolve().parent))
 from enhanced_models import EnhancedBiLSTM_CRF
 from utils.resource_loader import load_json_resource
 
+
+def prepare_sequence(seq, to_ix):
+    """Convert word sequence to tensor of indices."""
+    idxs = [to_ix.get(w, 0) for w in seq]
+    return torch.tensor(idxs, dtype=torch.long)
+
+
 # Path helpers
 BACKEND_ROOT = Path(__file__).resolve().parent
 MODELS_DIR = BACKEND_ROOT / 'models'
@@ -32,110 +39,6 @@ BRAND_ALIASES_FILE = NLP_RESOURCES_DIR / 'brand_aliases.json'
 PRODUCT_KEYWORD_FILE = NLP_RESOURCES_DIR / 'product_keyword_map.json'
 KNOWN_BRANDS_FILE = NLP_RESOURCES_DIR / 'known_brands.json'
 
-# --- From-Scratch BiLSTM-CRF Model Definition ---
-class BiLSTM_CRF(nn.Module):
-    def __init__(self, vocab_size, tag_to_ix, embedding_dim, hidden_dim):
-        super(BiLSTM_CRF, self).__init__()
-        self.embedding_dim = embedding_dim
-        self.hidden_dim = hidden_dim
-        self.vocab_size = vocab_size
-        self.tag_to_ix = tag_to_ix
-        self.tagset_size = len(tag_to_ix)
-
-        self.word_embeds = nn.Embedding(vocab_size, embedding_dim)
-        self.lstm = nn.LSTM(embedding_dim, hidden_dim // 2, num_layers=1, bidirectional=True)
-        self.hidden2tag = nn.Linear(hidden_dim, self.tagset_size)
-
-        # Transition matrix for CRF
-        self.transitions = nn.Parameter(torch.randn(self.tagset_size, self.tagset_size))
-        self.transitions.data[tag_to_ix["START_TAG"], :] = -10000
-        self.transitions.data[:, tag_to_ix["STOP_TAG"]] = -10000
-
-    def _get_lstm_features(self, sentence):
-        embeds = self.word_embeds(sentence).view(len(sentence), 1, -1)
-        lstm_out, _ = self.lstm(embeds)
-        lstm_out = lstm_out.view(len(sentence), self.hidden_dim)
-        lstm_feats = self.hidden2tag(lstm_out)
-        return lstm_feats
-
-    def _forward_alg(self, feats):
-        device = feats.device
-        # Initialize the forward variables in log-space
-        forward_var = torch.full((1, self.tagset_size), -10000., device=device)
-        forward_var[0][self.tag_to_ix["START_TAG"]] = 0.
-        for feat in feats:
-            alphas_t = []
-            for next_tag in range(self.tagset_size):
-                # Emission and transition scores
-                emit_score = feat[next_tag].view(1, -1).expand(1, self.tagset_size)
-                trans_score = self.transitions[next_tag].view(1, -1)
-                next_tag_var = forward_var + trans_score + emit_score
-                alphas_t.append(torch.logsumexp(next_tag_var, dim=1).view(1))
-            forward_var = torch.cat(alphas_t).view(1, -1)
-        terminal_var = forward_var + self.transitions[self.tag_to_ix["STOP_TAG"]]
-        alpha = torch.logsumexp(terminal_var, dim=1)
-        return alpha
-
-    def _score_sentence(self, feats, tags):
-        device = feats.device
-        score = torch.zeros(1, device=device)
-        # Include START tag in the score
-        tags = torch.cat([torch.tensor([self.tag_to_ix["START_TAG"]], dtype=torch.long, device=device), tags])
-        for i, feat in enumerate(feats):
-            score = score + self.transitions[tags[i+1], tags[i]] + feat[tags[i+1]]
-        score = score + self.transitions[self.tag_to_ix["STOP_TAG"], tags[-1]]
-        return score
-
-    def neg_log_likelihood(self, sentence, tags):
-        feats = self._get_lstm_features(sentence)
-        forward_score = self._forward_alg(feats)
-        gold_score = self._score_sentence(feats, tags)
-        return forward_score - gold_score
-
-    def _viterbi_decode(self, feats):
-        device = feats.device
-        backpointers = []
-
-        # Initialize Viterbi variables
-        viterbi_vars = torch.full((1, self.tagset_size), -10000., device=device)
-        viterbi_vars[0][self.tag_to_ix["START_TAG"]] = 0
-
-        for feat in feats:
-            bptrs_t = []
-            vvars_t = []
-            for next_tag in range(self.tagset_size):
-                next_tag_var = viterbi_vars + self.transitions[next_tag]
-                best_tag_id = torch.argmax(next_tag_var)
-                bptrs_t.append(best_tag_id)
-                vvars_t.append(next_tag_var[0][best_tag_id].view(1))
-            viterbi_vars = (torch.cat(vvars_t) + feat).view(1, -1)
-            backpointers.append(bptrs_t)
-
-        # Transition to STOP_TAG
-        terminal_var = viterbi_vars + self.transitions[self.tag_to_ix["STOP_TAG"]]
-        best_tag_id = torch.argmax(terminal_var)
-        path_score = terminal_var[0][best_tag_id]
-
-        # Backtrack through pointers to decode best path
-        best_path = [best_tag_id]
-        for bptrs_t in reversed(backpointers):
-            best_tag_id = bptrs_t[best_tag_id]
-            best_path.append(best_tag_id)
-        # Drop the START tag
-        best_path.pop()
-        best_path.reverse()
-        return path_score, best_path
-
-    def forward(self, sentence):
-        # Run forward algorithm (BiLSTM + CRF decoding)
-        lstm_feats = self._get_lstm_features(sentence)
-        score, tag_seq = self._viterbi_decode(lstm_feats)
-        return score, tag_seq
-
-# Helper function to convert word sequence to tensor of indices
-def prepare_sequence(seq, to_ix):
-    idxs = [to_ix.get(w, 0) for w in seq]
-    return torch.tensor(idxs, dtype=torch.long)
 
 class EBayNLP:
     def __init__(self):
