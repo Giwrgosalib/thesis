@@ -726,7 +726,8 @@ class EBayNLP:
         # Single intent architecture - always return search_product
         return self.intent
 
-    def train(self, dataset_path: str, new_data_path: Optional[str] = None, iterations: int = 10):
+    def train(self, dataset_path: str, new_data_path: Optional[str] = None,
+              val_dataset_path: Optional[str] = None, iterations: int = 10):
         """
         Train or update both the intent classifier and NER model using a base dataset (and optional new data).
         This training routine includes robust data loading, validation, and preparation steps.
@@ -825,13 +826,49 @@ class EBayNLP:
         total_tokens = sum(len(tokens) for tokens, tags in all_training_data)
         print(f"Total tokens: {total_tokens}, Vocabulary: {len(self.word_to_ix)}, Tags: {len(self.tag_to_ix)}")
 
-        # --- Train / Validation split (80 / 20) ---
+        # --- Train / Validation split ---
         import random as _random
         _random.seed(42)
         _random.shuffle(all_training_data)
-        split = max(1, int(len(all_training_data) * 0.8))
-        train_data = all_training_data[:split]
-        val_data = all_training_data[split:]
+
+        if val_dataset_path:
+            print(f"\nLoading external validation set from {val_dataset_path}")
+            train_data = all_training_data
+            val_data = []
+            try:
+                df_val = pd.read_csv(val_dataset_path)
+                for _, vrow in df_val.iterrows():
+                    vquery = vrow['query']
+                    if not isinstance(vquery, str) or not vquery.strip():
+                        continue
+                    try:
+                        ventities = self._parse_entities(vrow['entities'])
+                    except Exception:
+                        continue
+                    if not ventities:
+                        continue
+                    try:
+                        vtokens, vtags = self._create_aligned_tags(vquery, ventities)
+                    except Exception:
+                        continue
+                    val_data.append((vtokens, vtags))
+                    for w in vtokens:
+                        if w not in self.word_to_ix:
+                            self.word_to_ix[w] = len(self.word_to_ix)
+                    for t in vtags:
+                        if t not in self.tag_to_ix:
+                            self.tag_to_ix[t] = len(self.tag_to_ix)
+                self.ix_to_tag = {v: k for k, v in self.tag_to_ix.items()}
+            except FileNotFoundError:
+                print(f"Warning: Validation file not found. Falling back to internal split.")
+                split = max(1, int(len(all_training_data) * 0.8))
+                train_data = all_training_data[:split]
+                val_data = all_training_data[split:]
+        else:
+            split = max(1, int(len(all_training_data) * 0.8))
+            train_data = all_training_data[:split]
+            val_data = all_training_data[split:]
+
         print(f"Train samples: {len(train_data)}, Validation samples: {len(val_data)}")
 
         # b. Load optional GloVe embeddings

@@ -8,7 +8,7 @@ the retrieval evaluation harness against.
 
 Usage:
     python scripts/build_retrieval_index.py \
-        --data   backend/data/train_enriched.csv \
+        --data   backend/data/unified_train.csv \
         --outdir backend_nextgen/data/retrieval \
         --model  intfloat/e5-base-v2 \
         --device cuda
@@ -74,7 +74,7 @@ def embed_texts(texts: list[str], model_name: str, device: str, batch_size: int 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Build retrieval index from training queries")
-    parser.add_argument("--data",   default="backend/data/train_enriched.csv")
+    parser.add_argument("--data",   default="backend/data/unified_train.csv")
     parser.add_argument("--outdir", default="backend_nextgen/data/retrieval")
     parser.add_argument("--model",  default="intfloat/e5-base-v2")
     parser.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")

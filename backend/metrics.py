@@ -144,19 +144,19 @@ def analyze_training_dataset() -> Dict[str, Any]:
     Returns metrics about the dataset composition and quality
     """
     try:
-        # Check for refined dataset first
-        refined_file = os.path.join('data', 'refined_balanced_dataset.csv')
-        train_file = os.path.join('data', 'refined_balanced_dataset_train.csv')
-        val_file = os.path.join('data', 'refined_balanced_dataset_val.csv')
-        
+        # Check for unified dataset first
+        train_file = os.path.join('data', 'unified_train.csv')
+        val_file = os.path.join('data', 'unified_val.csv')
+        test_file = os.path.join('data', 'unified_test.csv')
+
         dataset_files = []
-        if os.path.exists(refined_file):
-            dataset_files.append(('refined_balanced', refined_file))
         if os.path.exists(train_file):
             dataset_files.append(('train', train_file))
         if os.path.exists(val_file):
             dataset_files.append(('validation', val_file))
-        
+        if os.path.exists(test_file):
+            dataset_files.append(('test', test_file))
+
         if not dataset_files:
             # Fallback to original files
             original_files = [
@@ -164,7 +164,7 @@ def analyze_training_dataset() -> Dict[str, Any]:
                 ('validation', os.path.join('data', 'validation.csv')),
                 ('train', os.path.join('data', 'train.csv'))
             ]
-            
+
             for name, path in original_files:
                 if os.path.exists(path):
                     dataset_files.append((name, path))

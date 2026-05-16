@@ -46,6 +46,19 @@ CANONICAL_LABELS: frozenset[str] = frozenset({
     "CONNECTIVITY",     # Connectivity type          (e.g. "WiFi", "USB-C")
     "USAGE",            # Use-case / activity        (e.g. "gaming", "hiking")
 
+    # Hardware specs
+    "RAM",              # Memory spec                (e.g. "16 GB RAM", "32 GB")
+    "GPU",              # Graphics card              (e.g. "RTX 4090", "M3 chip")
+
+    # Additional attributes
+    "STYLE",            # Aesthetic / design style    (e.g. "minimalist", "vintage")
+    "GENDER",           # Target gender              (e.g. "men's", "women's", "unisex")
+    "COMPONENT",        # Part / component           (e.g. "screen", "battery", "motor")
+    "CAPACITY",         # Volume / capacity          (e.g. "64 oz", "5 quart")
+    "QUANTITY",         # Item count                 (e.g. "pack of 3", "set of 6")
+    "QUALITY",          # Quality tier               (e.g. "premium", "budget")
+    "TIER",             # Product tier               (e.g. "pro", "lite", "enterprise")
+
     # Miscellaneous
     "INCLUSIONS",       # Bundled accessories        (e.g. "with charger", "accessories")
     "BRAND_EXCLUSION",  # Brands to exclude          (e.g. "not Dell")
@@ -59,6 +72,8 @@ _ALIAS_MAP: dict[str, str] = {
     # Legacy BiLSTM-CRF engine aliases
     "PRODUCT":          "PRODUCT_TYPE",
     "PRODUCT_CATEGORY": "CATEGORY",
+    "TYPE":             "PRODUCT_TYPE",
+    "ITEM":             "PRODUCT_TYPE",
     "PRICE":            "PRICE_RANGE",
     "PRICE_CONSTRAINT": "PRICE_RANGE",
     "COND":             "CONDITION",
@@ -66,6 +81,7 @@ _ALIAS_MAP: dict[str, str] = {
     "SPEC":             "TECH",
     "STORAGE_CAPACITY": "STORAGE",
     "CONN":             "CONNECTIVITY",
+    "MEASUREMENT":      "SIZE",
     "EXCLUSION":        "BRAND_EXCLUSION",
     "NOT_BRAND":        "BRAND_EXCLUSION",
     "INCLUDE":          "INCLUSIONS",

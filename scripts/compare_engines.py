@@ -13,7 +13,7 @@ Usage (interactive mode):
 
 Usage (batch mode — queries from a CSV/JSONL file):
     python scripts/compare_engines.py \
-        --input  backend/data/test_dataset.csv \
+        --input  backend/data/unified_test.csv \
         --output results/ab_comparison.json
 
 Usage (single query):

@@ -308,8 +308,8 @@ def _extract_spans(tag_seq: List[str]) -> set:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Train transformer NER for eBay product search")
-    parser.add_argument("--train", default="backend/data/refined_balanced_dataset_train.csv")
-    parser.add_argument("--val", default="backend/data/refined_balanced_dataset_val.csv")
+    parser.add_argument("--train", default="backend/data/unified_train.csv")
+    parser.add_argument("--val", default="backend/data/unified_val.csv")
     parser.add_argument("--output_dir", default="backend_nextgen/models/ner")
     parser.add_argument(
         "--max_samples",
