@@ -211,12 +211,13 @@ def plot_latency_donut(data: dict, outdir: Path):
     nextgen_lat = data["nextgen"]["avg_latency_ms"]
 
     components = [
-        ("Response Generation (RAG)", 116.26),
-        ("NER (DeBERTa)", nextgen_lat),
+        ("Response Generation (RAG)", 881.24),
         ("Neural Reranking", 38.50),
-        ("Dense Retrieval", 24.98),
+        ("Other (Network, Frontend)", 28.00),
+        ("NER (DeBERTa)", nextgen_lat),
+        ("Dense Retrieval", 10.86),
         ("Personalization", 8.50),
-        ("Knowledge Graph", 6.90),
+        ("Knowledge Graph", 3.42),
     ]
     labels = [c[0] for c in components]
     sizes = [c[1] for c in components]
@@ -225,8 +226,9 @@ def plot_latency_donut(data: dict, outdir: Path):
 
     colors = [
         "#F28B82",  # RAG - coral/red
-        "#7BAAF7",  # NER - blue
         "#81C995",  # Reranking - green
+        "#94AFC4",  # Other - slate
+        "#7BAAF7",  # NER - blue
         "#FDD663",  # Retrieval - yellow
         "#C2A0D6",  # Personalization - purple
         "#F7B9D0",  # KG - pink

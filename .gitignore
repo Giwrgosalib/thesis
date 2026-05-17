@@ -67,6 +67,12 @@ data/vector_store/
 backend_nextgen/data/observability/
 backend_nextgen/data/personalization/
 backend_nextgen/data/knowledge_graph/
+# …but track the expanded-triples artefact and stats so the orchestrator
+# can load the data-driven KG at runtime without re-running the pipeline:
+!backend_nextgen/data/knowledge_graph/
+backend_nextgen/data/knowledge_graph/*
+!backend_nextgen/data/knowledge_graph/expanded_triples.tsv
+!backend_nextgen/data/knowledge_graph/expanded_kg_stats.json
 backend_nextgen/data/vector_store/
 backend/__pycache__/
 

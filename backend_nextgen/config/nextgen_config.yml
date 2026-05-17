@@ -10,7 +10,7 @@ nlp:
   enable_char_encoder: false
   device: cpu   # use cuda for local GPU runs; Docker image uses cpu-only torch
   confidence_threshold: 0.55
-  trained_model_path: models/ner
+  trained_model_path: models/deberta_crf/best_model
 
 retrieval:
   encoder_name: intfloat/e5-base-v2

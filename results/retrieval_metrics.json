@@ -1,0 +1,22 @@
+{
+  "MRR": 0.8555,
+  "MRR_95CI": [
+    0.8227,
+    0.8882
+  ],
+  "MAP": 0.8223,
+  "NDCG@5": 0.8427,
+  "NDCG@10": 0.8563,
+  "Recall@1": 0.7023,
+  "Recall@5": 0.8906,
+  "Recall@10": 0.9301,
+  "Recall@20": 0.9631,
+  "Precision@1": 0.8034,
+  "Precision@5": 0.2268,
+  "Precision@10": 0.1222,
+  "avg_retrieval_latency_ms": 13.23,
+  "num_queries": 351,
+  "qrels_file": "backend_nextgen/data/retrieval/qrels_balanced.jsonl",
+  "encoder": "intfloat/e5-base-v2",
+  "device": "cuda"
+}

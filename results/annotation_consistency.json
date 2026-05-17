@@ -1,0 +1,413 @@
+{
+  "summary": {
+    "total_entities": 11519,
+    "unique_surface_forms": 4275,
+    "multi_label_forms": 92,
+    "type_collision_rate": 0.0215,
+    "type_collision_pct": 2.15,
+    "eligible_for_purity_analysis": 346,
+    "min_occurrences_threshold": 3,
+    "average_purity": 0.9741,
+    "occurrence_weighted_purity": 0.9916,
+    "interpretation": "2.2% of unique entity strings receive more than one label across the dataset. For strings with >= 3 occurrences, the dominant label accounts for 99.2% of assignments on average (occurrence-weighted). The remaining 0.8% represents an upper bound on the label noise a model would face."
+  },
+  "top_label_collision_pairs": [
+    {
+      "labels": [
+        "FEATURE",
+        "PRODUCT_TYPE"
+      ],
+      "collision_forms": 9
+    },
+    {
+      "labels": [
+        "INCLUSIONS",
+        "PRODUCT_TYPE"
+      ],
+      "collision_forms": 8
+    },
+    {
+      "labels": [
+        "BRAND",
+        "BRAND_EXCLUSION"
+      ],
+      "collision_forms": 4
+    },
+    {
+      "labels": [
+        "CONNECTIVITY",
+        "FEATURE"
+      ],
+      "collision_forms": 4
+    },
+    {
+      "labels": [
+        "BRAND",
+        "COMPATIBILITY"
+      ],
+      "collision_forms": 3
+    },
+    {
+      "labels": [
+        "PRODUCT_TYPE",
+        "USAGE"
+      ],
+      "collision_forms": 3
+    },
+    {
+      "labels": [
+        "FEATURE",
+        "MATERIAL"
+      ],
+      "collision_forms": 3
+    },
+    {
+      "labels": [
+        "FEATURE",
+        "USAGE"
+      ],
+      "collision_forms": 3
+    },
+    {
+      "labels": [
+        "FEATURE",
+        "INCLUSIONS"
+      ],
+      "collision_forms": 3
+    },
+    {
+      "labels": [
+        "SKILL_LEVEL",
+        "TIER"
+      ],
+      "collision_forms": 2
+    },
+    {
+      "labels": [
+        "SKILL_LEVEL",
+        "USAGE"
+      ],
+      "collision_forms": 2
+    },
+    {
+      "labels": [
+        "TIER",
+        "USAGE"
+      ],
+      "collision_forms": 2
+    },
+    {
+      "labels": [
+        "MATERIAL",
+        "PRODUCT_TYPE"
+      ],
+      "collision_forms": 2
+    },
+    {
+      "labels": [
+        "RESOLUTION",
+        "SIZE"
+      ],
+      "collision_forms": 2
+    },
+    {
+      "labels": [
+        "RESOLUTION",
+        "VERSION"
+      ],
+      "collision_forms": 2
+    }
+  ],
+  "top_impure_examples": [
+    {
+      "text": "backpack",
+      "labels": {
+        "PRODUCT_TYPE": 60,
+        "INCLUSIONS": 1
+      },
+      "purity": 0.984,
+      "total_occurrences": 61
+    },
+    {
+      "text": "camera",
+      "labels": {
+        "PRODUCT_TYPE": 55,
+        "FEATURE": 5
+      },
+      "purity": 0.917,
+      "total_occurrences": 60
+    },
+    {
+      "text": "boots",
+      "labels": {
+        "PRODUCT_TYPE": 57,
+        "INCLUSIONS": 1
+      },
+      "purity": 0.983,
+      "total_occurrences": 58
+    },
+    {
+      "text": "speaker",
+      "labels": {
+        "PRODUCT_TYPE": 49,
+        "COMPONENT": 1
+      },
+      "purity": 0.98,
+      "total_occurrences": 50
+    },
+    {
+      "text": "keyboard",
+      "labels": {
+        "PRODUCT_TYPE": 48,
+        "INCLUSIONS": 1
+      },
+      "purity": 0.98,
+      "total_occurrences": 49
+    },
+    {
+      "text": "wireless",
+      "labels": {
+        "CONNECTIVITY": 36,
+        "FEATURE": 1
+      },
+      "purity": 0.973,
+      "total_occurrences": 37
+    },
+    {
+      "text": "wired",
+      "labels": {
+        "CONNECTIVITY": 32,
+        "FEATURE": 1
+      },
+      "purity": 0.97,
+      "total_occurrences": 33
+    },
+    {
+      "text": "nfc",
+      "labels": {
+        "TECH": 1,
+        "CONNECTIVITY": 32
+      },
+      "purity": 0.97,
+      "total_occurrences": 33
+    },
+    {
+      "text": "waterproof",
+      "labels": {
+        "FEATURE": 27,
+        "MATERIAL": 1
+      },
+      "purity": 0.964,
+      "total_occurrences": 28
+    },
+    {
+      "text": "nike",
+      "labels": {
+        "BRAND": 26,
+        "BRAND_EXCLUSION": 1
+      },
+      "purity": 0.963,
+      "total_occurrences": 27
+    },
+    {
+      "text": "adidas",
+      "labels": {
+        "BRAND": 25,
+        "BRAND_EXCLUSION": 1
+      },
+      "purity": 0.962,
+      "total_occurrences": 26
+    },
+    {
+      "text": "kids",
+      "labels": {
+        "USAGE": 24,
+        "AGE": 1
+      },
+      "purity": 0.96,
+      "total_occurrences": 25
+    },
+    {
+      "text": "beginner",
+      "labels": {
+        "USAGE": 22,
+        "SKILL_LEVEL": 1
+      },
+      "purity": 0.957,
+      "total_occurrences": 23
+    },
+    {
+      "text": "google",
+      "labels": {
+        "BRAND": 18,
+        "COMPATIBILITY": 1
+      },
+      "purity": 0.947,
+      "total_occurrences": 19
+    },
+    {
+      "text": "glass",
+      "labels": {
+        "MATERIAL": 18,
+        "FEATURE": 1
+      },
+      "purity": 0.947,
+      "total_occurrences": 19
+    },
+    {
+      "text": "dell",
+      "labels": {
+        "BRAND": 16,
+        "BRAND_EXCLUSION": 1
+      },
+      "purity": 0.941,
+      "total_occurrences": 17
+    },
+    {
+      "text": "portable",
+      "labels": {
+        "PRODUCT_TYPE": 4,
+        "FEATURE": 13
+      },
+      "purity": 0.765,
+      "total_occurrences": 17
+    },
+    {
+      "text": "advanced",
+      "labels": {
+        "USAGE": 15,
+        "TIER": 1
+      },
+      "purity": 0.938,
+      "total_occurrences": 16
+    },
+    {
+      "text": "s",
+      "labels": {
+        "SIZE": 13,
+        "RESOLUTION": 1,
+        "ERA": 1,
+        "VERSION": 1
+      },
+      "purity": 0.812,
+      "total_occurrences": 16
+    },
+    {
+      "text": "outdoor",
+      "labels": {
+        "USAGE": 14,
+        "PRODUCT_TYPE": 1
+      },
+      "purity": 0.933,
+      "total_occurrences": 15
+    },
+    {
+      "text": "lightweight",
+      "labels": {
+        "WEIGHT": 2,
+        "FEATURE": 13
+      },
+      "purity": 0.867,
+      "total_occurrences": 15
+    },
+    {
+      "text": "l",
+      "labels": {
+        "SIZE": 11,
+        "RESOLUTION": 1
+      },
+      "purity": 0.917,
+      "total_occurrences": 12
+    },
+    {
+      "text": "breathable",
+      "labels": {
+        "FEATURE": 10,
+        "MATERIAL": 1
+      },
+      "purity": 0.909,
+      "total_occurrences": 11
+    },
+    {
+      "text": "vintage",
+      "labels": {
+        "CONDITION": 7,
+        "STYLE": 1
+      },
+      "purity": 0.875,
+      "total_occurrences": 8
+    },
+    {
+      "text": "beginners",
+      "labels": {
+        "TIER": 5,
+        "USAGE": 1,
+        "SKILL_LEVEL": 1
+      },
+      "purity": 0.714,
+      "total_occurrences": 7
+    },
+    {
+      "text": "ergonomic",
+      "labels": {
+        "PRODUCT_TYPE": 1,
+        "FEATURE": 6
+      },
+      "purity": 0.857,
+      "total_occurrences": 7
+    },
+    {
+      "text": "compact",
+      "labels": {
+        "SIZE": 6,
+        "FEATURE": 1
+      },
+      "purity": 0.857,
+      "total_occurrences": 7
+    },
+    {
+      "text": "ireless",
+      "labels": {
+        "CONNECTIVITY": 3,
+        "PRODUCT_TYPE": 2
+      },
+      "purity": 0.6,
+      "total_occurrences": 5
+    },
+    {
+      "text": "electric",
+      "labels": {
+        "POWER": 3,
+        "PRODUCT_TYPE": 1
+      },
+      "purity": 0.75,
+      "total_occurrences": 4
+    },
+    {
+      "text": "ortable",
+      "labels": {
+        "FEATURE": 3,
+        "PRODUCT_TYPE": 1
+      },
+      "purity": 0.75,
+      "total_occurrences": 4
+    }
+  ],
+  "by_split": {
+    "unified_train": {
+      "rows": 2800,
+      "entities": 8029,
+      "unique_text_forms": 3552
+    },
+    "unified_val": {
+      "rows": 350,
+      "entities": 982,
+      "unique_text_forms": 610
+    },
+    "unified_test": {
+      "rows": 1000,
+      "entities": 2508,
+      "unique_text_forms": 733
+    }
+  }
+}

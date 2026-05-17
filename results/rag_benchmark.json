@@ -1,0 +1,51 @@
+{
+  "config": {
+    "queries": 20,
+    "runs_per_query": 3,
+    "samples": 60,
+    "device": "cuda",
+    "generator": "backend_nextgen/models/query_rewriter (fine-tuned, recovered from LFS)",
+    "encoder": "intfloat/e5-base-v2",
+    "max_context_docs": 5,
+    "response_max_tokens": 384,
+    "temperature": 0.4
+  },
+  "retrieval_ms": {
+    "label": "Retrieval",
+    "mean": 10.18,
+    "stddev": 2.67,
+    "p50": 9.71,
+    "p95": 13.84,
+    "p99": 19.13,
+    "min": 7.27,
+    "max": 24.47,
+    "samples": 60
+  },
+  "generation_ms": {
+    "label": "Generation",
+    "mean": 875.53,
+    "stddev": 932.96,
+    "p50": 762.75,
+    "p95": 1764.64,
+    "p99": 3783.22,
+    "min": 39.47,
+    "max": 6194.1,
+    "samples": 60
+  },
+  "total_ms": {
+    "label": "Total (E2E)",
+    "mean": 885.72,
+    "stddev": 933.5,
+    "p50": 773.51,
+    "p95": 1775.13,
+    "p99": 3793.19,
+    "min": 49.48,
+    "max": 6204.24,
+    "samples": 60
+  },
+  "throughput": {
+    "total_tokens": 2321,
+    "mean_tokens_per_response": 38.7,
+    "tokens_per_second": 44.2
+  }
+}

@@ -1,0 +1,174 @@
+# head	relation	tail	weight
+brand:apple	makes	product_type:boots	3
+brand:asus	makes	product_type:headset	3
+brand:dell	makes	product_type:boots	2
+brand:garmin	makes	product_type:smartwatches	2
+brand:dell	makes	product_type:laptop	2
+brand:samsung	makes	product_type:guitar	2
+brand:columbia	makes	product_type:jacket	2
+brand:apple	makes	product_type:backpack	2
+brand:samsung	makes	product_type:backpack	2
+brand:nikon	makes	product_type:tablet	2
+brand:lenovo	makes	product_type:speaker	2
+brand:columbia	makes	product_type:laptop	2
+brand:asus	makes	product_type:desk lamp	2
+brand:intendo	makes	product_type:witch	2
+brand:the north face	makes	product_type:blender	2
+brand:hp	makes	product_type:hoodie	2
+brand:kitchenaid	makes	product_type:fitness tracker	2
+brand:asus	makes	product_type:dress	2
+brand:apple	makes	product_type:blender	2
+brand:anon	makes	product_type:irrorless camera	2
+brand:dyson	makes	product_type:hoodie	2
+brand:jbl	makes	product_type:sneakers	2
+brand:hp	makes	product_type:desk lamp	2
+brand:google	makes	product_type:t-shirt	2
+brand:nikon	makes	product_type:yoga mat	2
+brand:adidas	makes	product_type:speaker	2
+brand:vitamix	makes	product_type:handbag	2
+brand:nike	makes	product_type:fitness tracker	2
+brand:msi	makes	product_type:bicycle	2
+brand:dji	makes	product_type:monitor	2
+brand:asus	makes	product_type:wireless headphones	2
+brand:nikon	makes	product_type:sunglasses	2
+brand:razer	makes	product_type:microphone	2
+brand:gopro	makes	product_type:wireless headphones	2
+brand:adidas	makes	product_type:sneakers	2
+brand:microsoft	makes	product_type:bicycle	2
+brand:dyson	makes	product_type:cordless vacuum	2
+brand:under armour	makes	product_type:running shoes	2
+brand:bose	makes	product_type:headphones	2
+product_type:bicycle	has_color	color:cream	4
+product_type:gaming laptop	has_color	color:brown	3
+product_type:wallet	has_color	color:brown	3
+product_type:gaming headset	has_color	color:pink	3
+product_type:headset	has_color	color:brown	3
+product_type:gaming headset	has_color	color:red	3
+product_type:blanket	has_color	color:gray	3
+product_type:phone case	has_color	color:rose gold	3
+product_type:soundbar	has_color	color:silver	3
+product_type:jacket	has_color	color:navy	3
+product_type:smartwatch	has_color	color:teal	3
+product_type:sunglasses	has_color	color:rose gold	3
+product_type:gaming headset	has_color	color:coral	3
+product_type:headset	has_color	color:yellow	3
+product_type:jacket	has_color	color:gray	2
+product_type:dumbbells	has_color	color:gold	2
+product_type:wallet	has_color	color:cream	2
+product_type:blanket	has_color	color:grey	2
+product_type:sandals	has_color	color:cream	2
+product_type:jacket	has_color	color:black	2
+product_type:sandals	has_color	color:olive	2
+product_type:t-shirt	has_color	color:charcoal	2
+product_type:sneakers	has_color	color:yellow	2
+product_type:jeans	has_color	color:cream	2
+product_type:phone case	has_color	color:pink	2
+product_type:speaker	has_color	color:white	2
+product_type:air fryer	has_color	color:brown	2
+product_type:headphones	has_color	color:coral	2
+product_type:phone case	has_color	color:green	2
+product_type:mouse	has_color	color:orange	2
+product_type:blender	has_color	color:brown	2
+product_type:desk lamp	has_color	color:forest green	2
+product_type:blender	has_color	color:forest green	2
+product_type:t-shirt	has_color	color:cream	2
+product_type:boots	has_color	color:orange	2
+product_type:boots	has_color	color:brown	2
+product_type:laptop	has_color	color:red	2
+product_type:boots	has_color	color:blue	2
+product_type:sneakers	has_color	color:red	2
+product_type:jacket	has_color	color:white	2
+product_type:running shoes	has_color	color:silver	2
+product_type:smartphone	has_color	color:teal	2
+product_type:blender	has_color	color:navy	2
+product_type:headphones	has_color	color:silver	2
+product_type:hard drive	has_color	color:silver	2
+product_type:sunglasses	has_color	color:red	2
+product_type:webcam	has_color	color:navy	2
+product_type:yoga mat	has_color	color:gray	2
+product_type:hoodie	has_color	color:brown	2
+product_type:yoga mat	has_color	color:navy	2
+product_type:sneakers	has_color	color:orange	2
+product_type:tablet	has_color	color:white	2
+product_type:handbag	has_color	color:midnight blue	2
+product_type:blanket	has_color	color:turquoise	2
+product_type:soundbar	has_color	color:purple	2
+product_type:sneakers	has_color	color:blue	2
+product_type:treadmill	has_color	color:forest green	2
+product_type:hoodie	has_color	color:burgundy	2
+product_type:wallet	has_color	color:blue	2
+product_type:sneakers	has_color	color:olive	2
+product_type:backpack	has_color	color:silver	2
+product_type:desk lamp	has_color	color:white	2
+product_type:treadmill	has_color	color:pink	2
+product_type:dumbbells	has_color	color:orange	2
+product_type:bicycle	has_color	color:pink	2
+product_type:vacuum cleaner	has_color	color:orange	2
+product_type:microphone	has_color	color:green	2
+product_type:wallet	has_color	color:olive	2
+product_type:earbuds	has_color	color:white	2
+product_type:air fryer	has_color	color:beige	2
+product_type:speaker	has_color	color:forest green	2
+product_type:keyboard	has_color	color:gold	2
+product_type:monitor	has_material	material:nylon	3
+product_type:soundbar	has_material	material:velvet	3
+product_type:mattress	has_material	material:leather	2
+product_type:air fryer	has_material	material:nylon	2
+product_type:drone	has_material	material:plastic	2
+product_type:handbag	has_material	material:wool	2
+product_type:sandals	has_material	material:polyester	2
+product_type:speaker	has_material	material:copper	2
+product_type:blanket	has_material	material:aluminum	2
+product_type:headset	has_material	material:ceramic	2
+product_type:keyboard	has_material	material:glass	2
+product_type:fitness tracker	has_material	material:glass	2
+product_type:dumbbells	has_material	material:carbon fiber	2
+product_type:bicycle	has_material	material:denim	2
+product_type:sandals	has_material	material:linen	2
+product_type:yoga mat	has_material	material:titanium	2
+product_type:drone	has_material	material:cotton	2
+product_type:bicycle	has_material	material:titanium	2
+product_type:gaming headset	has_material	material:silicone	2
+product_type:vintage apothecary jars	has_material	material:glass	2
+product_type:bicycle	has_material	material:polyester	2
+product_type:yoga mats	has_material	material:natural rubber	2
+product_type:hoodie	has_material	material:fleece	2
+product_type:binoculars	has_feature	feature:waterproof	3
+product_type:ydroponic	has_feature	feature:ed grow lights	2
+product_type:recumbent exercise bikes	has_feature	feature:heart rate monitor	2
+product_type:eather station	has_feature	feature:ain gauge	2
+product_type:smart wine cellar	has_feature	feature:temperature control	2
+product_type:hiking boots	has_feature	feature:waterproof	2
+product_type:boots	has_feature	feature:foldable	2
+product_type:smart pet feeders	has_feature	feature:camera	2
+product_type:smart sous vide containers	has_feature	feature:insulated	2
+product_type:smart ceiling fans	has_feature	feature:light kit	2
+product_type:antique writing desk	has_feature	feature:hidden compartments	2
+product_type:yoga mat	has_feature	feature:eco-friendly	2
+product_type:binoculars	has_feature	feature:night vision	2
+product_type:vintage apothecary jars	has_feature	feature:labels	2
+product_type:smart humidifiers	has_feature	feature:uv sterilization	2
+product_type:midi controllers	has_feature	feature:pads	2
+product_type:smart doorbell cameras	has_feature	feature:acial recognition	2
+product_type:headset	has_size	size:size 10	2
+product_type:leggings	has_size	size:m	2
+product_type:speaker	has_size	size:s	2
+product_type:drone	has_size	size:large	2
+product_type:mattress	has_size	size:queen	2
+product_type:jeans	has_usage	usage:gaming	2
+product_type:blender	has_usage	usage:advanced	2
+product_type:blanket	has_usage	usage:streaming	2
+product_type:phone case	has_usage	usage:travel	2
+product_type:sunglasses	has_usage	usage:beginner	2
+product_type:camera	has_usage	usage:streaming	2
+product_type:gaming headset	has_usage	usage:outdoor	2
+product_type:treadmill	has_usage	usage:beginner	2
+product_type:jacket	has_usage	usage:everyday	2
+product_type:camera	has_usage	usage:gaming	2
+product_type:laptop	has_usage	usage:camping	2
+product_type:sneakers	has_usage	usage:beginner	2
+product_type:smartphone	has_usage	usage:everyday	2
+product_type:hoodie	has_usage	usage:home office	2
+product_type:midi controllers	has_usage	usage:music production	2
+product_type:bicycle	has_usage	usage:beginner	2
+product_type:sunglasses	has_usage	usage:streaming	2

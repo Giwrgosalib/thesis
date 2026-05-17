@@ -1,0 +1,31 @@
+{
+  "source_queries": 3150,
+  "min_cooccurrence_kept": 2,
+  "nodes": {
+    "brand": 255,
+    "category": 2,
+    "product_type": 1199,
+    "color": 54,
+    "material": 114,
+    "feature": 688,
+    "size": 164,
+    "usage": 225,
+    "total": 2701
+  },
+  "edges": {
+    "sold_in (brand->category)": 0,
+    "makes (brand->product_type)": 39,
+    "has_color (product_type->color)": 72,
+    "has_material (product_type->material)": 23,
+    "has_feature (product_type->feature)": 17,
+    "has_size (product_type->size)": 5,
+    "has_usage (product_type->usage)": 17,
+    "total": 173
+  },
+  "relationship_types": 7,
+  "comparison_to_seed": {
+    "seed_nodes": 70,
+    "seed_edges": 10,
+    "seed_relationship_types": 1
+  }
+}

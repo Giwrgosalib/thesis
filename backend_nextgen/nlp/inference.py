@@ -60,8 +60,8 @@ class TransformerNERInference:
         with open(config_path, encoding="utf-8") as f:
             raw_cfg = json.load(f)
 
-        # Custom TransformerCRFNER format: has 'model_name' + 'label_to_id'
-        if "model_name" in raw_cfg and "label_to_id" in raw_cfg:
+        # Custom TransformerCRFNER format: has 'model_name' + ('label_to_id' OR 'tag_to_idx')
+        if "model_name" in raw_cfg and ("label_to_id" in raw_cfg or "tag_to_idx" in raw_cfg):
             self._load_custom_crf_model(resolved_path, raw_cfg)
         else:
             # Standard HuggingFace format
@@ -89,7 +89,12 @@ class TransformerNERInference:
         from backend_nextgen.nlp.transformer_ner import TransformerCRFNER
 
         base_model_name: str = cfg["model_name"]
-        label_to_id: Dict[str, int] = cfg["label_to_id"]
+        # Support both naming conventions: "label_to_id" (legacy) or "tag_to_idx" (current trainer)
+        label_to_id: Dict[str, int] = cfg.get("label_to_id") or cfg.get("tag_to_idx") or {}
+        if not label_to_id:
+            raise ValueError(
+                "CRF model config missing 'label_to_id' or 'tag_to_idx' field"
+            )
         tag_to_idx = {k: int(v) for k, v in label_to_id.items()}
         self.id2label = {int(v): k for k, v in tag_to_idx.items()}
 
@@ -116,9 +121,14 @@ class TransformerNERInference:
             tag_to_idx=tag_to_idx,
             use_crf=True,
         )
+        # Support both filename conventions: pytorch_model.bin (legacy) or model.pt (current trainer)
         weights_path = model_dir / "pytorch_model.bin"
         if not weights_path.exists():
-            raise FileNotFoundError(f"pytorch_model.bin not found in {model_dir}")
+            weights_path = model_dir / "model.pt"
+        if not weights_path.exists():
+            raise FileNotFoundError(
+                f"Neither pytorch_model.bin nor model.pt found in {model_dir}"
+            )
 
         state_dict = torch.load(weights_path, map_location="cpu", weights_only=False)
         crf_model.load_state_dict(state_dict, strict=False)

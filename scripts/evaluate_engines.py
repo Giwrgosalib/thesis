@@ -139,6 +139,11 @@ def main():
     parser.add_argument("--engine", choices=["legacy", "nextgen", "both"], default="both")
     parser.add_argument("--output", default="results/evaluation.json")
     parser.add_argument("--max_samples", type=int, default=None)
+    parser.add_argument(
+        "--nextgen_model_path",
+        default="backend_nextgen/models/ner",
+        help="Path to the NextGen NER model directory (use backend_nextgen/models/deberta_crf/best_model for the CRF variant).",
+    )
     args = parser.parse_args()
 
     df = pd.read_csv(args.test_csv)
@@ -181,7 +186,7 @@ def main():
         print("\n--- Loading NextGen engine ---")
         from backend_nextgen.nlp.inference import TransformerNERInference
         nextgen_ner = TransformerNERInference(
-            model_path="backend_nextgen/models/ner",
+            model_path=args.nextgen_model_path,
             device="cuda" if torch.cuda.is_available() else "cpu",
         )
 

@@ -859,17 +859,22 @@ class NextGenAIOrchestrator:
 
     def _seed_knowledge_graph(self) -> None:
         """
-        Populate the knowledge graph with brand → category relationships
-        loaded from the fallback dictionaries.
+        Populate the knowledge graph with brand → category relationships.
+
+        Strategy: seed from the curated fallback dictionaries first, then
+        overlay data-driven edges from
+        ``backend_nextgen/data/knowledge_graph/expanded_triples.tsv``
+        (produced by ``scripts/expand_knowledge_graph.py``). The expanded
+        triples encode seven relationship types derived from real query
+        co-occurrence in the training data.
 
         This gives the KG enough data to perform query expansion: when the
         NER model detects a BRAND entity, we can look up related categories
-        and append them to the eBay search string.
+        and product types and append them to the eBay search string.
         """
         from backend_nextgen.knowledge.graph_builder import KGNode
         try:
-            # Each brand becomes a 'brand' node; each category a 'category' node.
-            # Edges represent "is_sold_in" relationships (brand → category).
+            # ── Layer 1: seed nodes from curated dictionaries ──
             for brand in self.fallback_brands:
                 self.knowledge_graph.add_node(KGNode(
                     node_id=f"brand:{brand}", label="brand",
@@ -880,7 +885,8 @@ class NextGenAIOrchestrator:
                     node_id=f"category:{cat}", label="category",
                     attributes={"name": cat},
                 ))
-            # Wire electronics brands to common categories as example relations
+            # Hard-coded electronics whitelist (preserved for backwards
+            # compatibility — covers brands not seen in training data).
             electronics_brands = {"apple", "samsung", "sony", "lg", "dell", "hp",
                                    "lenovo", "asus", "acer", "microsoft"}
             for brand in self.fallback_brands:
@@ -888,10 +894,51 @@ class NextGenAIOrchestrator:
                     self.knowledge_graph.graph.add_edge(
                         f"brand:{brand}", "category:Electronics", relation="sold_in"
                     )
+
+            # ── Layer 2: data-driven expansion from training co-occurrences ──
+            expanded_path = Path("backend_nextgen/data/knowledge_graph/expanded_triples.tsv")
+            n_extra_nodes = 0
+            n_extra_edges = 0
+            if expanded_path.exists():
+                seen_nodes: set[str] = set(self.knowledge_graph.graph.nodes())
+                with expanded_path.open("r", encoding="utf-8") as f:
+                    for line in f:
+                        line = line.strip()
+                        if not line or line.startswith("#"):
+                            continue
+                        parts = line.split("\t")
+                        if len(parts) < 3:
+                            continue
+                        head, relation, tail = parts[0], parts[1], parts[2]
+                        # Add nodes (typed by their head/tail prefix)
+                        for node_id in (head, tail):
+                            if node_id not in seen_nodes:
+                                node_type, _, name = node_id.partition(":")
+                                self.knowledge_graph.add_node(KGNode(
+                                    node_id=node_id, label=node_type,
+                                    attributes={"name": name},
+                                ))
+                                seen_nodes.add(node_id)
+                                n_extra_nodes += 1
+                        self.knowledge_graph.graph.add_edge(head, tail, relation=relation)
+                        n_extra_edges += 1
+                logger.info(
+                    "Knowledge graph expanded from co-occurrence triples: "
+                    "+%d nodes, +%d edges across 7 relation types.",
+                    n_extra_nodes, n_extra_edges,
+                )
+            else:
+                logger.info(
+                    "Expanded triples file not found at %s; "
+                    "using seed-only KG (run scripts/expand_knowledge_graph.py to populate).",
+                    expanded_path,
+                )
+
+            n_total_nodes = self.knowledge_graph.graph.number_of_nodes()
+            n_total_edges = self.knowledge_graph.graph.number_of_edges()
             logger.info(
-                "Knowledge graph seeded: %d brand nodes, %d category nodes.",
-                sum(1 for b in self.fallback_brands if b),
-                sum(1 for c in self.fallback_categories if c),
+                "Knowledge graph ready: %d nodes, %d edges (seed + expanded).",
+                n_total_nodes, n_total_edges,
             )
         except Exception as exc:
             logger.warning("Knowledge graph seeding failed: %s", exc)

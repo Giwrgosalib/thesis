@@ -224,9 +224,6 @@
               </span>
             </div>
           </div>
-
-          <!-- Avatar for User (Optional, right side) -->
-          <!-- <div v-if="msg.sender === 'user'" class="flex-shrink-0 w-8 h-8 rounded-full bg-blue-100 ml-3 mt-1"></div> -->
         </div>
       </div>
 
@@ -514,41 +511,21 @@
 </template>
 
 <script>
-// KEEPING ALL ORIGINAL LOGIC INTACT AS REQUESTED
 import { appAuth } from "../services/auth.js";
 import OnboardingModal from "./OnboardingModal.vue";
 
-// Import Icons
+// Import Icons (only those actually used in the template)
 import aiAvatarIcon from "@/assets/icons/ai-avatar.svg";
-import userAvatarIcon from "@/assets/icons/user-avatar.svg";
-import brainIcon from "@/assets/icons/brain.svg";
 import searchIcon from "@/assets/icons/search.svg";
 import sendIcon from "@/assets/icons/send.svg";
 import chartIcon from "@/assets/icons/chart.svg";
-import sunIcon from "@/assets/icons/sun.svg";
-import moonIcon from "@/assets/icons/moon.svg";
-import userCircleIcon from "@/assets/icons/user-circle.svg";
 import logoutIcon from "@/assets/icons/logout.svg";
-import lightbulbIcon from "@/assets/icons/lightbulb.svg";
-import shieldIcon from "@/assets/icons/shield.svg";
-import robotIcon from "@/assets/icons/robot.svg";
-import ebayIcon from "@/assets/icons/ebay.svg";
 import alertIcon from "@/assets/icons/alert.svg";
 import refreshIcon from "@/assets/icons/refresh.svg";
 import databaseOffIcon from "@/assets/icons/database-off.svg";
-import historyIcon from "@/assets/icons/history.svg";
-import helpIcon from "@/assets/icons/help.svg";
 import imageIcon from "@/assets/icons/image.svg";
 import sparklesIcon from "@/assets/icons/sparkles.svg";
-import storeIcon from "@/assets/icons/store.svg";
-import truckIcon from "@/assets/icons/truck.svg";
-import tagIcon from "@/assets/icons/tag.svg";
-import externalLinkIcon from "@/assets/icons/external-link.svg";
-import plusIcon from "@/assets/icons/plus.svg";
 import arrowRightIcon from "@/assets/icons/arrow-right.svg";
-import flashIcon from "@/assets/icons/flash.svg";
-import shoppingIcon from "@/assets/icons/shopping.svg";
-import cameraIcon from "@/assets/icons/camera.svg";
 
 export default {
   name: "FullApp",
@@ -560,48 +537,26 @@ export default {
       // Icons
       icons: {
         aiAvatar: aiAvatarIcon,
-        userAvatar: userAvatarIcon,
-        brain: brainIcon,
         search: searchIcon,
         send: sendIcon,
         chart: chartIcon,
-        sun: sunIcon,
-        moon: moonIcon,
-        userCircle: userCircleIcon,
         logout: logoutIcon,
-        lightbulb: lightbulbIcon,
-        shield: shieldIcon,
-        robot: robotIcon,
-        ebay: ebayIcon,
         alert: alertIcon,
         refresh: refreshIcon,
         databaseOff: databaseOffIcon,
-        history: historyIcon,
-        help: helpIcon,
         image: imageIcon,
         sparkles: sparklesIcon,
-        store: storeIcon,
-        truck: truckIcon,
-        tag: tagIcon,
-        externalLink: externalLinkIcon,
-        plus: plusIcon,
         arrowRight: arrowRightIcon,
-        flash: flashIcon,
-        shopping: shoppingIcon,
-        camera: cameraIcon,
       },
       userInput: "",
       messages: [],
-      // For the new layout, we track which products to show in the right panel
+      // Right panel showcase
       activeShowcaseProducts: [],
       showMobileShowcase: false,
 
       resultsPageSize: 12,
-      isTyping: false,
       isLoading: false,
-      showWelcomeMessage: true, // Default to true initially
-      isFirstMessageLoading: true,
-      welcomeMessageTimestamp: "",
+      showWelcomeMessage: true,
 
       // Quick suggestions
       quickSuggestions: [
@@ -612,33 +567,15 @@ export default {
         "Sony headphones wireless",
       ],
 
-      // Authentication State
+      // Authentication state
       loggedIn: false,
       userId: null,
       appSessionToken: null,
-      ebayUsername: null,
-      authError: "",
-      authLoading: false,
-      authCheckLoading: true,
-      clientId: null,
 
-      // Dark mode state
-      isDarkMode: false,
-
-      // Backend Mode State
+      // Backend mode state
       useLegacyBackend: false,
 
-      // Metrics panel state
-      showMetricsPanel: false, // In new layout this might be hidden or modal
-      metricsData: null,
-      metricsLoading: false,
-      metricsError: "",
-      metricsLastFetchedAt: 0,
-      streamingStatus: "",
-      currentQuery: "",
-      metricsCacheDuration: 60000,
-
-      // New UI State
+      // Results pagination/sorting state
       sortOrder: "relevance", // relevance, price_asc, price_desc
       lastQuery: "",
       isLoadingMore: false,
@@ -646,8 +583,7 @@ export default {
       currentOffset: 0,
       scrollObserver: null,
 
-      // Dialog States
-      showHelpDialog: false,
+      // Dialog and notification state
       confirmationDialog: {
         show: false,
         title: "",
@@ -658,69 +594,13 @@ export default {
         show: false,
         text: "",
         color: "info",
-        timeout: 4000,
         icon: null,
       },
-      // Voice Interface (kept for compatibility)
-      isListening: false,
-      isMuted: false,
-      recognition: null,
-      speechSynthesis: window.speechSynthesis,
-      selectedVoice: null,
     };
   },
   computed: {
     formattedMessages() {
       return this.messages;
-    },
-    // Keep existing computed props for compliance
-    metricsStatusColor() {
-      if (!this.metricsData) return "grey";
-      if (!this.metricsData.metrics) return "warning";
-      return this.metricsData.metrics.status === "healthy"
-        ? "success"
-        : "error";
-    },
-    metricsStatusLabel() {
-      if (!this.metricsData) return "Offline";
-      if (!this.metricsData.metrics) return "Syncing";
-      return (
-        this.metricsData.metrics.status.charAt(0).toUpperCase() +
-        this.metricsData.metrics.status.slice(1)
-      );
-    },
-    metricsLastUpdatedText() {
-      if (!this.metricsLastFetchedAt) return "Never";
-      const date = new Date(this.metricsLastFetchedAt);
-      return date.toLocaleTimeString();
-    },
-    datasetMetrics() {
-      return this.metricsData?.metrics?.dataset_stats || {};
-    },
-    feedbackMetrics() {
-      return this.metricsData?.metrics?.feedback_stats || {};
-    },
-    userMetrics() {
-      return this.metricsData?.metrics?.user_stats || {};
-    },
-    intentCount() {
-      return this.datasetMetrics?.intent_distribution
-        ? Object.keys(this.datasetMetrics.intent_distribution).length
-        : 0;
-    },
-    topCategoryChips() {
-      const categories = this.datasetMetrics?.category_distribution || {};
-      if (!categories || Object.keys(categories).length === 0) return [];
-      return Object.entries(categories).map(
-        ([label, count]) => `${label} (${count})`
-      );
-    },
-    topBrandChips() {
-      const brands = this.datasetMetrics?.brand_distribution || {};
-      if (!brands || Object.keys(brands).length === 0) return [];
-      return Object.entries(brands).map(
-        ([label, count]) => `${label} (${count})`
-      );
     },
     sortLabel() {
       switch (this.sortOrder) {
@@ -734,14 +614,6 @@ export default {
     },
   },
   async mounted() {
-    this.authCheckLoading = true;
-    console.log("FullApp mounted");
-
-    const savedDarkMode = localStorage.getItem("darkMode");
-    if (savedDarkMode !== null) {
-      this.isDarkMode = savedDarkMode === "true";
-    }
-
     // Restore backend mode preference
     const savedBackendMode = localStorage.getItem("useLegacyBackend");
     if (savedBackendMode !== null) {
@@ -752,36 +624,23 @@ export default {
 
     if (authReturn.isReturn) {
       if (authReturn.success && authReturn.authData) {
-        console.log("Successfully returned from eBay auth");
         this.setAuthData(authReturn.authData);
       } else if (authReturn.error) {
-        const msg = `We couldn't log you in. ${authReturn.error}`;
-        this.authError = msg;
-        this.showSnackbar(msg, "error", this.icons.alert);
+        this.showSnackbar(
+          `We couldn't log you in. ${authReturn.error}`,
+          "error",
+          this.icons.alert
+        );
       }
-      this.authCheckLoading = false;
-      this.authLoading = false;
     } else {
       const storedAuth = appAuth.getStoredAuthData();
       if (storedAuth) {
-        console.log("Found stored auth data");
         this.setAuthData(storedAuth);
-      } else {
-        console.log("No stored auth data found");
       }
-      this.authCheckLoading = false;
     }
 
     if (!this.loggedIn) {
-      this.showWelcomeMessage = false; // Only show inside chat if logged in (in this design) or handled by template
-    } else {
-      setTimeout(() => {
-        this.isFirstMessageLoading = false;
-        this.welcomeMessageTimestamp = new Date().toLocaleTimeString([], {
-          hour: "2-digit",
-          minute: "2-digit",
-        });
-      }, 1000);
+      this.showWelcomeMessage = false;
     }
     this.initInfiniteScroll();
   },
@@ -846,26 +705,19 @@ export default {
     setAuthData(data) {
       this.loggedIn = true;
       this.userId = data.userId;
-      this.appSessionToken = data.sessionToken || data.appSessionToken; // Handle both cases for safety
-      this.ebayUsername = data.ebayUsername || data.username; // Handle naming consistency
-      this.authError = "";
+      this.appSessionToken = data.sessionToken || data.appSessionToken;
       this.showWelcomeMessage = true;
-
-      this.fetchMetrics(true);
     },
     async initiateEbaySignIn() {
-      this.authLoading = true;
       try {
         await appAuth.initiateEbayLogin();
       } catch (error) {
         console.error("Login initiation failed:", error);
-        this.authError = "Failed to connect to eBay. Please try again.";
         this.showSnackbar(
           "Failed to connect to eBay",
           "error",
           this.icons.alert
         );
-        this.authLoading = false;
       }
     },
     confirmLogout() {
@@ -881,7 +733,6 @@ export default {
       this.loggedIn = false;
       this.userId = null;
       this.appSessionToken = null;
-      this.ebayUsername = null;
       this.messages = [];
       this.activeShowcaseProducts = [];
       this.confirmationDialog.show = false;
@@ -901,22 +752,6 @@ export default {
       this.showWelcomeMessage = true;
       this.confirmationDialog.show = false;
     },
-    handleConfirmation() {
-      if (this.confirmationDialog.action) {
-        this.confirmationDialog.action();
-      }
-    },
-    openHelp() {
-      this.showHelpDialog = true;
-    },
-    toggleMetricsPanel() {
-      // In this layout, maybe show a modal or toggle specific view
-      this.showMetricsPanel = !this.showMetricsPanel;
-    },
-    toggleDarkMode() {
-      this.isDarkMode = !this.isDarkMode;
-      localStorage.setItem("darkMode", this.isDarkMode);
-    },
     toggleBackendMode() {
       this.useLegacyBackend = !this.useLegacyBackend;
       localStorage.setItem("useLegacyBackend", this.useLegacyBackend);
@@ -927,8 +762,6 @@ export default {
         "info",
         this.useLegacyBackend ? this.icons.databaseOff : this.icons.sparkles
       );
-      // Optional: Reset chat on switch to avoid context confusion?
-      // this.resetChat();
     },
     handleEnterKey(e) {
       if (!e.shiftKey) {
@@ -950,7 +783,6 @@ export default {
 
       this.userInput = "";
       this.isLoading = true;
-      this.isTyping = true;
       this.lastQuery = text;
       this.currentOffset = 0;
       this.hasMoreResults = true;
@@ -971,7 +803,7 @@ export default {
 
       try {
         if (this.useLegacyBackend) {
-          // --- LEGACY BACKEND PATH ---
+          // Classic search path
           const payload = {
             query: text,
             limit: 12,
@@ -1006,7 +838,7 @@ export default {
             aiMessage.isProductResults = false;
           }
         } else {
-          // --- NEXTGEN AI PATH (Existing) ---
+          // NextGen AI path
           const payload = {
             query: text,
             user_id: this.userId,
@@ -1051,7 +883,6 @@ export default {
         this.showSnackbar("Failed to get response", "error");
       } finally {
         this.isLoading = false;
-        this.isTyping = false;
         this.$nextTick(() => {
           const chatContainer = this.$refs.chatHistoryRef;
           if (chatContainer)
@@ -1068,10 +899,6 @@ export default {
         values: Array.isArray(val) ? val : [val],
       }));
     },
-    getVisibleProducts(message) {
-      // Compatibility helper if template uses it
-      return message.products || [];
-    },
     handleSessionExpired() {
       this.showSnackbar("Session expired. Please log in again.", "warning");
       this.logout();
@@ -1081,7 +908,6 @@ export default {
         show: true,
         text,
         color,
-        timeout: 4000,
         icon,
       };
     },
@@ -1118,22 +944,6 @@ export default {
     handleImageError(product) {
       // Set fallback
       product.image = this.icons.image;
-    },
-    async fetchMetrics(force = false) {
-      // Implementation for compatibility
-      if (this.metricsLoading && !force) return;
-      this.metricsLoading = true;
-      try {
-        const response = await fetch("/api/metrics");
-        if (response.ok) {
-          this.metricsData = await response.json();
-          this.metricsLastFetchedAt = Date.now();
-        }
-      } catch (e) {
-        console.error(e);
-      } finally {
-        this.metricsLoading = false;
-      }
     },
     toggleSort() {
       if (this.sortOrder === "relevance") this.sortOrder = "price_asc";
@@ -1187,9 +997,6 @@ export default {
         let payload = {};
 
         if (this.useLegacyBackend) {
-          // Classic usually doesn't support deep pagination or "Show More" in the same way,
-          // but if it does, we map it here.
-          // NOTE: Classic endpoint is /api/classic/search, assuming it supports limit/offset
           apiEndpoint = "/api/classic/search";
           payload = {
             query: this.lastQuery,
@@ -1197,7 +1004,6 @@ export default {
             offset: fetchOffset,
           };
         } else {
-          // NextGen
           payload = {
             query: this.lastQuery,
             user_id: this.userId,

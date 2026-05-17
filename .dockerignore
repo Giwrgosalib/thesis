@@ -32,8 +32,14 @@ tmp/
 ngrok.exe
 backend_nextgen.zip
 
-# Heavy data directories
+# Heavy data directories (mounted at runtime via docker-compose volumes,
+# or downloaded at first start; not embedded in image to keep it small).
+# NOTE: do NOT exclude backend_nextgen/knowledge/ — that's the KnowledgeGraph
+# Python module (graph_builder.py), needed at import time by the orchestrator.
 data/
-backend_nextgen/models/ # If these are downloaded at runtime or mapped via volume
-backend_nextgen/knowledge/
+backend_nextgen/models/  # model weights (300+ MB each); ship via LFS or volume
 docs_notes/
+
+# Thesis sources (not needed in container)
+thesis_project_refixed*/
+thesis/
