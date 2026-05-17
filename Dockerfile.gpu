@@ -1,5 +1,9 @@
-# Use official PyTorch image with CUDA support (Matching project version)
-FROM pytorch/pytorch:2.5.1-cuda12.4-cudnn9-runtime
+# Use official PyTorch image with CUDA support.
+# Base image MUST match the torch version pinned in requirements.txt,
+# otherwise pip upgrades torch but leaves torchvision at the old binary,
+# breaking transformers (torchvision::nms operator missing → DebertaV2Model
+# fails to import).
+FROM pytorch/pytorch:2.6.0-cuda12.4-cudnn9-runtime
 
 WORKDIR /app
 
@@ -13,8 +17,9 @@ RUN apt-get update && apt-get install -y \
 # Copy unified requirements (root-level, covers both engines)
 COPY requirements.txt .
 
-# Install Python dependencies
-# Torch is already in base image, but we install the rest
+# Install Python dependencies.
+# torch==2.6.0 in requirements already matches the base image so pip
+# will skip it (no reinstall, no torchvision mismatch).
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application code
