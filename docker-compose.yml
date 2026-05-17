@@ -69,13 +69,19 @@ services:
       - backend_nextgen
 
   # ── ngrok tunnel ────────────────────────────────────────────────────────────
+  # Tunnels to backend:5000 (NOT frontend:3000) so the full production path is
+  # used: external traffic → Flask, which serves the built SPA at `/` AND
+  # handles every API/auth route under the same origin. This makes the eBay
+  # OAuth callback (`/auth/ebay-callback`) and the post-login redirect
+  # (`/?auth=success&client_id=...`) work end-to-end through ngrok.
+  # Requires FRONTEND_URL=https://<your-ngrok-domain> in backend/.env.
   ngrok:
     image: ngrok/ngrok:latest
     restart: unless-stopped
-    command: http --domain=secure-openly-moth.ngrok-free.app frontend:3000
+    command: http --domain=secure-openly-moth.ngrok-free.app backend:5000
     env_file:
       - backend/.env
     ports:
       - "4040:4040"
     depends_on:
-      - frontend
+      - backend
