@@ -115,6 +115,10 @@ FRONTEND_URL = config.app.frontend_url
 EBAY_ENVIRONMENT = environment.SANDBOX if config.ebay.environment == "SANDBOX" else environment.PRODUCTION
 SESSION_EXPIRY = 3600  # 1 hour
 
+# Surface the OAuth redirect target at startup so misconfigured FRONTEND_URL
+# is obvious in the logs (previously could silently send users to a 404).
+logging.info("OAuth post-login redirect target (FRONTEND_URL): %s", FRONTEND_URL)
+
 # Store active session tokens (for backward compatibility)
 SESSION_TOKENS = {}
 

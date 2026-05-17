@@ -132,9 +132,29 @@ class Config:
     
     def _load_app_config(self) -> AppConfig:
         """Load and validate application configuration."""
+        # FRONTEND_URL must be an absolute URL (http:// or https://).
+        # If it is empty, missing, or relative (e.g. "/"), the OAuth callback
+        # redirects collapse to the backend's own host, producing 404s.
+        # Fall back to a safe default in that case and log a warning.
+        raw_frontend_url = os.environ.get("FRONTEND_URL", "").strip()
+        if raw_frontend_url and (
+            raw_frontend_url.startswith("http://")
+            or raw_frontend_url.startswith("https://")
+        ):
+            frontend_url = raw_frontend_url.rstrip("/")
+        else:
+            if raw_frontend_url:
+                import logging as _logging
+                _logging.warning(
+                    "FRONTEND_URL=%r is not an absolute http(s) URL; "
+                    "falling back to http://localhost:3000",
+                    raw_frontend_url,
+                )
+            frontend_url = "http://localhost:3000"
+
         return AppConfig(
             app_base_url=os.environ.get("APP_BACKEND_URL", "http://localhost:5000"),
-            frontend_url=os.environ.get("FRONTEND_URL", "http://localhost:3000"),
+            frontend_url=frontend_url,
             frontend_build_dir=os.environ.get("FRONTEND_BUILD_DIR", "../frontend/dist"),
             debug=os.environ.get("FLASK_DEBUG", "False").lower() == "true",
             host=os.environ.get("HOST", "0.0.0.0"),
